@@ -1,0 +1,218 @@
+openapi: 3.0.3
+info:
+  title: LeakWatch API
+  version: 1.0.0
+servers:
+  - url: https://app.leakwatch.io/api
+  - url: https://staging.leakwatch.io/api
+paths:
+  /v1/health:
+    get:
+      summary: Health check
+      responses:
+        "200":
+          description: OK
+
+  /v1/shopify/auth/start:
+    get:
+      summary: Start Shopify OAuth
+      parameters:
+        - in: query
+          name: shop
+          required: true
+          schema: { type: string }
+      responses:
+        "302": { description: Redirect to Shopify }
+
+  /v1/shopify/auth/callback:
+    get:
+      summary: Shopify OAuth callback
+      responses:
+        "302": { description: Redirect to embedded app }
+
+  /v1/shops:
+    get:
+      summary: List shops accessible by current user/org
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+
+  /v1/shops/{shopId}/documents:
+    post:
+      summary: Create a document + version and return presigned upload URL
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: shopId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fileName, mimeType, byteSize, sha256]
+              properties:
+                fileName: { type: string }
+                mimeType: { type: string }
+                byteSize: { type: integer }
+                sha256: { type: string }
+                vendorHint: { type: string }
+      responses:
+        "200":
+          description: presigned URL + ids
+
+    get:
+      summary: List documents for shop
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: shopId
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: OK }
+
+  /v1/documents/{documentId}/versions/{versionId}/complete:
+    post:
+      summary: Mark upload complete and enqueue ingestion
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: documentId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: versionId
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: OK }
+
+  /v1/shops/{shopId}/findings:
+    get:
+      summary: List leak findings for shop
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: shopId
+          required: true
+          schema: { type: string }
+        - in: query
+          name: status
+          schema: { type: string }
+        - in: query
+          name: type
+          schema: { type: string }
+      responses:
+        "200": { description: OK }
+
+  /v1/findings/{findingId}:
+    get:
+      summary: Get finding detail
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: findingId
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: OK }
+
+  /v1/findings/{findingId}/dismiss:
+    post:
+      summary: Dismiss a finding
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: findingId
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: OK }
+
+  /v1/findings/{findingId}/actions:
+    post:
+      summary: Create an action request draft for a finding
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: findingId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type, toEmail]
+              properties:
+                type: { type: string, enum: [REFUND_REQUEST, CANCEL_REQUEST, DOWNGRADE_REQUEST, CLARIFICATION] }
+                toEmail: { type: string }
+                ccEmails:
+                  type: array
+                  items: { type: string }
+      responses:
+        "200": { description: OK }
+
+  /v1/action-requests/{actionRequestId}:
+    get:
+      summary: Get action request (draft)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: actionRequestId
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: OK }
+
+  /v1/action-requests/{actionRequestId}/approve:
+    post:
+      summary: Approve and send an action request email
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: actionRequestId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                subject: { type: string }
+                bodyMarkdown: { type: string }
+                toEmail: { type: string }
+                ccEmails:
+                  type: array
+                  items: { type: string }
+      responses:
+        "200": { description: OK }
+
+  /v1/shops/{shopId}/reports:
+    get:
+      summary: List reports
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: shopId
+          required: true
+          schema: { type: string }
+        - in: query
+          name: period
+          schema: { type: string, enum: [WEEKLY, MONTHLY] }
+      responses:
+        "200": { description: OK }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
