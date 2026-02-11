@@ -81,3 +81,24 @@
 
 ## 롤백/마이그레이션 주의사항
 - token 암호화 포맷 변경 시 기존 데이터 복호화 실패 가능 → 버전 필드 고려
+
+## 완료 상태 (2026-02-11)
+- [x] API OAuth start 구현: `GET /v1/shopify/auth/start`
+- [x] API OAuth callback 구현: `GET /v1/shopify/auth/callback`
+  - state 검증
+  - query hmac 검증
+  - access token 교환
+  - Shop/ShopifyToken upsert(토큰 암호화 저장)
+  - 설치 AuditLog 생성
+- [x] Embedded 웹 skeleton 구성(Polaris + App Bridge bootstrap)
+- [x] Session token 기반 API fetch 래퍼 추가
+- [x] uninstall webhook 구현: `POST /v1/shopify/webhooks/app-uninstalled`
+  - HMAC 검증
+  - `Shop.uninstalledAt` 업데이트
+  - ShopifyToken 삭제
+
+## 테스트 결과
+- [x] OAuth callback 실패 케이스 테스트
+  - invalid state → 401
+  - invalid hmac → 401
+- [x] shared hmac helper unit 테스트

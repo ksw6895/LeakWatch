@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: leakwatch
+          POSTGRES_USER: leakwatch
+          POSTGRES_PASSWORD: leakwatch
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U leakwatch -d leakwatch"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+
+    env:
+      DATABASE_URL: postgresql://leakwatch:leakwatch@localhost:5432/leakwatch?schema=public
+      SHOPIFY_API_KEY: test_key
+      SHOPIFY_API_SECRET: test_secret
+      SHOPIFY_SCOPES: read_products
+      SHOPIFY_APP_URL: http://localhost:3000
+      API_BASE_URL: http://localhost:4000
+      LW_ENCRYPTION_KEY_32B: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+      NEXT_PUBLIC_API_URL: http://localhost:4000
+      NEXT_PUBLIC_SHOPIFY_API_KEY: test_key
+      REDIS_URL: redis://localhost:6379
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:deploy
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build

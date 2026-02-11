@@ -1,0 +1,31 @@
+id,vendor,format,currency,total_amount,billing_period_start,billing_period_end,has_trial_flag,has_duplicate_signal
+1,Acme Apps,pdf,USD,129.00,2025-01-01,2025-01-31,false,false
+2,Acme Apps,pdf,USD,129.00,2025-02-01,2025-02-28,false,false
+3,Acme Apps,pdf,USD,189.00,2025-03-01,2025-03-31,false,true
+4,FlowCRM,csv,USD,79.00,2025-01-01,2025-01-31,false,false
+5,FlowCRM,csv,USD,79.00,2025-02-01,2025-02-28,false,false
+6,FlowCRM,csv,USD,79.00,2025-03-01,2025-03-31,false,false
+7,ShipSuite,pdf,USD,229.00,2025-01-01,2025-01-31,false,false
+8,ShipSuite,pdf,USD,229.00,2025-02-01,2025-02-28,false,false
+9,ShipSuite,pdf,USD,364.00,2025-03-01,2025-03-31,false,true
+10,AdsPilot,image,USD,59.00,2025-01-01,2025-01-31,true,false
+11,AdsPilot,image,USD,159.00,2025-02-01,2025-02-28,false,true
+12,AdsPilot,image,USD,159.00,2025-03-01,2025-03-31,false,false
+13,EmailDesk,pdf,USD,39.00,2025-01-01,2025-01-31,false,false
+14,EmailDesk,pdf,USD,39.00,2025-02-01,2025-02-28,false,false
+15,EmailDesk,pdf,USD,39.00,2025-03-01,2025-03-31,false,false
+16,MetricFlow,csv,USD,199.00,2025-01-01,2025-01-31,false,false
+17,MetricFlow,csv,USD,199.00,2025-02-01,2025-02-28,false,false
+18,MetricFlow,csv,USD,199.00,2025-03-01,2025-03-31,false,false
+19,Returnly,pdf,USD,49.00,2025-01-01,2025-01-31,true,false
+20,Returnly,pdf,USD,99.00,2025-02-01,2025-02-28,false,true
+21,Returnly,pdf,USD,99.00,2025-03-01,2025-03-31,false,false
+22,SupportBox,image,USD,89.00,2025-01-01,2025-01-31,false,false
+23,SupportBox,image,USD,89.00,2025-02-01,2025-02-28,false,false
+24,SupportBox,image,USD,89.00,2025-03-01,2025-03-31,false,false
+25,ReviewLoop,pdf,USD,29.00,2025-01-01,2025-01-31,true,false
+26,ReviewLoop,pdf,USD,69.00,2025-02-01,2025-02-28,false,true
+27,ReviewLoop,pdf,USD,69.00,2025-03-01,2025-03-31,false,false
+28,BundleOps,csv,USD,149.00,2025-01-01,2025-01-31,false,false
+29,BundleOps,csv,USD,149.00,2025-02-01,2025-02-28,false,false
+30,BundleOps,csv,USD,149.00,2025-03-01,2025-03-31,false,false

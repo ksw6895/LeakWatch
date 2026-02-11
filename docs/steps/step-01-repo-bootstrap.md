@@ -77,3 +77,26 @@
 
 ## 롤백/마이그레이션 주의사항
 - 초기 migration은 변경 가능하나, staging 배포 이후에는 destructive 변경 금지
+
+## 완료 상태 (2026-02-11)
+- [x] pnpm workspace + turbo 모노레포 구성
+- [x] `apps/web`, `apps/api`, `apps/worker`, `packages/shared` 생성
+- [x] ESLint + Prettier + TypeScript strict + Vitest 구성
+- [x] Husky + lint-staged(pre-commit) 구성
+- [x] `docker-compose.yml` (postgres:15, redis:7) 구성
+- [x] `.env.example` 작성
+- [x] Prisma 초기 스키마/마이그레이션 생성 (`apps/api/prisma/migrations/20260211184737_init`)
+- [x] GitHub Actions CI (`.github/workflows/ci.yml`) 구성
+
+## 실행 검증 커맨드
+```bash
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+```
+
+```bash
+docker-compose up -d postgres redis
+DATABASE_URL=postgresql://leakwatch:leakwatch@localhost:5433/leakwatch?schema=public pnpm db:migrate -- --name init
+```

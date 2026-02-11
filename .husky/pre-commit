@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+. "$(dirname "$0")/_/h"
+
+export PATH="$HOME/.nvm/versions/node/v20.20.0/bin:$PATH"
+pnpm lint-staged

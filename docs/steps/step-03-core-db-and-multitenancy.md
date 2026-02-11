@@ -63,3 +63,30 @@
 
 ## 롤백/마이그레이션 주의사항
 - role enum 추가/변경은 backward-compatible하게
+
+## 완료 상태 (2026-02-11)
+- [x] Prisma core schema 구현 (`apps/api/prisma/schema.prisma`)
+  - Org/User/Membership/Shop/ShopifyToken/Document/LeakFinding/Action/Audit 등 핵심 모델 반영
+- [x] 초기 migration 생성 및 적용
+- [x] AuthContext 생성 로직 구현
+  - Shopify session token(`dest`,`sub`) 검증
+  - shop domain → shop/org resolve
+  - user upsert + membership 자동 생성(최초 OWNER)
+- [x] TenantGuard + tenant helper(`TenantPrismaService`) 구현
+- [x] AuditLog write middleware(interceptor) 구현
+- [x] 최소 10개 인증/테넌시 적용 API 확보
+  - `/v1/auth/me`
+  - `/v1/shops`
+  - `/v1/shops/:shopId`
+  - `/v1/documents`
+  - `/v1/documents/:id`
+  - `/v1/documents` (POST)
+  - `/v1/documents/:id/complete` (POST)
+  - `/v1/findings`
+  - `/v1/findings/:id`
+  - `/v1/actions/:findingId/approve` (POST, RBAC)
+  - `/v1/reports`
+
+## 테스트 결과
+- [x] 멀티테넌시 차단 테스트: orgB token으로 orgA finding 접근 차단
+- [x] 권한 테스트: VIEWER가 action approve 시 403

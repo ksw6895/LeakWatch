@@ -1,0 +1,491 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Plan {
+  FREE
+  STARTER
+  PRO
+  AGENCY
+}
+
+enum PlanStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+}
+
+enum OrgRole {
+  OWNER
+  MEMBER
+  AGENCY_ADMIN
+  AGENCY_VIEWER
+}
+
+enum DocumentSource {
+  UPLOAD
+  EMAIL_FORWARD
+}
+
+enum DocStatus {
+  CREATED
+  UPLOADED
+  EXTRACTION_RUNNING
+  EXTRACTED
+  EXTRACTION_FAILED
+  NORMALIZATION_RUNNING
+  NORMALIZED
+  NORMALIZATION_FAILED
+  DETECTION_RUNNING
+  DETECTED
+  DETECTION_FAILED
+  DONE
+}
+
+enum LineItemType {
+  CHARGE
+  REFUND
+  CREDIT
+}
+
+enum Cadence {
+  MONTHLY
+  YEARLY
+  WEEKLY
+  ONE_TIME
+}
+
+enum VendorCategory {
+  SHOPIFY_APP
+  SAAS
+  PAYMENT
+  SHIPPING
+  MARKETING
+  ANALYTICS
+  UNKNOWN
+}
+
+enum VendorStatus {
+  ACTIVE
+  CANCELED
+  SUSPECTED_UNUSED
+}
+
+enum LeakType {
+  MOM_SPIKE
+  DUPLICATE_CHARGE
+  POST_CANCELLATION
+  TRIAL_TO_PAID
+  UNINSTALLED_APP_CHARGE
+  UPCOMING_RENEWAL
+}
+
+enum FindingStatus {
+  OPEN
+  DISMISSED
+  RESOLVED
+  REOPENED
+}
+
+enum EvidenceKind {
+  PDF_TEXT_SPAN
+  CSV_ROW
+  IMAGE_OCR_LINE
+  MANUAL_NOTE
+}
+
+enum ActionType {
+  REFUND_REQUEST
+  CANCEL_REQUEST
+  DOWNGRADE_REQUEST
+  CLARIFICATION
+}
+
+enum ActionRequestStatus {
+  DRAFT
+  APPROVED
+  CANCELED
+}
+
+enum ActionRunStatus {
+  QUEUED
+  SENDING
+  SENT
+  DELIVERED
+  FAILED
+  RESOLVED
+}
+
+enum ReportPeriod {
+  WEEKLY
+  MONTHLY
+}
+
+model Organization {
+  id            String         @id @default(cuid())
+  name          String
+  plan          Plan           @default(FREE)
+  planStatus    PlanStatus     @default(ACTIVE)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  memberships   Membership[]
+  shops         Shop[]
+  documents     Document[]
+  findings      LeakFinding[]
+  actionRequests ActionRequest[]
+  reports       Report[]
+  auditLogs     AuditLog[]
+  usageCounters UsageCounter[]
+}
+
+model User {
+  id             String       @id @default(cuid())
+  email          String?      @unique
+  shopifyUserId  String?      @unique
+  displayName    String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  memberships    Membership[]
+  createdDocuments Document[] @relation("DocumentCreatedBy")
+  createdActions ActionRequest[] @relation("ActionRequestCreatedBy")
+  approvedActions ActionRequest[] @relation("ActionRequestApprovedBy")
+  auditLogs      AuditLog[]
+}
+
+model Membership {
+  id        String   @id @default(cuid())
+  orgId     String
+  userId    String
+  role      OrgRole  @default(OWNER)
+  createdAt DateTime @default(now())
+
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, userId])
+  @@index([userId])
+}
+
+model Shop {
+  id              String      @id @default(cuid())
+  orgId           String
+  shopifyDomain   String      @unique
+  shopifyShopId   String?     @unique
+  displayName     String?
+  currency        String      @default("USD")
+  timezone        String      @default("Asia/Seoul")
+  installedAt     DateTime?
+  uninstalledAt   DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  org             Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  token           ShopifyToken?
+  documents       Document[]
+  lineItems       NormalizedLineItem[]
+  vendors         VendorOnShop[]
+  findings        LeakFinding[]
+  actionRequests  ActionRequest[]
+  reports         Report[]
+  auditLogs       AuditLog[]
+  usageCounters   UsageCounter[]
+}
+
+model ShopifyToken {
+  id              String   @id @default(cuid())
+  shopId          String   @unique
+  accessTokenEnc  String
+  scopes          String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  shop            Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+}
+
+model Document {
+  id              String         @id @default(cuid())
+  orgId           String
+  shopId          String
+  source          DocumentSource @default(UPLOAD)
+  vendorHint      String?
+  createdByUserId String?
+  createdAt       DateTime       @default(now())
+
+  org             Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  shop            Shop           @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  createdBy       User?          @relation("DocumentCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  versions        DocumentVersion[]
+
+  @@index([shopId, createdAt])
+  @@index([orgId])
+}
+
+model DocumentVersion {
+  id             String      @id @default(cuid())
+  documentId     String
+  version        Int
+  mimeType       String
+  fileName       String
+  byteSize       Int
+  sha256         String
+  storageKey     String
+  status         DocStatus   @default(CREATED)
+  errorCode      String?
+  errorMessage   String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  document       Document    @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  extracted      ExtractedArtifact?
+  normalized     NormalizedInvoice?
+
+  @@unique([documentId, version])
+  @@index([status, createdAt])
+}
+
+model ExtractedArtifact {
+  id                String          @id @default(cuid())
+  documentVersionId String          @unique
+  textContent       String
+  metaJson          Json
+  createdAt         DateTime        @default(now())
+
+  documentVersion   DocumentVersion @relation(fields: [documentVersionId], references: [id], onDelete: Cascade)
+}
+
+model NormalizedInvoice {
+  id                 String             @id @default(cuid())
+  documentVersionId  String             @unique
+  vendorId           String?
+  currency           String
+  invoiceNumber      String?
+  invoiceDate        DateTime?
+  billingPeriodStart DateTime?
+  billingPeriodEnd   DateTime?
+  totalAmount        Decimal            @db.Decimal(18, 6)
+  rawJson            Json
+  createdAt          DateTime           @default(now())
+
+  lineItems          NormalizedLineItem[]
+  documentVersion    DocumentVersion    @relation(fields: [documentVersionId], references: [id], onDelete: Cascade)
+  vendor             Vendor?            @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+
+  @@index([vendorId, invoiceDate])
+}
+
+model NormalizedLineItem {
+  id                String       @id @default(cuid())
+  invoiceId         String
+  shopId            String
+  vendorId          String?
+  itemType          LineItemType
+  description       String?
+  quantity          Decimal?     @db.Decimal(18, 6)
+  unitPrice         Decimal?     @db.Decimal(18, 6)
+  amount            Decimal      @db.Decimal(18, 6)
+  currency          String
+  periodStart       DateTime?
+  periodEnd         DateTime?
+  isRecurring       Boolean      @default(false)
+  recurringCadence  Cadence?
+  planName          String?
+  productCode       String?
+  taxAmount         Decimal?     @db.Decimal(18, 6)
+  createdAt         DateTime     @default(now())
+
+  invoice           NormalizedInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  shop              Shop             @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  vendor            Vendor?          @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  primaryForFindings LeakFinding[]   @relation("PrimaryLineItem")
+
+  @@index([shopId, vendorId, periodStart])
+  @@index([shopId, periodStart, amount])
+}
+
+model Vendor {
+  id              String           @id @default(cuid())
+  canonicalName   String           @unique
+  aliases         String[]
+  supportEmail    String?
+  website         String?
+  category        VendorCategory   @default(UNKNOWN)
+  createdAt       DateTime         @default(now())
+
+  invoices        NormalizedInvoice[]
+  lineItems       NormalizedLineItem[]
+  shops           VendorOnShop[]
+  findings        LeakFinding[]
+}
+
+model VendorOnShop {
+  id         String       @id @default(cuid())
+  shopId     String
+  vendorId   String
+  status     VendorStatus @default(ACTIVE)
+  lastSeenAt DateTime?
+  notes      String?
+
+  shop       Shop         @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  vendor     Vendor       @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  @@unique([shopId, vendorId])
+  @@index([shopId, status])
+}
+
+model LeakFinding {
+  id                     String        @id @default(cuid())
+  orgId                  String
+  shopId                 String
+  type                   LeakType
+  status                 FindingStatus @default(OPEN)
+  title                  String
+  summary                String
+  confidence             Int
+  estimatedSavingsAmount Decimal       @db.Decimal(18, 6)
+  currency               String
+  vendorId               String?
+  periodStart            DateTime?
+  periodEnd              DateTime?
+  primaryLineItemId      String?
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
+
+  org                    Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  shop                   Shop          @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  vendor                 Vendor?       @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  primaryLineItem        NormalizedLineItem? @relation("PrimaryLineItem", fields: [primaryLineItemId], references: [id], onDelete: SetNull)
+  evidence               EvidenceRef[]
+  actions                ActionRequest[]
+
+  @@index([shopId, status, createdAt])
+  @@index([shopId, type, createdAt])
+}
+
+model EvidenceRef {
+  id                String       @id @default(cuid())
+  findingId         String
+  documentVersionId String?
+  kind              EvidenceKind
+  pointerJson       Json
+  excerpt           String
+  createdAt         DateTime     @default(now())
+
+  finding           LeakFinding  @relation(fields: [findingId], references: [id], onDelete: Cascade)
+
+  @@index([findingId])
+}
+
+model ActionRequest {
+  id               String             @id @default(cuid())
+  findingId        String
+  orgId            String
+  shopId           String
+  type             ActionType
+  status           ActionRequestStatus @default(DRAFT)
+  toEmail          String
+  ccEmails         String[]
+  subject          String
+  bodyMarkdown     String
+  attachmentKey    String?
+  createdByUserId  String?
+  approvedByUserId String?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  finding          LeakFinding         @relation(fields: [findingId], references: [id], onDelete: Cascade)
+  org              Organization        @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  shop             Shop                @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  createdBy        User?               @relation("ActionRequestCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  approvedBy       User?               @relation("ActionRequestApprovedBy", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+  runs             ActionRun[]
+
+  @@index([shopId, status, createdAt])
+}
+
+model ActionRun {
+  id               String          @id @default(cuid())
+  actionRequestId  String
+  status           ActionRunStatus @default(QUEUED)
+  mailgunMessageId String?
+  lastError        String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  actionRequest    ActionRequest   @relation(fields: [actionRequestId], references: [id], onDelete: Cascade)
+  mailEvents       MailEvent[]
+
+  @@index([status, createdAt])
+}
+
+model MailEvent {
+  id               String    @id @default(cuid())
+  actionRunId      String?
+  mailgunMessageId String
+  event            String
+  payloadJson      Json
+  occurredAt       DateTime
+  createdAt        DateTime  @default(now())
+
+  actionRun        ActionRun? @relation(fields: [actionRunId], references: [id], onDelete: SetNull)
+
+  @@index([mailgunMessageId, occurredAt])
+}
+
+model Report {
+  id          String       @id @default(cuid())
+  orgId       String
+  shopId      String
+  period      ReportPeriod
+  periodStart DateTime
+  periodEnd   DateTime
+  summaryJson Json
+  storageKey  String?
+  createdAt   DateTime     @default(now())
+
+  org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  shop        Shop         @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@unique([shopId, period, periodStart, periodEnd])
+}
+
+model AuditLog {
+  id         String       @id @default(cuid())
+  orgId      String
+  shopId     String?
+  userId     String?
+  action     String
+  targetType String
+  targetId   String?
+  ip         String?
+  userAgent  String?
+  metaJson   Json
+  createdAt  DateTime     @default(now())
+
+  org        Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  shop       Shop?         @relation(fields: [shopId], references: [id], onDelete: SetNull)
+  user       User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([orgId, createdAt])
+}
+
+model UsageCounter {
+  id        String       @id @default(cuid())
+  orgId     String
+  shopId    String?
+  day       DateTime
+  metric    String
+  value     BigInt
+  createdAt DateTime     @default(now())
+
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  shop      Shop?        @relation(fields: [shopId], references: [id], onDelete: SetNull)
+
+  @@unique([orgId, shopId, day, metric])
+}

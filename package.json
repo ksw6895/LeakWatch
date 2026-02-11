@@ -1,0 +1,37 @@
+{
+  "name": "leakwatch",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@9.15.4",
+  "scripts": {
+    "dev": "turbo run dev --parallel",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:api": "pnpm --filter @leakwatch/api test",
+    "test:worker": "pnpm --filter @leakwatch/worker test",
+    "db:migrate": "pnpm --filter @leakwatch/api prisma migrate dev",
+    "db:seed": "pnpm --filter @leakwatch/api db:seed",
+    "db:deploy": "pnpm --filter @leakwatch/api prisma migrate deploy",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,mjs,cjs,json,md,yaml,yml}": [
+      "prettier --write"
+    ]
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.21.0",
+    "@typescript-eslint/parser": "^8.21.0",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "^14.2.24",
+    "eslint-config-prettier": "^9.1.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.4.3",
+    "prettier": "^3.4.2",
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.3",
+    "vitest": "^2.1.8"
+  }
+}

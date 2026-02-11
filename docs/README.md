@@ -39,20 +39,27 @@ ASSUMPTION: 모노레포(pnpm + turborepo), docker-compose로 로컬 Postgres/Re
 - Docker Desktop
 
 2) 로컬 인프라 실행
-- docker compose up -d postgres redis
+- docker-compose up -d postgres redis
+  - 기본 포트 매핑: Postgres `localhost:5433`, Redis `localhost:6379`
 
 3) 환경변수
 - apps/web/.env.local, apps/api/.env, apps/worker/.env 에 /docs/DEPLOYMENT_OPS.md 의 ENV 섹션을 복사해서 채운다.
 
 4) 의존성/마이그레이션
 - pnpm install
-- pnpm db:migrate
+- DATABASE_URL=postgresql://leakwatch:leakwatch@localhost:5433/leakwatch?schema=public pnpm db:migrate -- --name init
 - pnpm db:seed
 
 5) 실행
 - pnpm dev
   - web: http://localhost:3000
   - api: http://localhost:4000
+
+6) 스모크 테스트
+- pnpm lint
+- pnpm typecheck
+- DATABASE_URL=postgresql://leakwatch:leakwatch@localhost:5433/leakwatch?schema=public pnpm test
+- DATABASE_URL=postgresql://leakwatch:leakwatch@localhost:5433/leakwatch?schema=public pnpm build
 
 ## 개발 순서
 - /docs/steps/step-00 → step-12 순으로 구현한다.
