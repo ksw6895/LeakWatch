@@ -44,6 +44,7 @@ ASSUMPTION: 모노레포(pnpm + turborepo), docker-compose로 로컬 Postgres/Re
 
 3) 환경변수
 - apps/web/.env.local, apps/api/.env, apps/worker/.env 에 /docs/DEPLOYMENT_OPS.md 의 ENV 섹션을 복사해서 채운다.
+- step-04 업로드 기능까지 쓰려면 R2 관련 값(`R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`)이 필수다.
 
 4) 의존성/마이그레이션
 - pnpm install
@@ -54,6 +55,7 @@ ASSUMPTION: 모노레포(pnpm + turborepo), docker-compose로 로컬 Postgres/Re
 - pnpm dev
   - web: http://localhost:3000
   - api: http://localhost:4000
+  - embedded upload UI: http://localhost:3000/app/uploads?shop=<shop>.myshopify.com&host=<host>
 
 6) 스모크 테스트
 - pnpm lint

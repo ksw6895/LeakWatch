@@ -10,6 +10,12 @@ const apiEnvSchema = z.object({
   SHOPIFY_SCOPES: z.string().default('read_products'),
   SHOPIFY_APP_URL: z.string().url(),
   API_BASE_URL: z.string().url().default('http://localhost:4000'),
+  REDIS_URL: z.string().url().default('redis://localhost:6379'),
+  R2_ENDPOINT: z.string().url(),
+  R2_ACCESS_KEY_ID: z.string().min(1),
+  R2_SECRET_ACCESS_KEY: z.string().min(1),
+  R2_BUCKET: z.string().min(1),
+  R2_REGION: z.string().default('auto'),
   LW_ENCRYPTION_KEY_32B: z
     .string()
     .min(1)

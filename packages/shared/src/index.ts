@@ -4,3 +4,4 @@ export * from './types';
 export * from './shopify/domain';
 export * from './shopify/hmac';
 export * from './shopify/crypto';
+export * from './queue';

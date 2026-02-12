@@ -1,7 +1,11 @@
 import { Queue, Worker } from 'bullmq';
 import IORedis from 'ioredis';
 
-import { createLogger } from '@leakwatch/shared';
+import {
+  createLogger,
+  INGEST_DOCUMENT_JOB_NAME,
+  INGESTION_QUEUE_NAME,
+} from '@leakwatch/shared';
 
 const logger = createLogger('worker-queue');
 
@@ -9,14 +13,22 @@ export const redisConnection = new IORedis(process.env.REDIS_URL ?? 'redis://loc
   maxRetriesPerRequest: null,
 });
 
-export const ingestionQueue = new Queue('ingestion', {
+export const ingestionQueue = new Queue(INGESTION_QUEUE_NAME, {
   connection: redisConnection,
 });
 
 export const ingestionWorker = new Worker(
-  'ingestion',
+  INGESTION_QUEUE_NAME,
   async (job) => {
-    logger.info({ jobId: job.id, name: job.name }, 'Processing ingestion job');
+    if (job.name !== INGEST_DOCUMENT_JOB_NAME) {
+      logger.warn({ jobId: job.id, name: job.name }, 'Unknown ingestion job');
+      return { skipped: true };
+    }
+
+    logger.info(
+      { jobId: job.id, name: job.name, payload: job.data },
+      'Processing ingestion document job',
+    );
     return { ok: true };
   },
   {

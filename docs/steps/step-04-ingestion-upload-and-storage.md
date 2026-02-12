@@ -82,3 +82,39 @@
 
 ## 롤백/마이그레이션 주의사항
 - storageKey 포맷 변경 시 기존 파일 접근 경로 깨짐 → versioning 정책 유지
+
+## 완료 상태 (2026-02-12, 실제 구현 기준)
+
+### 구현 완료
+- [x] `StorageClient` 구현 (`apps/api/src/modules/documents/storage/storage.client.ts`)
+  - `presignPut`, `presignGet`, `headObject`, `getObject`
+- [x] 문서 생성 API 구현
+  - `POST /v1/shops/{shopId}/documents`
+  - 입력: `fileName`, `mimeType`, `byteSize`, `sha256`, `vendorHint?`
+  - 처리: `Document` + `DocumentVersion(status=CREATED)` + `storageKey` + presigned PUT 반환
+- [x] 업로드 완료 API 구현
+  - `POST /v1/documents/{documentId}/versions/{versionId}/complete`
+  - 처리: `status=UPLOADED` + `INGEST_DOCUMENT` 큐 enqueue
+- [x] 업로드 UI 추가
+  - 경로: `/app/uploads`
+  - 파일 선택/드래그 앤 드롭, 진행률 표시, 에러 표시, 최신 문서/상태 배지 표시
+- [x] Guardrails 적용
+  - 파일 크기 20MB 초과 시 `413`
+  - MIME 화이트리스트 외 타입 `415`
+
+### 검증 완료
+- [x] API 통합 테스트 추가 (`apps/api/test/documents-upload.spec.ts`)
+  - create → complete 후 `UPLOADED` 상태 확인
+  - 큐에 `INGEST_DOCUMENT` job enqueue 확인
+  - unsupported mime `415` 확인
+  - oversized file `413` 확인
+- [x] 전체 스모크 통과
+  - `pnpm lint`
+  - `pnpm typecheck`
+  - `pnpm test`
+  - `pnpm build`
+
+### 아직 안 한 것(의도적으로 다음 step으로 이월)
+- [ ] INGEST_DOCUMENT 실제 텍스트 추출 파이프라인 (현재 worker는 job 수신/로그까지만 구현)
+- [ ] NORMALIZE/DETECTION 단계 연결
+- [ ] R2 실계정 CORS 설정 기반 브라우저 업로드 실환경 검증(로컬 코드 경로는 구현 완료)

@@ -1,67 +1,59 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Inject,
-  NotFoundException,
-  Param,
-  Post,
-  Query,
-} from '@nestjs/common';
+import { Controller, Get, Inject, NotFoundException, Param, Post, Query } from '@nestjs/common';
 
 import { AuthContext } from '../auth/auth.decorators';
 import type { RequestAuthContext } from '../auth/auth.types';
-import { TenantPrismaService } from '../auth/tenant-prisma.service';
+import { DocumentsService } from './documents.service';
 
 @Controller('documents')
 export class DocumentsController {
-  constructor(@Inject(TenantPrismaService) private readonly tenantPrisma: TenantPrismaService) {}
+  constructor(@Inject(DocumentsService) private readonly documentsService: DocumentsService) {}
 
   @Get()
   list(@AuthContext() auth: RequestAuthContext, @Query('shopId') shopId?: string) {
-    return this.tenantPrisma.listDocuments(auth.orgId, shopId ?? auth.shopId);
+    return this.documentsService.listDocuments(auth.orgId, shopId ?? auth.shopId);
   }
 
   @Get(':id')
   async get(@AuthContext() auth: RequestAuthContext, @Param('id') id: string) {
-    const document = await this.tenantPrisma.getDocument(auth.orgId, id);
+    const document = await this.documentsService.getDocument(auth.orgId, id);
     if (!document) {
       throw new NotFoundException('Document not found');
     }
+
     return document;
   }
 
-  @Post()
-  create(
+  @Post(':documentId/versions/:versionId/complete')
+  async completeVersion(
     @AuthContext() auth: RequestAuthContext,
-    @Body() body: { shopId?: string; vendorHint?: string },
+    @Param('documentId') documentId: string,
+    @Param('versionId') versionId: string,
   ) {
-    const params: {
-      orgId: string;
-      shopId: string;
-      createdByUserId: string;
-      vendorHint?: string;
-    } = {
+    const completed = await this.documentsService.completeDocumentUpload({
       orgId: auth.orgId,
-      shopId: body.shopId ?? auth.shopId,
-      createdByUserId: auth.userId,
-    };
+      documentId,
+      versionId,
+    });
 
-    if (body.vendorHint) {
-      params.vendorHint = body.vendorHint;
+    if (!completed) {
+      throw new NotFoundException('Document version not found');
     }
 
-    return this.tenantPrisma.createDocument({
-      ...params,
-    });
+    return completed;
   }
 
+  // Backward compatibility for step-03 sample endpoint.
   @Post(':id/complete')
-  async complete(@AuthContext() auth: RequestAuthContext, @Param('id') id: string) {
-    const document = await this.tenantPrisma.completeDocument(auth.orgId, id);
-    if (!document) {
+  async completeLatest(@AuthContext() auth: RequestAuthContext, @Param('id') id: string) {
+    const completed = await this.documentsService.completeLatestDocumentUpload({
+      orgId: auth.orgId,
+      documentId: id,
+    });
+
+    if (!completed) {
       throw new NotFoundException('Document not found');
     }
-    return document;
+
+    return completed;
   }
 }

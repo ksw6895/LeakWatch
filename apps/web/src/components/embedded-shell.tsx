@@ -71,6 +71,22 @@ function Content() {
                   Call API with Session Token
                 </Button>
               </Box>
+              <Box paddingBlockStart="300">
+                <Button
+                  onClick={() => {
+                    const next = new URL('/app/uploads', window.location.origin);
+                    if (shop) {
+                      next.searchParams.set('shop', shop);
+                    }
+                    if (host) {
+                      next.searchParams.set('host', host);
+                    }
+                    window.location.assign(next.toString());
+                  }}
+                >
+                  Open Uploads Page
+                </Button>
+              </Box>
               <Box paddingBlockStart="200">
                 <Text as="p" variant="bodySm" tone="subdued">
                   API call status: {apiStatus}
