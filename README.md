@@ -1,7 +1,7 @@
 # LeakWatch
 
 LeakWatch는 Shopify 스토어의 구독/앱 비용 누수를 탐지하기 위한 SaaS입니다.
-현재 저장소는 monorepo(`web`/`api`/`worker`) 구조로 되어 있고, Step 0-4(Shopify OAuth + Embedded + 업로드 준비)까지 구현되어 있습니다.
+현재 저장소는 monorepo(`web`/`api`/`worker`) 구조로 되어 있고, Step 0-5(Shopify OAuth + Embedded + 업로드 + 정규화 파이프라인)까지 구현되어 있습니다.
 
 ## Quick Start (로컬)
 
@@ -19,7 +19,7 @@ docker compose up -d postgres redis
 ```bash
 cp .env.example .env
 ```
-- `.env`에서 `SHOPIFY_*`, `NEXT_PUBLIC_SHOPIFY_API_KEY`, `R2_*`, `LW_ENCRYPTION_KEY_32B`를 실제 값으로 교체합니다.
+- `.env`에서 `SHOPIFY_*`, `NEXT_PUBLIC_SHOPIFY_API_KEY`, `R2_*`, `LW_ENCRYPTION_KEY_32B`, `OPENAI_*`를 실제 값으로 교체합니다.
 - ngrok 단일 도메인 모드에서는 `SHOPIFY_APP_URL`/`API_BASE_URL`을 같은 HTTPS 도메인으로 설정합니다.
 - `NEXT_PUBLIC_API_URL`은 비워도 동작(같은 origin 자동 사용)하지만, 명시하려면 같은 도메인 값으로 설정하면 됩니다.
 
@@ -64,6 +64,7 @@ https://<ngrok-domain>/v1/shopify/auth/start?shop=<your-shop>.myshopify.com
 - Step 02: Shopify OAuth + Embedded bootstrap + uninstall webhook
 - Step 03: core DB + 멀티테넌시/권한
 - Step 04: 업로드 API + Presigned URL + queue enqueue + 업로드 UI
+- Step 05: Worker ingestion(extractors) + LLM normalize + Ajv schema validation/repair + normalized 저장 + RUN_DETECTION enqueue
 
 ## 문서
 
@@ -73,6 +74,6 @@ https://<ngrok-domain>/v1/shopify/auth/start?shop=<your-shop>.myshopify.com
 
 ## 지금 남은 핵심 작업(네 상태 기준)
 
-1. Cloudflare R2 실제 값 입력(`R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`)
-2. R2 Bucket CORS에 현재 웹 도메인 추가(`http://localhost:3000`, `https://<reserved-ngrok-domain>`)
-3. `/app/uploads`에서 업로드 1건 성공 확인(create -> PUT -> complete)
+1. OpenAI 실키 설정(`OPENAI_API_KEY`) + 샘플 문서로 `/app/uploads` E2E 확인(create -> PUT -> complete -> EXTRACTED/NORMALIZED)
+2. Step 06 탐지 엔진 구현(`RUN_DETECTION` 실제 처리)
+3. 운영용 정확도 검증(샘플 10건 기준 normalize 성공률/누락률 측정)

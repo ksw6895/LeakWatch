@@ -9,15 +9,25 @@
     "start": "node dist/main.js",
     "lint": "eslint src test --ext .ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prisma:generate": "prisma generate --schema ../api/prisma/schema.prisma"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.922.0",
     "@leakwatch/shared": "workspace:*",
+    "@prisma/client": "^6.1.0",
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
     "bullmq": "^5.34.4",
-    "ioredis": "^5.4.2"
+    "csv-parse": "^5.5.6",
+    "ioredis": "^5.4.2",
+    "openai": "^4.104.0",
+    "pino": "^9.6.0",
+    "zod": "^3.24.1"
   },
   "devDependencies": {
     "@types/node": "^22.10.7",
+    "prisma": "^6.1.0",
     "tsx": "^4.19.2"
   }
 }

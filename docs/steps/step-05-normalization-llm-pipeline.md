@@ -97,3 +97,44 @@
 
 ## 롤백/마이그레이션 주의사항
 - schemaVersion 변경 시 이전 rawJson 호환 고려
+
+## 완료 상태 (2026-02-12, 실제 구현 기준)
+
+### 구현 완료
+- [x] Extractor 구현 (`apps/worker/src/extractors/*`)
+  - PDF: `pdftotext` 우선, 비어 있으면 `pdftoppm` + vision fallback
+  - CSV: delimiter 감지 + row 텍스트화
+  - 이미지: vision 기반 라인 추출
+- [x] 라인 번호/페이지 구분 + PII 마스킹 + 긴 문서 라인 축약 로직
+  - `apps/worker/src/normalization/text.ts`
+- [x] LLM Client 구현 (`apps/worker/src/llm/client.ts`)
+  - normalize + repair(1회) + retry/backoff
+  - vision OCR 추출
+- [x] Ajv strict schema validator 구현
+  - 공유 스키마: `packages/shared/src/schemas/normalizedInvoice.schema.json`
+  - API validator: `apps/api/src/modules/normalization/schema.ts`
+  - Worker validator: `apps/worker/src/normalization/validator.ts`
+- [x] Persist 구현
+  - `NormalizedInvoice.rawJson` 저장
+  - `NormalizedLineItem` 펼침 저장
+  - vendor upsert/canonicalization + `VendorOnShop` 업데이트
+  - `UsageCounter(openai_tokens_in/out)` upsert
+- [x] 상태 전이 + 큐 연결
+  - `INGEST_DOCUMENT` 성공 시 `NORMALIZE_INVOICE` enqueue
+  - normalize 성공 시 `DocumentVersion.status=NORMALIZED`
+  - 이후 `RUN_DETECTION` enqueue
+
+### 테스트/검증 완료
+- [x] Worker schema validator 테스트 추가
+  - `apps/worker/test/normalization-validator.test.ts`
+- [x] Worker 큐 테스트 업데이트
+  - `apps/worker/test/queue.test.ts`
+- [x] 통과 확인
+  - `pnpm --filter @leakwatch/worker test`
+  - `pnpm typecheck`
+  - `pnpm lint`
+  - `pnpm build`
+
+### 다음 step으로 이월
+- [ ] Step 06 탐지 엔진 본체(`RUN_DETECTION` job은 현재 enqueue/로그만 처리)
+- [ ] 실운영 샘플 10건 기준 normalize 성공률(>=90%) 계측 리포트

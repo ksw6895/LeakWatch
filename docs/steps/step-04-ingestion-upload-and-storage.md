@@ -115,6 +115,7 @@
   - `pnpm build`
 
 ### 아직 안 한 것(의도적으로 다음 step으로 이월)
-- [ ] INGEST_DOCUMENT 실제 텍스트 추출 파이프라인 (현재 worker는 job 수신/로그까지만 구현)
-- [ ] NORMALIZE/DETECTION 단계 연결
+- [x] INGEST_DOCUMENT 실제 텍스트 추출 파이프라인 (step-05에서 구현 완료)
+- [x] NORMALIZE 단계 연결 (step-05에서 구현 완료)
+- [ ] RUN_DETECTION 실제 탐지 엔진 구현(step-06 범위)
 - [ ] R2 실계정 CORS 설정 기반 브라우저 업로드 실환경 검증(로컬 코드 경로는 구현 완료)

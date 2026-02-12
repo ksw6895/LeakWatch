@@ -1,0 +1,136 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://leakwatch.dev/schemas/normalizedInvoice.schema.json",
+  "title": "NormalizedInvoice",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "source", "merchant", "vendor", "invoice", "lineItems", "quality"],
+  "properties": {
+    "schemaVersion": { "type": "string", "const": "1.0" },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["documentVersionId", "sourceType", "fileName", "mimeType", "sha256"],
+      "properties": {
+        "documentVersionId": { "type": "string", "minLength": 1 },
+        "sourceType": { "type": "string", "enum": ["UPLOAD", "EMAIL_FORWARD"] },
+        "fileName": { "type": "string", "minLength": 1 },
+        "mimeType": { "type": "string", "minLength": 1 },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-fA-F0-9]{64}$"
+        }
+      }
+    },
+    "merchant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["shopId"],
+      "properties": {
+        "shopId": { "type": "string", "minLength": 1 },
+        "shopifyDomain": { "type": "string" },
+        "contactEmail": { "type": "string" }
+      }
+    },
+    "vendor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "canonicalName": { "type": "string" },
+        "supportEmail": { "type": "string" },
+        "website": { "type": "string" },
+        "category": {
+          "type": "string",
+          "enum": ["SHOPIFY_APP", "SAAS", "PAYMENT", "SHIPPING", "MARKETING", "ANALYTICS", "UNKNOWN"]
+        }
+      }
+    },
+    "invoice": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["currency", "totalAmount"],
+      "properties": {
+        "invoiceNumber": { "type": "string" },
+        "invoiceDate": { "type": "string", "format": "date-time" },
+        "billingPeriodStart": { "type": "string", "format": "date-time" },
+        "billingPeriodEnd": { "type": "string", "format": "date-time" },
+        "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+        "subtotalAmount": { "$ref": "#/$defs/decimalString" },
+        "taxAmount": { "$ref": "#/$defs/decimalString" },
+        "totalAmount": { "$ref": "#/$defs/decimalString" },
+        "paymentMethodHint": { "type": "string" },
+        "notes": { "type": "string" }
+      }
+    },
+    "lineItems": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["lineId", "type", "amount", "currency", "evidence"],
+        "properties": {
+          "lineId": { "type": "string", "minLength": 1 },
+          "type": { "type": "string", "enum": ["CHARGE", "REFUND", "CREDIT"] },
+          "description": { "type": "string" },
+          "quantity": { "$ref": "#/$defs/decimalString" },
+          "unitPrice": { "$ref": "#/$defs/decimalString" },
+          "amount": { "$ref": "#/$defs/decimalString" },
+          "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+          "periodStart": { "type": "string", "format": "date-time" },
+          "periodEnd": { "type": "string", "format": "date-time" },
+          "isRecurring": { "type": "boolean" },
+          "recurringCadence": { "type": "string", "enum": ["MONTHLY", "YEARLY", "WEEKLY", "ONE_TIME"] },
+          "planName": { "type": "string" },
+          "productCode": { "type": "string" },
+          "taxAmount": { "$ref": "#/$defs/decimalString" },
+          "evidence": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "pointer", "excerpt"],
+            "properties": {
+              "kind": { "type": "string", "enum": ["PDF_TEXT_SPAN", "CSV_ROW", "IMAGE_OCR_LINE"] },
+              "pointer": {
+                "type": "object",
+                "additionalProperties": false,
+                "minProperties": 1,
+                "properties": {
+                  "page": { "type": "integer", "minimum": 1 },
+                  "lineStart": { "type": "integer", "minimum": 1 },
+                  "lineEnd": { "type": "integer", "minimum": 1 },
+                  "row": { "type": "integer", "minimum": 1 },
+                  "col": { "type": "string", "minLength": 1 }
+                }
+              },
+              "excerpt": { "type": "string", "minLength": 1, "maxLength": 300 }
+            }
+          }
+        }
+      }
+    },
+    "quality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["confidence", "missingFields", "warnings"],
+      "properties": {
+        "confidence": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "missingFields": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "warnings": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "decimalString": {
+      "type": "string",
+      "pattern": "^-?\\d+(\\.\\d+)?$"
+    }
+  }
+}

@@ -1,7 +1,8 @@
 import { createLogger } from '@leakwatch/shared';
 
+import { prisma } from './db';
 import { loadEnv } from './load-env';
-import { ingestionWorker, redisConnection } from './queue';
+import { ingestionQueue, ingestionWorker, redisConnection } from './queue';
 
 loadEnv();
 
@@ -11,7 +12,9 @@ async function bootstrap() {
   logger.info('LeakWatch worker started');
 
   const shutdown = async () => {
+    await ingestionQueue.close();
     await ingestionWorker.close();
+    await prisma.$disconnect();
     await redisConnection.quit();
     process.exit(0);
   };
