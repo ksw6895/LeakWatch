@@ -20,6 +20,8 @@ docker compose up -d postgres redis
 cp .env.example .env
 ```
 - `.env`에서 `SHOPIFY_*`, `NEXT_PUBLIC_SHOPIFY_API_KEY`, `R2_*`, `LW_ENCRYPTION_KEY_32B`를 실제 값으로 교체합니다.
+- ngrok 단일 도메인 모드에서는 `SHOPIFY_APP_URL`/`API_BASE_URL`을 같은 HTTPS 도메인으로 설정합니다.
+- `NEXT_PUBLIC_API_URL`은 비워도 동작(같은 origin 자동 사용)하지만, 명시하려면 같은 도메인 값으로 설정하면 됩니다.
 
 4. 의존성/DB
 ```bash
@@ -36,13 +38,14 @@ pnpm dev
 
 1. ngrok 실행
 ```bash
-ngrok http 3000
+ngrok http --domain=<your-reserved-ngrok-domain> 3000
 ```
+- 유료 플랜에서는 Reserved Domain을 쓰면 URL이 고정됩니다(매번 `.env`/Shopify URL 교체 불필요).
 
-2. `.env` 값 3개를 동일한 ngrok HTTPS 주소로 설정
+2. `.env` 값 설정
 - `SHOPIFY_APP_URL`
 - `API_BASE_URL`
-- `NEXT_PUBLIC_API_URL`
+- `NEXT_PUBLIC_API_URL`(선택, 필요 시 설정)
 
 3. Shopify Dev Dashboard 설정
 - App URL: `SHOPIFY_APP_URL`
@@ -67,3 +70,9 @@ https://<ngrok-domain>/v1/shopify/auth/start?shop=<your-shop>.myshopify.com
 - 전체 문서 인덱스: `docs/README.md`
 - Step 0-4 실전 가이드: `docs/runbooks/step-00-04-setup-playbook.ko.md`
 - 단계별 구현: `docs/steps/`
+
+## 지금 남은 핵심 작업(네 상태 기준)
+
+1. Cloudflare R2 실제 값 입력(`R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`)
+2. R2 Bucket CORS에 현재 웹 도메인 추가(`http://localhost:3000`, `https://<reserved-ngrok-domain>`)
+3. `/app/uploads`에서 업로드 1건 성공 확인(create -> PUT -> complete)

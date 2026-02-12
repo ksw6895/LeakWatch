@@ -31,7 +31,8 @@
 - Node.js 20.x
 - pnpm 9.x
 - Docker
-- ngrok 또는 cloudflared(HTTPS 터널)
+- ngrok(권장: Hobby/Pro의 Reserved Domain 1개 고정)
+- (선택) cloudflared(대체 터널)
 
 3. 코드 기준 확인 파일
 - `docs/steps/step-00-assumptions-and-decisions.md`
@@ -45,12 +46,13 @@
 ## 3. 순서 요약(빠른 버전)
 
 1. 로컬 infra(Postgres/Redis) 실행
-2. Shopify Partner에서 앱 생성 + Redirect/Webhook URL 등록
-3. Cloudflare R2 bucket/access key/CORS 설정
-4. `.env` 실값 입력
-5. `pnpm install`, `pnpm db:migrate`, `pnpm dev`
-6. dev store에 앱 설치(OAuth)
-7. `/app/uploads`에서 파일 업로드(create -> PUT to R2 -> complete) 검증
+2. ngrok Reserved Domain 고정(1회)
+3. Shopify Partner에서 앱 생성 + Redirect/Webhook URL 등록
+4. Cloudflare R2 bucket/access key/CORS 설정
+5. `.env` 실값 입력
+6. `pnpm install`, `pnpm db:migrate`, `pnpm dev`
+7. dev store에 앱 설치(OAuth)
+8. `/app/uploads`에서 파일 업로드(create -> PUT to R2 -> complete) 검증
 
 아래부터는 상세 절차다.
 
@@ -80,38 +82,67 @@ docker compose ps
 - postgres: `localhost:5433`
 - redis: `localhost:6379`
 
+### Step A-1. ngrok 고정 도메인(Reserved Domain) 준비
+
+유료 ngrok 플랜이면 이 단계를 1회만 해두면 된다.
+
+1. ngrok 로그인/토큰 등록(최초 1회)
+
+```bash
+ngrok config add-authtoken <your_ngrok_authtoken>
+```
+
+2. ngrok 대시보드에서 Reserved Domain 생성
+- 대시보드: `Cloud Edge -> Domains`
+- 예: `dev-leakwatch.ngrok.app` (실제 발급값 사용)
+
+3. 터널 실행(항상 동일 명령)
+
+```bash
+ngrok http --domain=<your-reserved-domain> 3000
+```
+
+4. 정상 확인
+- ngrok 터미널의 `Forwarding https://<your-reserved-domain> -> http://localhost:3000`
+- 로컬 인스펙터: `http://127.0.0.1:4040`
+
+핵심:
+- 이 방식이면 URL이 고정되어 `.env`/Shopify URL을 매번 바꿀 필요가 없다.
+
 ### Step B. Shopify 앱 생성(중요)
 
 주의: 아래 UI 명칭은 Shopify Admin/Partner UI 업데이트에 따라 약간 다를 수 있다.
 
-1. Partner Dashboard 접속 -> `Apps` -> `Create app`
-2. 앱 타입 결정
-- App Store 배포 가능성을 열어둘 거면 `Public app`
-- 내부/특정 스토어 전용이면 `Custom distribution`
-
-3. App setup에서 값 입력
-- `App URL`: 웹 앱 주소(예: `https://<public-domain>`)
-- `Allowed redirection URL(s)`: API callback 주소
-  - `https://<public-domain>/v1/shopify/auth/callback`
-- `Embedded app`: ON
-
-4. API credentials에서 값 복사
+1. Partner Dashboard -> `Apps` -> 앱 선택(예: LeakWatch Dev)
+2. `App setup` 또는 `Versions` 화면에서 버전 생성/수정
+3. 최신 Dev Dashboard 폼 기준 입력값 매핑
+- `App URL`
+  - `https://<your-reserved-domain>`
+- `Redirect URLs` (쉼표 구분 또는 줄바꿈 입력)
+  - `https://<your-reserved-domain>/v1/shopify/auth/callback`
+- `Embed app in Shopify admin`
+  - ON
+- `Scopes`
+  - step-04 기준 최소: `read_products`
+- `Webhooks API version`
+  - 현재 최신 안정 버전 사용(예: `2026-01`)
+4. Webhook URL 등록
+- topic: `app/uninstalled`
+- URL:
+  - `https://<your-reserved-domain>/v1/shopify/webhooks/app-uninstalled`
+5. API credentials에서 값 복사
 - `API key` -> `SHOPIFY_API_KEY`, `NEXT_PUBLIC_SHOPIFY_API_KEY`
 - `API secret key` -> `SHOPIFY_API_SECRET`
-
-5. Webhook 등록
-- topic: `app/uninstalled`
-- URL: `https://<public-domain>/v1/shopify/webhooks/app-uninstalled`
-
-6. Dev store install 테스트
+6. 설정 저장/Release 후 dev store install 테스트
 - 설치 URL로 dev store에 앱 설치
-- 성공 시 OAuth callback 후 `/app?shop=...`로 리다이렉트
+- 성공 시 OAuth callback 후 `/app?shop=...&host=...`로 리다이렉트
 
 #### Shopify URL 구성 실무 팁
 
 - 현재 코드에서 OAuth callback 생성은 `API_BASE_URL`을 사용한다.
 - callback 후 웹으로 보내는 URL은 `SHOPIFY_APP_URL`을 사용한다.
-- 즉, 웹/API가 서로 다른 도메인이어도 가능하지만 둘 다 외부에서 접근 가능해야 한다.
+- 현재 로컬 권장 모드는 `단일 도메인(ngrok -> web:3000 -> /v1 rewrite -> api:4000)`이다.
+- 그래서 로컬에서는 `SHOPIFY_APP_URL`과 `API_BASE_URL`을 같은 값으로 두는 것이 가장 안정적이다.
 
 참고 코드:
 - `apps/api/src/modules/shopify/shopify-auth.service.ts`
@@ -120,14 +151,20 @@ docker compose ps
 ### Step C. Cloudflare R2 설정
 
 1. R2 bucket 생성
+- Cloudflare Dashboard -> `R2 Object Storage` -> `Create bucket`
 - bucket 이름 예시: `leakwatch-dev`
 - 권장: private bucket
 
 2. S3 API용 access key 발급
+- Cloudflare Dashboard -> `R2 Object Storage` -> `Manage R2 API tokens` -> `Create API token`
+- 권한 권장:
+  - Object Read & Write
+  - 대상 bucket: `leakwatch-dev` (개발용 버킷으로 제한)
 - `R2_ACCESS_KEY_ID`
 - `R2_SECRET_ACCESS_KEY`
 
 3. Account endpoint 확인
+- `R2 Object Storage` 화면의 S3 endpoint 영역에서 확인
 - 형식: `https://<accountid>.r2.cloudflarestorage.com`
 - 이 값을 `R2_ENDPOINT`로 사용
 
@@ -138,7 +175,7 @@ docker compose ps
 ```json
 [
   {
-    "AllowedOrigins": ["http://localhost:3000", "https://<public-domain>"],
+    "AllowedOrigins": ["http://localhost:3000", "https://<your-reserved-domain>"],
     "AllowedMethods": ["PUT", "GET", "HEAD"],
     "AllowedHeaders": ["*"],
     "ExposeHeaders": ["ETag"],
@@ -180,15 +217,16 @@ openssl rand -base64 32
 - `SHOPIFY_API_KEY=...`
 - `SHOPIFY_API_SECRET=...`
 - `NEXT_PUBLIC_SHOPIFY_API_KEY=...`
-- `R2_ENDPOINT=https://<accountid>.r2.cloudflarestorage.com`
+- `R2_ENDPOINT=https://accountid.r2.cloudflarestorage.com`
 - `R2_ACCESS_KEY_ID=...`
 - `R2_SECRET_ACCESS_KEY=...`
 - `LW_ENCRYPTION_KEY_32B=...`
 
-Shopify Embedded 검증(ngrok 1개 사용) 시 아래 3개를 같은 값으로 맞춘다:
+Shopify Embedded 검증(ngrok 1개 사용) 시 아래 2개를 같은 값으로 맞춘다:
 - `SHOPIFY_APP_URL=https://<public-domain>`
 - `API_BASE_URL=https://<public-domain>`
-- `NEXT_PUBLIC_API_URL=https://<public-domain>`
+- `NEXT_PUBLIC_API_URL`은 선택이다(비우면 현재 접속 origin 자동 사용).
+- shell에서 `source .env`를 쓸 때는 `< >` 문자를 값에 넣지 않는다.
 
 로컬 기본값 사용 가능:
 - `DATABASE_URL=postgresql://leakwatch:leakwatch@localhost:5433/leakwatch?schema=public`
@@ -228,8 +266,9 @@ pnpm dev
 
 ### Step H. 설치/OAuth 검증
 
-1. 브라우저에서 OAuth start 호출
+1. 브라우저에서 OAuth start 호출(터미널 명령 아님)
 - `https://<public-domain>/v1/shopify/auth/start?shop=<your-shop>.myshopify.com`
+- `<public-domain>`은 ngrok 터미널 `Forwarding` 줄 또는 `http://127.0.0.1:4040`에서 확인한다.
 
 2. Shopify 권한 승인
 3. callback 성공 확인
@@ -269,6 +308,7 @@ pnpm dev
 
 1. 계정/리소스
 - [ ] Shopify app/dev store 준비 완료
+- [ ] ngrok Reserved Domain 고정 완료(유료 플랜 권장)
 - [ ] R2 bucket + access key + CORS 완료
 - [ ] Postgres/Redis 연결 정상
 
@@ -395,26 +435,42 @@ pnpm build
 
 ## 11. 진행 상태 업데이트 (2026-02-12)
 
-아래 항목은 실제 세션에서 검증 완료된 상태다.
+아래 항목은 현재 세션 기준 상태다.
 
-1. 실행 환경/기반
-- WSL2에서 Docker Engine 정상 동작 확인(`hello-world` 실행 성공)
-- `docker compose`로 postgres/redis 구동 확인
-- Node 20 + pnpm 9 실행 확인
+1. 완료됨
+- [x] WSL2 + Docker Engine 정상 동작
+- [x] `docker compose`로 postgres/redis 실행
+- [x] Shopify Dev 앱 생성 + dev store(`leakwatch-dev-01.myshopify.com`) 설치
+- [x] OAuth 설치 플로우/Embedded 진입 성공
+- [x] `host missing` 이슈 코드 레벨 해결
+- [x] ngrok 유료 플랜(Hobby) 활성화
+- [x] 노출된 `SHOPIFY_API_SECRET` rotate 완료
 
-2. Shopify 연동
-- Dev Dashboard 앱 생성 및 OAuth 설치 플로우 통과
-- `leakwatch-dev-01.myshopify.com` 대상으로 설치/승인 확인
-- Embedded 진입 시 `host` 누락 케이스 해결
+2. 아직 남음
+- [ ] R2 bucket/access key/CORS 실값 준비 및 `.env` 반영
+- [ ] `/app/uploads` 실파일 업로드 1건 성공 확인
 
-3. 코드 변경사항(핵심)
-- `apps/web/src`에서 API 프록시를 위해 Next rewrite 추가
-- `apps/api/src/main.ts`, `apps/worker/src/main.ts`에서 루트 `.env` 자동 로드
-- `apps/api/src/modules/shopify/*`에서 callback 리다이렉트 시 `host` 전달/복구 로직 추가
+3. 현재 코드 상태(ngrok 단일 도메인 최적화)
+- web은 `/v1/*` 요청을 로컬 api(`localhost:4000`)로 rewrite한다.
+- web fetch는 `NEXT_PUBLIC_API_URL`이 비어 있으면 현재 origin을 자동 사용한다.
+- 따라서 Reserved Domain 고정 시 `.env` 주소 변경 빈도가 크게 줄어든다.
 
-4. 남은 작업
-- R2 실계정 값으로 `.env` 교체(`R2_*`)
-- R2 CORS 설정 완료 후 `/app/uploads` 실제 업로드 검증
+## 12. 지금 바로 할 일(순서 고정)
 
-5. 보안 주의
-- 대화/로그에 노출된 `SHOPIFY_API_SECRET`은 작업 종료 후 반드시 rotate
+1. `.env`에 R2 실값 입력
+- `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`
+
+2. R2 버킷 CORS 설정
+- 허용 origin 최소 2개:
+  - `http://localhost:3000`
+  - `https://<your-reserved-domain>`
+
+3. 실행
+- `docker compose up -d postgres redis`
+- `pnpm dev`
+- `ngrok http --domain=<your-reserved-domain> 3000`
+
+4. 업로드 검증(브라우저)
+- `https://<your-reserved-domain>/v1/shopify/auth/start?shop=leakwatch-dev-01.myshopify.com`
+- 앱 진입 후 `Open Uploads Page` 클릭
+- 파일 업로드 1건 성공 확인(`UPLOADED` 상태 + R2 object 생성)

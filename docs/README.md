@@ -45,10 +45,10 @@ ASSUMPTION: 모노레포(pnpm + turborepo), docker compose로 로컬 Postgres/Re
 3) 환경변수
 - 루트 `.env`를 `.env.example` 기준으로 작성한다.
 - step-04 업로드 기능까지 쓰려면 R2 관련 값(`R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`)이 필수다.
-- Shopify Embedded 검증(ngrok 1개 사용) 시 아래 3개를 같은 HTTPS 주소로 맞춘다:
+- Shopify Embedded 검증(ngrok 1개 사용) 시 아래 2개는 같은 HTTPS 주소로 맞춘다:
   - `SHOPIFY_APP_URL`
   - `API_BASE_URL`
-  - `NEXT_PUBLIC_API_URL`
+- `NEXT_PUBLIC_API_URL`은 비워도 동작(현재 origin 자동 사용)하지만, 명시할 경우 같은 주소로 맞춘다.
 
 4) Shopify 앱 URL 등록(Dev Dashboard)
 - App URL: `SHOPIFY_APP_URL`
@@ -69,6 +69,10 @@ ASSUMPTION: 모노레포(pnpm + turborepo), docker compose로 로컬 Postgres/Re
 
 7) Shopify 설치 시작 URL(브라우저)
 - `https://<domain>/v1/shopify/auth/start?shop=<shop>.myshopify.com`
+
+ngrok 유료 플랜 권장:
+- Reserved Domain 1개를 고정해 `ngrok http --domain=<reserved-domain> 3000`으로 실행한다.
+- 이렇게 하면 개발 중 URL 변경이 거의 없어 Shopify 설정과 `.env`를 반복 수정할 필요가 없다.
 
 8) 스모크 테스트
 - pnpm lint

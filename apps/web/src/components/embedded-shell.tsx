@@ -8,7 +8,7 @@ import enTranslations from '@shopify/polaris/locales/en.json';
 import { useSearchParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
-import { apiFetch } from '../lib/api/fetcher';
+import { apiFetch, getApiBaseUrl } from '../lib/api/fetcher';
 
 function Content() {
   const searchParams = useSearchParams();
@@ -20,7 +20,7 @@ function Content() {
     if (!shop) {
       return null;
     }
-    const base = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+    const base = getApiBaseUrl();
     return `${base}/v1/shopify/auth/start?shop=${encodeURIComponent(shop)}`;
   }, [shop]);
 
