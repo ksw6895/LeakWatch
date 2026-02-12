@@ -17,7 +17,10 @@ const workerEnvSchema = z.object({
   OPENAI_API_KEY: z.string().min(1).optional(),
   OPENAI_MODEL_NORMALIZE: z.string().default('gpt-4o-mini'),
   OPENAI_MODEL_VISION: z.string().default('gpt-4o-mini'),
+  OPENAI_MODEL_EMAIL_DRAFT: z.string().default('gpt-4o-mini'),
   OPENAI_MAX_RETRIES: z.coerce.number().int().min(1).max(5).default(3),
+  MAILGUN_API_KEY: z.string().min(1).optional(),
+  MAILGUN_DOMAIN: z.string().min(1).optional(),
 });
 
 export type WorkerEnv = z.infer<typeof workerEnvSchema>;

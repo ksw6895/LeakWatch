@@ -10,6 +10,7 @@ import { TenantGuard } from './modules/auth/tenant.guard';
 import { AuditModule } from './modules/audit/audit.module';
 import { AuditInterceptor } from './modules/audit/audit.interceptor';
 import { DocumentsModule } from './modules/documents/documents.module';
+import { EvidenceModule } from './modules/evidence/evidence.module';
 import { FindingsModule } from './modules/findings/findings.module';
 import { HealthController } from './modules/health/health.controller';
 import { ReportsModule } from './modules/reports/reports.module';
@@ -24,6 +25,7 @@ import { ShopsModule } from './modules/shops/shops.module';
     ShopifyModule,
     ShopsModule,
     DocumentsModule,
+    EvidenceModule,
     FindingsModule,
     ActionsModule,
     ReportsModule,

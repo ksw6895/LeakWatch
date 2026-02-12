@@ -13,6 +13,7 @@ BullMQ worker service that runs document ingestion, normalization, and detection
 | Ingestion job       | `src/jobs/ingest.ts`              | extraction + status transitions + normalize enqueue     |
 | Normalization job   | `src/jobs/normalize.ts`           | LLM normalize/repair + persistence + detection enqueue  |
 | Detection job       | `src/jobs/detection.ts`           | step-06 rule engine + finding/evidence persistence      |
+| Evidence pack job   | `src/jobs/evidence-pack.ts`       | step-07 zip build + R2 upload + attachment key update   |
 | Extractors          | `src/extractors/`                 | pdf/image/csv + external command helper                 |
 | LLM client/env      | `src/llm/client.ts`, `src/env.ts` | model calls + retry/env validation                      |
 | Persistence + usage | `src/normalization/`              | normalized invoice persistence + token usage accounting |
@@ -46,3 +47,4 @@ pnpm --filter @leakwatch/worker test -- test/queue.test.ts
 ## NOTES
 
 - Detection (`RUN_DETECTION`) is implemented in `src/jobs/detection.ts`; update docs/tests together when changing rules or thresholds.
+- Evidence pack generation (`GENERATE_EVIDENCE_PACK`) is implemented in `src/jobs/evidence-pack.ts` and `src/evidence/pack.ts`.

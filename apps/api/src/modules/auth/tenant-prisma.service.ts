@@ -124,6 +124,47 @@ export class TenantPrismaService {
     });
   }
 
+  async createActionDraft(params: {
+    orgId: string;
+    shopId: string;
+    findingId: string;
+    userId: string;
+    type: ActionType;
+    toEmail: string;
+    ccEmails?: string[];
+  }) {
+    const finding = await this.prisma.leakFinding.findFirst({
+      where: {
+        orgId: params.orgId,
+        id: params.findingId,
+        shopId: params.shopId,
+      },
+      include: {
+        vendor: true,
+      },
+    });
+    if (!finding) {
+      return null;
+    }
+
+    const actionRequest = await this.prisma.actionRequest.create({
+      data: {
+        orgId: params.orgId,
+        shopId: params.shopId,
+        findingId: finding.id,
+        type: params.type,
+        status: ActionRequestStatus.DRAFT,
+        toEmail: params.toEmail,
+        ccEmails: params.ccEmails ?? [],
+        subject: `[LeakWatch] ${finding.title}`,
+        bodyMarkdown: finding.summary,
+        createdByUserId: params.userId,
+      },
+    });
+
+    return actionRequest;
+  }
+
   listReports(orgId: string, shopId?: string) {
     return this.prisma.report.findMany({
       where: {

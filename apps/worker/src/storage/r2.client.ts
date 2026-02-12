@@ -1,4 +1,9 @@
-import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import {
+  GetObjectCommand,
+  HeadObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from '@aws-sdk/client-s3';
 
 import { getWorkerEnv } from '../env';
 
@@ -28,5 +33,29 @@ export class R2StorageClient {
     const uint8 = await response.Body.transformToByteArray();
     return Buffer.from(uint8);
   }
-}
 
+  async putObject(key: string, body: Buffer, contentType: string) {
+    await this.client.send(
+      new PutObjectCommand({
+        Bucket: this.env.R2_BUCKET,
+        Key: key,
+        Body: body,
+        ContentType: contentType,
+      }),
+    );
+  }
+
+  async exists(key: string) {
+    try {
+      await this.client.send(
+        new HeadObjectCommand({
+          Bucket: this.env.R2_BUCKET,
+          Key: key,
+        }),
+      );
+      return true;
+    } catch {
+      return false;
+    }
+  }
+}

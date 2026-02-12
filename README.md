@@ -1,7 +1,7 @@
 # LeakWatch
 
 LeakWatch는 Shopify 스토어의 구독/앱 비용 누수를 탐지하기 위한 SaaS입니다.
-현재 저장소는 monorepo(`web`/`api`/`worker`) 구조로 되어 있고, Step 0-6(Shopify OAuth + Embedded + 업로드 + 정규화 파이프라인 + 탐지 엔진 v1)까지 구현되어 있습니다.
+현재 저장소는 monorepo(`web`/`api`/`worker`) 구조로 되어 있고, Step 0-7(Shopify OAuth + Embedded + 업로드 + 정규화 파이프라인 + 탐지 엔진 v1 + 증빙팩 생성)까지 구현되어 있습니다.
 
 ## Quick Start (로컬)
 
@@ -77,6 +77,7 @@ https://<ngrok-domain>/v1/shopify/auth/start?shop=<your-shop>.myshopify.com
 - Step 04: 업로드 API + Presigned URL + queue enqueue + 업로드 UI
 - Step 05: Worker ingestion(extractors) + LLM normalize + Ajv schema validation/repair + normalized 저장 + RUN_DETECTION enqueue
 - Step 06: Detection Engine v1(5 leak types) + findings 저장/evidence 연결 + findings API + leaks UI
+- Step 07: Evidence pack zip 생성 + R2 저장 + 다운로드 presigned URL
 
 ## 문서
 
@@ -88,4 +89,4 @@ https://<ngrok-domain>/v1/shopify/auth/start?shop=<your-shop>.myshopify.com
 
 1. OpenAI 실키 설정(`OPENAI_API_KEY`) + 샘플 문서로 `/app/uploads` E2E 확인(create -> PUT -> complete -> EXTRACTED/NORMALIZED)
 2. 운영용 정확도 검증(샘플 10건 기준 normalize 성공률/누락률 측정)
-3. Step 07 증빙팩(evidence pack) 생성기 구현
+3. Step 08 액션 센터(드래프트/승인/발송/추적) 구현

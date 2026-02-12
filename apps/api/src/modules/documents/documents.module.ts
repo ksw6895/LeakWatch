@@ -9,5 +9,6 @@ import { StorageClient } from './storage/storage.client';
 @Module({
   controllers: [DocumentsController, ShopDocumentsController],
   providers: [DocumentsService, StorageClient, QueueService],
+  exports: [StorageClient, QueueService],
 })
 export class DocumentsModule {}

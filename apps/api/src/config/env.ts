@@ -16,6 +16,11 @@ const apiEnvSchema = z.object({
   R2_SECRET_ACCESS_KEY: z.string().min(1),
   R2_BUCKET: z.string().min(1),
   R2_REGION: z.string().default('auto'),
+  OPENAI_API_KEY: z.string().min(1).optional(),
+  OPENAI_MODEL_EMAIL_DRAFT: z.string().default('gpt-4o-mini'),
+  MAILGUN_API_KEY: z.string().min(1).optional(),
+  MAILGUN_DOMAIN: z.string().min(1).optional(),
+  MAILGUN_WEBHOOK_SIGNING_KEY: z.string().min(1).optional(),
   LW_ENCRYPTION_KEY_32B: z
     .string()
     .min(1)

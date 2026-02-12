@@ -3,10 +3,12 @@ import IORedis from 'ioredis';
 
 import {
   createLogger,
+  GENERATE_EVIDENCE_PACK_JOB_NAME,
   INGEST_DOCUMENT_JOB_NAME,
   INGESTION_QUEUE_NAME,
   NORMALIZE_INVOICE_JOB_NAME,
   RUN_DETECTION_JOB_NAME,
+  type GenerateEvidencePackJobPayload,
   type IngestDocumentJobPayload,
   type NormalizeInvoiceJobPayload,
   type RunDetectionJobPayload,
@@ -14,6 +16,7 @@ import {
 
 import { getWorkerEnv } from './env';
 import { processRunDetectionJob } from './jobs/detection';
+import { processGenerateEvidencePackJob } from './jobs/evidence-pack';
 import { processIngestDocumentJob } from './jobs/ingest';
 import { processNormalizeInvoiceJob } from './jobs/normalize';
 
@@ -36,11 +39,19 @@ export const ingestionWorker = new Worker(
     }
 
     if (job.name === NORMALIZE_INVOICE_JOB_NAME) {
-      return processNormalizeInvoiceJob(job.data as NormalizeInvoiceJobPayload, ingestionQueue, logger);
+      return processNormalizeInvoiceJob(
+        job.data as NormalizeInvoiceJobPayload,
+        ingestionQueue,
+        logger,
+      );
     }
 
     if (job.name === RUN_DETECTION_JOB_NAME) {
       return processRunDetectionJob(job.data as RunDetectionJobPayload, logger);
+    }
+
+    if (job.name === GENERATE_EVIDENCE_PACK_JOB_NAME) {
+      return processGenerateEvidencePackJob(job.data as GenerateEvidencePackJobPayload, logger);
     }
 
     logger.warn({ jobId: job.id, name: job.name }, 'Unknown ingestion job');

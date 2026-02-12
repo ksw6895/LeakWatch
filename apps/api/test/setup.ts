@@ -3,18 +3,22 @@ import 'reflect-metadata';
 process.env.NODE_ENV = 'test';
 process.env.PORT = process.env.PORT ?? '4000';
 process.env.DATABASE_URL =
-  process.env.DATABASE_URL ?? 'postgresql://leakwatch:leakwatch@localhost:5433/leakwatch?schema=public';
+  process.env.DATABASE_URL ??
+  'postgresql://leakwatch:leakwatch@localhost:5433/leakwatch?schema=public';
 process.env.SHOPIFY_API_KEY = process.env.SHOPIFY_API_KEY ?? 'test_key';
 process.env.SHOPIFY_API_SECRET = process.env.SHOPIFY_API_SECRET ?? 'test_secret';
 process.env.SHOPIFY_SCOPES = process.env.SHOPIFY_SCOPES ?? 'read_products';
 process.env.SHOPIFY_APP_URL = process.env.SHOPIFY_APP_URL ?? 'http://localhost:3000';
 process.env.API_BASE_URL = process.env.API_BASE_URL ?? 'http://localhost:4000';
 process.env.REDIS_URL = process.env.REDIS_URL ?? 'redis://localhost:6379';
-process.env.R2_ENDPOINT =
-  process.env.R2_ENDPOINT ?? 'https://example.r2.cloudflarestorage.com';
+process.env.R2_ENDPOINT = process.env.R2_ENDPOINT ?? 'https://example.r2.cloudflarestorage.com';
 process.env.R2_ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID ?? 'test_r2_key';
 process.env.R2_SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY ?? 'test_r2_secret';
 process.env.R2_BUCKET = process.env.R2_BUCKET ?? 'leakwatch-test';
 process.env.R2_REGION = process.env.R2_REGION ?? 'auto';
+process.env.OPENAI_MODEL_EMAIL_DRAFT = process.env.OPENAI_MODEL_EMAIL_DRAFT ?? 'gpt-4o-mini';
+process.env.MAILGUN_DOMAIN = process.env.MAILGUN_DOMAIN ?? 'mg.example.com';
+process.env.MAILGUN_WEBHOOK_SIGNING_KEY =
+  process.env.MAILGUN_WEBHOOK_SIGNING_KEY ?? 'test_mailgun_signing_key';
 process.env.LW_ENCRYPTION_KEY_32B =
   process.env.LW_ENCRYPTION_KEY_32B ?? 'MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=';

@@ -1,4 +1,8 @@
-import { INGEST_DOCUMENT_JOB_NAME, INGESTION_QUEUE_NAME } from '@leakwatch/shared';
+import {
+  GENERATE_EVIDENCE_PACK_JOB_NAME,
+  INGEST_DOCUMENT_JOB_NAME,
+  INGESTION_QUEUE_NAME,
+} from '@leakwatch/shared';
 import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { Queue } from 'bullmq';
 import IORedis from 'ioredis';
@@ -23,6 +27,27 @@ export class QueueService implements OnModuleDestroy {
       },
       {
         jobId: `${INGEST_DOCUMENT_JOB_NAME}-${documentVersionId}`,
+        removeOnComplete: 1000,
+        removeOnFail: 1000,
+        attempts: 3,
+        backoff: {
+          type: 'exponential',
+          delay: 1000,
+        },
+      },
+    );
+
+    return String(job.id);
+  }
+
+  async enqueueEvidencePack(actionRequestId: string) {
+    const job = await this.queue.add(
+      GENERATE_EVIDENCE_PACK_JOB_NAME,
+      {
+        actionRequestId,
+      },
+      {
+        jobId: `${GENERATE_EVIDENCE_PACK_JOB_NAME}-${actionRequestId}`,
         removeOnComplete: 1000,
         removeOnFail: 1000,
         attempts: 3,
