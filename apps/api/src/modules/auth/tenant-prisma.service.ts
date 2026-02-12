@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { ActionRequestStatus, ActionType, DocStatus } from '@prisma/client';
+import { ActionRequestStatus, ActionType, DocStatus, FindingStatus } from '@prisma/client';
 
 import { PrismaService } from '../../common/prisma/prisma.service';
 
@@ -94,12 +94,34 @@ export class TenantPrismaService {
         orgId,
         ...(shopId ? { shopId } : {}),
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ estimatedSavingsAmount: 'desc' }, { createdAt: 'desc' }],
     });
   }
 
   getFinding(orgId: string, findingId: string) {
-    return this.prisma.leakFinding.findFirst({ where: { orgId, id: findingId } });
+    return this.prisma.leakFinding.findFirst({
+      where: { orgId, id: findingId },
+      include: {
+        evidence: {
+          orderBy: {
+            createdAt: 'asc',
+          },
+        },
+      },
+    });
+  }
+
+  async dismissFinding(orgId: string, findingId: string) {
+    const finding = await this.prisma.leakFinding.findFirst({ where: { orgId, id: findingId } });
+    if (!finding) {
+      return null;
+    }
+    return this.prisma.leakFinding.update({
+      where: { id: finding.id },
+      data: {
+        status: FindingStatus.DISMISSED,
+      },
+    });
   }
 
   listReports(orgId: string, shopId?: string) {

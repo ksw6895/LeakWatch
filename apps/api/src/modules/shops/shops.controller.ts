@@ -21,4 +21,9 @@ export class ShopsController {
     }
     return shop;
   }
+
+  @Get(':shopId/findings')
+  listFindings(@AuthContext() auth: RequestAuthContext, @Param('shopId') shopId: string) {
+    return this.tenantPrisma.listFindings(auth.orgId, shopId);
+  }
 }

@@ -138,4 +138,105 @@ describe.sequential('Multitenancy + RBAC', () => {
 
     expect(response.status).toBe(403);
   });
+
+  it('lists findings by savings descending on shop findings endpoint', async () => {
+    const org = await prisma.organization.create({ data: { name: 'Org Sort' } });
+    const shop = await prisma.shop.create({
+      data: {
+        orgId: org.id,
+        shopifyDomain: 'sort.myshopify.com',
+        installedAt: new Date(),
+      },
+    });
+
+    const user = await prisma.user.create({ data: { shopifyUserId: 'sort-user' } });
+    await prisma.membership.create({
+      data: {
+        orgId: org.id,
+        userId: user.id,
+        role: OrgRole.OWNER,
+      },
+    });
+
+    await prisma.leakFinding.createMany({
+      data: [
+        {
+          orgId: org.id,
+          shopId: shop.id,
+          type: LeakType.MOM_SPIKE,
+          status: FindingStatus.OPEN,
+          title: 'Low',
+          summary: 'Low savings',
+          confidence: 70,
+          estimatedSavingsAmount: '20',
+          currency: 'USD',
+        },
+        {
+          orgId: org.id,
+          shopId: shop.id,
+          type: LeakType.DUPLICATE_CHARGE,
+          status: FindingStatus.OPEN,
+          title: 'High',
+          summary: 'High savings',
+          confidence: 92,
+          estimatedSavingsAmount: '120',
+          currency: 'USD',
+        },
+      ],
+    });
+
+    const token = await createSessionToken({ sub: 'sort-user', shopDomain: shop.shopifyDomain });
+    const response = await request(app.getHttpServer())
+      .get(`/v1/shops/${shop.id}/findings`)
+      .set('authorization', `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+    expect(Array.isArray(response.body)).toBe(true);
+    expect(response.body).toHaveLength(2);
+    expect(response.body[0]?.estimatedSavingsAmount).toBe('120');
+    expect(response.body[1]?.estimatedSavingsAmount).toBe('20');
+  });
+
+  it('dismisses a finding with tenant scope', async () => {
+    const org = await prisma.organization.create({ data: { name: 'Org Dismiss' } });
+    const shop = await prisma.shop.create({
+      data: {
+        orgId: org.id,
+        shopifyDomain: 'dismiss.myshopify.com',
+        installedAt: new Date(),
+      },
+    });
+    const user = await prisma.user.create({ data: { shopifyUserId: 'dismiss-user' } });
+
+    await prisma.membership.create({
+      data: {
+        orgId: org.id,
+        userId: user.id,
+        role: OrgRole.OWNER,
+      },
+    });
+
+    const finding = await prisma.leakFinding.create({
+      data: {
+        orgId: org.id,
+        shopId: shop.id,
+        type: LeakType.TRIAL_TO_PAID,
+        status: FindingStatus.OPEN,
+        title: 'Trial converted',
+        summary: 'Converted unexpectedly',
+        confidence: 80,
+        estimatedSavingsAmount: '40',
+        currency: 'USD',
+      },
+    });
+
+    const token = await createSessionToken({ sub: 'dismiss-user', shopDomain: shop.shopifyDomain });
+    const response = await request(app.getHttpServer())
+      .post(`/v1/findings/${finding.id}/dismiss`)
+      .set('authorization', `Bearer ${token}`)
+      .send({});
+
+    expect(response.status).toBe(201);
+    expect(response.body.status).toBe(FindingStatus.DISMISSED);
+  });
 });

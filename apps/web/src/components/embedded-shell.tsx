@@ -88,6 +88,22 @@ function Content() {
                 </Button>
               </Box>
               <Box paddingBlockStart="200">
+                <Button
+                  onClick={() => {
+                    const next = new URL('/app/leaks', window.location.origin);
+                    if (shop) {
+                      next.searchParams.set('shop', shop);
+                    }
+                    if (host) {
+                      next.searchParams.set('host', host);
+                    }
+                    window.location.assign(next.toString());
+                  }}
+                >
+                  Open Leaks Page
+                </Button>
+              </Box>
+              <Box paddingBlockStart="200">
                 <Text as="p" variant="bodySm" tone="subdued">
                   API call status: {apiStatus}
                 </Text>
