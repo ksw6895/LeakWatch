@@ -1,6 +1,9 @@
 import { createLogger } from '@leakwatch/shared';
 
+import { loadEnv } from './load-env';
 import { ingestionWorker, redisConnection } from './queue';
+
+loadEnv();
 
 const logger = createLogger('worker');
 

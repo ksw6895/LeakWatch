@@ -32,36 +32,52 @@ Shopify Admin API로 **“다른 앱들의 과금/청구 내역”을 직접 조
 - (C) **Shopify 설치 앱 목록/메타데이터(가능한 범위/MVP)**: “설치되어 있지 않은 앱인데 청구가 발생” 같은 강력한 누수 신호를 만들기 위해 설치 앱 목록을 동기화 (가능 범위는 스코프/Shopify API 정책에 따라 다를 수 있음)
 
 ## 로컬 개발 Quickstart(권장)
-ASSUMPTION: 모노레포(pnpm + turborepo), docker-compose로 로컬 Postgres/Redis 사용.
+ASSUMPTION: 모노레포(pnpm + turborepo), docker compose로 로컬 Postgres/Redis 사용.
 
 1) 사전 설치
 - Node.js 20.x, pnpm 9.x
 - Docker Desktop
 
 2) 로컬 인프라 실행
-- docker-compose up -d postgres redis
+- docker compose up -d postgres redis
   - 기본 포트 매핑: Postgres `localhost:5433`, Redis `localhost:6379`
 
 3) 환경변수
-- apps/web/.env.local, apps/api/.env, apps/worker/.env 에 /docs/DEPLOYMENT_OPS.md 의 ENV 섹션을 복사해서 채운다.
+- 루트 `.env`를 `.env.example` 기준으로 작성한다.
 - step-04 업로드 기능까지 쓰려면 R2 관련 값(`R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`)이 필수다.
+- Shopify Embedded 검증(ngrok 1개 사용) 시 아래 3개를 같은 HTTPS 주소로 맞춘다:
+  - `SHOPIFY_APP_URL`
+  - `API_BASE_URL`
+  - `NEXT_PUBLIC_API_URL`
 
-4) 의존성/마이그레이션
+4) Shopify 앱 URL 등록(Dev Dashboard)
+- App URL: `SHOPIFY_APP_URL`
+- Redirect URL: `${API_BASE_URL}/v1/shopify/auth/callback`
+- Webhook URL: `${API_BASE_URL}/v1/shopify/webhooks/app-uninstalled`
+
+5) 의존성/마이그레이션
 - pnpm install
-- DATABASE_URL=postgresql://leakwatch:leakwatch@localhost:5433/leakwatch?schema=public pnpm db:migrate -- --name init
+- pnpm db:migrate -- --name init (초기 1회)
+- pnpm db:deploy (이미 migration이 있는 환경에서 재실행 시)
 - pnpm db:seed
 
-5) 실행
+6) 실행
 - pnpm dev
   - web: http://localhost:3000
   - api: http://localhost:4000
   - embedded upload UI: http://localhost:3000/app/uploads?shop=<shop>.myshopify.com&host=<host>
 
-6) 스모크 테스트
+7) Shopify 설치 시작 URL(브라우저)
+- `https://<domain>/v1/shopify/auth/start?shop=<shop>.myshopify.com`
+
+8) 스모크 테스트
 - pnpm lint
 - pnpm typecheck
 - DATABASE_URL=postgresql://leakwatch:leakwatch@localhost:5433/leakwatch?schema=public pnpm test
 - DATABASE_URL=postgresql://leakwatch:leakwatch@localhost:5433/leakwatch?schema=public pnpm build
+
+실전 상세 가이드는 아래 문서를 사용한다.
+- `docs/runbooks/step-00-04-setup-playbook.ko.md`
 
 ## 개발 순서
 - /docs/steps/step-00 → step-12 순으로 구현한다.

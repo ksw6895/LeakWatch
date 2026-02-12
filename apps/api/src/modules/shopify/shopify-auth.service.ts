@@ -14,6 +14,11 @@ function pickString(value: string | string[] | undefined): string | undefined {
   return value;
 }
 
+function toShopifyHostParam(shopDomain: string): string {
+  const encoded = Buffer.from(`${shopDomain}/admin`, 'utf8').toString('base64');
+  return encoded.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
 @Injectable()
 export class ShopifyAuthService {
   private readonly env = getApiEnv();
@@ -50,6 +55,8 @@ export class ShopifyAuthService {
     if (!shop || !code || !state) {
       throw new BadRequestException('Missing callback parameters');
     }
+
+    const host = pickString(query.host) ?? toShopifyHostParam(shop);
 
     if (!this.stateStore.consumeState(state)) {
       throw new UnauthorizedException('Invalid or expired OAuth state');
@@ -120,6 +127,7 @@ export class ShopifyAuthService {
     return {
       shopId: result.id,
       shopDomain: result.shopifyDomain,
+      host,
     };
   }
 

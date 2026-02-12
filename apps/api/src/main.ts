@@ -3,8 +3,11 @@ import 'reflect-metadata';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 
+import { loadEnv } from './config/load-env';
 import { getApiEnv } from './config/env';
 import { AppModule } from './app.module';
+
+loadEnv();
 
 async function bootstrap() {
   const env = getApiEnv();

@@ -34,9 +34,14 @@ export class ShopifyController {
     @Query() query: Record<string, string | string[] | undefined>,
     @Res() res: Response,
   ) {
-    const { shopDomain } = await this.shopifyAuthService.handleCallback(query);
-    const appUrl = `${process.env.SHOPIFY_APP_URL ?? 'http://localhost:3000'}/app?shop=${shopDomain}`;
-    res.redirect(appUrl);
+    const { shopDomain, host } = await this.shopifyAuthService.handleCallback(query);
+    const appUrl = new URL('/app', process.env.SHOPIFY_APP_URL ?? 'http://localhost:3000');
+    appUrl.searchParams.set('shop', shopDomain);
+    if (host) {
+      appUrl.searchParams.set('host', host);
+    }
+
+    res.redirect(appUrl.toString());
   }
 
   @Post('webhooks/app-uninstalled')
