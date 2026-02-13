@@ -25,43 +25,59 @@
     "merchant": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["shopId"],
+      "required": ["shopId", "shopifyDomain", "contactEmail"],
       "properties": {
         "shopId": { "type": "string", "minLength": 1 },
-        "shopifyDomain": { "type": "string" },
-        "contactEmail": { "type": "string" }
+        "shopifyDomain": { "$ref": "#/$defs/nullableString" },
+        "contactEmail": { "$ref": "#/$defs/nullableString" }
       }
     },
     "vendor": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name"],
+      "required": ["name", "canonicalName", "supportEmail", "website", "category"],
       "properties": {
         "name": { "type": "string", "minLength": 1 },
-        "canonicalName": { "type": "string" },
-        "supportEmail": { "type": "string" },
-        "website": { "type": "string" },
+        "canonicalName": { "$ref": "#/$defs/nullableString" },
+        "supportEmail": { "$ref": "#/$defs/nullableString" },
+        "website": { "$ref": "#/$defs/nullableString" },
         "category": {
-          "type": "string",
-          "enum": ["SHOPIFY_APP", "SAAS", "PAYMENT", "SHIPPING", "MARKETING", "ANALYTICS", "UNKNOWN"]
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": ["SHOPIFY_APP", "SAAS", "PAYMENT", "SHIPPING", "MARKETING", "ANALYTICS", "UNKNOWN"]
+            },
+            { "type": "null" }
+          ]
         }
       }
     },
     "invoice": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["currency", "totalAmount"],
+      "required": [
+        "invoiceNumber",
+        "invoiceDate",
+        "billingPeriodStart",
+        "billingPeriodEnd",
+        "currency",
+        "subtotalAmount",
+        "taxAmount",
+        "totalAmount",
+        "paymentMethodHint",
+        "notes"
+      ],
       "properties": {
-        "invoiceNumber": { "type": "string" },
-        "invoiceDate": { "type": "string", "format": "date-time" },
-        "billingPeriodStart": { "type": "string", "format": "date-time" },
-        "billingPeriodEnd": { "type": "string", "format": "date-time" },
+        "invoiceNumber": { "$ref": "#/$defs/nullableString" },
+        "invoiceDate": { "$ref": "#/$defs/nullableDateTimeString" },
+        "billingPeriodStart": { "$ref": "#/$defs/nullableDateTimeString" },
+        "billingPeriodEnd": { "$ref": "#/$defs/nullableDateTimeString" },
         "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
-        "subtotalAmount": { "$ref": "#/$defs/decimalString" },
-        "taxAmount": { "$ref": "#/$defs/decimalString" },
+        "subtotalAmount": { "$ref": "#/$defs/nullableDecimalString" },
+        "taxAmount": { "$ref": "#/$defs/nullableDecimalString" },
         "totalAmount": { "$ref": "#/$defs/decimalString" },
-        "paymentMethodHint": { "type": "string" },
-        "notes": { "type": "string" }
+        "paymentMethodHint": { "$ref": "#/$defs/nullableString" },
+        "notes": { "$ref": "#/$defs/nullableString" }
       }
     },
     "lineItems": {
@@ -70,22 +86,43 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["lineId", "type", "amount", "currency", "evidence"],
+        "required": [
+          "lineId",
+          "type",
+          "description",
+          "quantity",
+          "unitPrice",
+          "amount",
+          "currency",
+          "periodStart",
+          "periodEnd",
+          "isRecurring",
+          "recurringCadence",
+          "planName",
+          "productCode",
+          "taxAmount",
+          "evidence"
+        ],
         "properties": {
           "lineId": { "type": "string", "minLength": 1 },
           "type": { "type": "string", "enum": ["CHARGE", "REFUND", "CREDIT"] },
-          "description": { "type": "string" },
-          "quantity": { "$ref": "#/$defs/decimalString" },
-          "unitPrice": { "$ref": "#/$defs/decimalString" },
+          "description": { "$ref": "#/$defs/nullableString" },
+          "quantity": { "$ref": "#/$defs/nullableDecimalString" },
+          "unitPrice": { "$ref": "#/$defs/nullableDecimalString" },
           "amount": { "$ref": "#/$defs/decimalString" },
           "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
-          "periodStart": { "type": "string", "format": "date-time" },
-          "periodEnd": { "type": "string", "format": "date-time" },
-          "isRecurring": { "type": "boolean" },
-          "recurringCadence": { "type": "string", "enum": ["MONTHLY", "YEARLY", "WEEKLY", "ONE_TIME"] },
-          "planName": { "type": "string" },
-          "productCode": { "type": "string" },
-          "taxAmount": { "$ref": "#/$defs/decimalString" },
+          "periodStart": { "$ref": "#/$defs/nullableDateTimeString" },
+          "periodEnd": { "$ref": "#/$defs/nullableDateTimeString" },
+          "isRecurring": { "$ref": "#/$defs/nullableBoolean" },
+          "recurringCadence": {
+            "anyOf": [
+              { "type": "string", "enum": ["MONTHLY", "YEARLY", "WEEKLY", "ONE_TIME"] },
+              { "type": "null" }
+            ]
+          },
+          "planName": { "$ref": "#/$defs/nullableString" },
+          "productCode": { "$ref": "#/$defs/nullableString" },
+          "taxAmount": { "$ref": "#/$defs/nullableDecimalString" },
           "evidence": {
             "type": "object",
             "additionalProperties": false,
@@ -95,13 +132,13 @@
               "pointer": {
                 "type": "object",
                 "additionalProperties": false,
-                "minProperties": 1,
+                "required": ["page", "lineStart", "lineEnd", "row", "col"],
                 "properties": {
-                  "page": { "type": "integer", "minimum": 1 },
-                  "lineStart": { "type": "integer", "minimum": 1 },
-                  "lineEnd": { "type": "integer", "minimum": 1 },
-                  "row": { "type": "integer", "minimum": 1 },
-                  "col": { "type": "string", "minLength": 1 }
+                  "page": { "$ref": "#/$defs/nullablePositiveInteger" },
+                  "lineStart": { "$ref": "#/$defs/nullablePositiveInteger" },
+                  "lineEnd": { "$ref": "#/$defs/nullablePositiveInteger" },
+                  "row": { "$ref": "#/$defs/nullablePositiveInteger" },
+                  "col": { "$ref": "#/$defs/nullableString" }
                 }
               },
               "excerpt": { "type": "string", "minLength": 1, "maxLength": 300 }
@@ -128,9 +165,24 @@
     }
   },
   "$defs": {
+    "nullableString": {
+      "anyOf": [{ "type": "string" }, { "type": "null" }]
+    },
+    "nullableBoolean": {
+      "anyOf": [{ "type": "boolean" }, { "type": "null" }]
+    },
+    "nullableDateTimeString": {
+      "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }]
+    },
     "decimalString": {
       "type": "string",
       "pattern": "^-?\\d+(\\.\\d+)?$"
+    },
+    "nullableDecimalString": {
+      "anyOf": [{ "$ref": "#/$defs/decimalString" }, { "type": "null" }]
+    },
+    "nullablePositiveInteger": {
+      "anyOf": [{ "type": "integer", "minimum": 1 }, { "type": "null" }]
     }
   }
 }
