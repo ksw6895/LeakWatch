@@ -37,6 +37,7 @@
 
 - `docs/engineering/ultimate-guideline/07-meta-orchestration-guideline.ko.md`
 - `docs/engineering/ultimate-guideline/08-p0-execution-checklist.ko.md`
+- `docs/engineering/ultimate-guideline/09-post-step13-p1-p2-backlog.ko.md`
 
 ## 운영 메모
 

@@ -26,6 +26,7 @@
 - `docs/engineering/ultimate-guideline/README.ko.md` - Ultimate guideline 무손실 분할 인덱스
 - `docs/engineering/ultimate-guideline/07-meta-orchestration-guideline.ko.md` - 단계적 코드 에이전트 오케스트레이션 메타 가이드
 - `docs/engineering/ultimate-guideline/08-p0-execution-checklist.ko.md` - P0 전용 실행 체크리스트
+- `docs/engineering/ultimate-guideline/09-post-step13-p1-p2-backlog.ko.md` - Step-13+P0 이후 잔여 작업 확정 백로그
 
 ## 4) 운영/보안/연동
 
