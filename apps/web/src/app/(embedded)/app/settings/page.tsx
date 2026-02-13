@@ -8,19 +8,9 @@ import { Suspense, useCallback, useEffect, useState } from 'react';
 
 import { apiFetch } from '../../../../lib/api/fetcher';
 import { canUpload, writeAccessReason } from '../../../../lib/auth/roles';
+import { navigateEmbedded } from '../../../../lib/navigation/embedded';
 import { StatePanel } from '../../../../components/common/StatePanel';
-
-function buildTarget(host: string | null, shop: string | null): string {
-  const params = new URLSearchParams();
-  if (host) {
-    params.set('host', host);
-  }
-  if (shop) {
-    params.set('shop', shop);
-  }
-  const query = params.toString();
-  return query ? `/app/settings/billing?${query}` : '/app/settings/billing';
-}
+import { SettingsSectionNav } from '../../../../components/settings/SettingsSectionNav';
 
 type ShopSettings = {
   currency: string;
@@ -169,6 +159,9 @@ function SettingsRootContent() {
                         Currency, timezone, and support contact
                       </Text>
                     </div>
+                    <Box paddingBlockStart="300">
+                      <SettingsSectionNav host={host} shop={shop} active="general" />
+                    </Box>
                   </div>
 
                   <div className="lw-content-box">
@@ -208,7 +201,7 @@ function SettingsRootContent() {
                         </Button>
                         <Button
                           onClick={() => {
-                            window.location.assign(buildTarget(host, shop));
+                            navigateEmbedded('/app/settings/billing', { host, shop });
                           }}
                         >
                           Open billing settings

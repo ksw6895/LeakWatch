@@ -8,6 +8,7 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { apiFetch } from '../../../../../lib/api/fetcher';
 import { StatePanel } from '../../../../../components/common/StatePanel';
+import { SettingsSectionNav } from '../../../../../components/settings/SettingsSectionNav';
 import {
   billingAccessReason,
   canManageBilling,
@@ -36,6 +37,7 @@ type AuthMe = {
 function BillingPageContent() {
   const searchParams = useSearchParams();
   const host = searchParams.get('host');
+  const shop = searchParams.get('shop');
   const apiKey = process.env.NEXT_PUBLIC_SHOPIFY_API_KEY;
   const [current, setCurrent] = useState<BillingCurrent | null>(null);
   const [upgradingPlan, setUpgradingPlan] = useState<'STARTER' | 'PRO' | null>(null);
@@ -138,6 +140,9 @@ function BillingPageContent() {
                         Monitor utilization and move plans before caps block operations.
                       </Text>
                     </div>
+                    <Box paddingBlockStart="300">
+                      <SettingsSectionNav host={host} shop={shop} active="billing" />
+                    </Box>
                   </div>
 
                   <div className="lw-summary-grid">

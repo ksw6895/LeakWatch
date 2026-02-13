@@ -16,7 +16,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/app/leaks', label: 'Leaks' },
   { href: '/app/actions', label: 'Actions' },
   { href: '/app/reports', label: 'Reports' },
-  { href: '/app/settings/billing', label: 'Billing' },
+  { href: '/app/settings', label: 'Settings' },
   { href: '/app/agency', label: 'Agency' },
 ];
 
