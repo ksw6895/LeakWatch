@@ -98,6 +98,7 @@ ngrok 유료 플랜 권장:
 실전 상세 가이드는 아래 문서를 사용한다.
 
 - `docs/runbooks/step-00-04-setup-playbook.ko.md`
+- `docs/FRONTEND_REVAMP_HYPER_VISOR.md` (프론트엔드 리뱀프 실행 가이드)
 
 ## 개발 순서
 
