@@ -269,6 +269,7 @@ describe.sequential('Actions flow + Mailgun webhook', () => {
       .send({ status: 'WAITING_REPLY' });
     expect(waitingReply.status).toBe(201);
     expect(waitingReply.body.displayStatus).toBe('WAITING_REPLY');
+    expect(waitingReply.body.latestRunStatus).toBe('DELIVERED');
 
     const resolved = await request(app.getHttpServer())
       .post(`/v1/action-requests/${actionRequest.id}/status`)
@@ -276,6 +277,7 @@ describe.sequential('Actions flow + Mailgun webhook', () => {
       .send({ status: 'RESOLVED' });
     expect(resolved.status).toBe(201);
     expect(resolved.body.displayStatus).toBe('RESOLVED');
+    expect(resolved.body.latestRunStatus).toBe('RESOLVED');
 
     const latestRun = await prisma.actionRun.findFirst({
       where: {
@@ -354,5 +356,67 @@ describe.sequential('Actions flow + Mailgun webhook', () => {
 
     const updatedRun = await prisma.actionRun.findUnique({ where: { id: run.id } });
     expect(updatedRun?.status).toBe(ActionRunStatus.RESOLVED);
+  });
+
+  it('allows AGENCY_ADMIN to approve action requests in-tenant', async () => {
+    const org = await prisma.organization.create({
+      data: { name: 'Org Agency Admin Action', plan: Plan.STARTER },
+    });
+    const shop = await prisma.shop.create({
+      data: {
+        orgId: org.id,
+        shopifyDomain: 'agency-admin-action.myshopify.com',
+        installedAt: new Date(),
+      },
+    });
+    const user = await prisma.user.create({ data: { shopifyUserId: 'agency-admin-action-user' } });
+    await prisma.membership.create({
+      data: {
+        orgId: org.id,
+        userId: user.id,
+        role: OrgRole.AGENCY_ADMIN,
+      },
+    });
+    const finding = await prisma.leakFinding.create({
+      data: {
+        orgId: org.id,
+        shopId: shop.id,
+        type: LeakType.UNINSTALLED_APP_CHARGE,
+        status: FindingStatus.OPEN,
+        title: 'Agency admin finding',
+        summary: 'Agency admin can approve',
+        confidence: 72,
+        estimatedSavingsAmount: '99',
+        currency: 'USD',
+      },
+    });
+    const actionRequest = await prisma.actionRequest.create({
+      data: {
+        orgId: org.id,
+        shopId: shop.id,
+        findingId: finding.id,
+        type: ActionType.CLARIFICATION,
+        status: ActionRequestStatus.DRAFT,
+        toEmail: 'ops@example.com',
+        ccEmails: [],
+        subject: 'Approve by agency admin',
+        bodyMarkdown: 'Body',
+        createdByUserId: user.id,
+      },
+    });
+
+    const token = await createSessionToken({
+      sub: 'agency-admin-action-user',
+      shopDomain: shop.shopifyDomain,
+    });
+
+    const approve = await request(app.getHttpServer())
+      .post(`/v1/action-requests/${actionRequest.id}/approve`)
+      .set('authorization', `Bearer ${token}`)
+      .send({});
+
+    expect(approve.status).toBe(201);
+    expect(approve.body.actionRequest.status).toBe('APPROVED');
+    expect(approve.body.actionRun.status).toBe('QUEUED');
   });
 });

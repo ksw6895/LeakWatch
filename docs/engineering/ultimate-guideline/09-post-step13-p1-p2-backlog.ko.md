@@ -32,6 +32,7 @@
 | P2-L    | Agency 포털 핵심 라우트 + API 가드레일                                 | `apps/web/src/app/agency/login/page.tsx`, `apps/web/src/app/agency/page.tsx`, `apps/web/src/app/agency/shops/[shopId]/page.tsx`, `apps/web/src/app/agency/reports/page.tsx`, `apps/api/src/modules/agency/agency.controller.ts`                                                        | `e0c4d6c`, `2f4778d`, `734840b`          |
 | P2-M    | 설치 앱 동기화 + 감지 정확도 보강(기반)                                | `apps/api/src/modules/shops/installed-apps-sync.dto.ts`, `apps/api/src/modules/shops/shops.controller.ts`, `apps/api/src/modules/shopify/shopify.controller.ts`, `apps/api/src/modules/shopify/shopify-webhook.service.ts`                                                             | `734840b`                                |
 | P2-01   | 설치 앱 동기화 자동화(주기 스케줄 + 운영 알림)                         | `apps/worker/src/main.ts`, `apps/worker/src/jobs/installed-apps-sync.ts`, `apps/worker/src/queue.ts`, `packages/shared/src/queue.ts`, `apps/api/src/modules/auth/tenant-prisma.service.ts`                                                                                             | 현재 실행 변경분(본 실행 단위 커밋 예정) |
+| P2-04   | Assumption closure(1/3/4 검증 + 2 deferred 명시)                       | `docs/engineering/ultimate-guideline/06-assumptions-and-validation.ko.md`, `apps/api/test/actions-flow.spec.ts`, `apps/api/test/billing.spec.ts`                                                                                                                                       | 현재 실행 변경분(본 실행 단위 커밋 예정) |
 | P2-N    | report share/export 협업 흐름(PDF + revoke 포함)                       | `apps/api/src/modules/reports/reports.controller.ts`, `apps/api/src/modules/reports/reports.service.ts`, `apps/api/test/reports.spec.ts`, `apps/web/src/app/reports/shared/[token]/page.tsx`, `apps/web/src/app/(embedded)/app/reports/[id]/page.tsx`                                  | `734840b`, `469e37a`, 현재 실행 변경분   |
 | P2-O    | inbound email parsing V1(기반)                                         | `apps/api/src/modules/mailgun/mailgun.controller.ts`, `apps/api/src/modules/mailgun/mailgun.service.ts`, `apps/api/test/actions-flow.spec.ts`                                                                                                                                          | `ee46c6a`, `734840b`                     |
 | P1-H    | 문서 상세(`/app/documents/[documentId]`) 실구현 + 다운로드 동선        | `apps/web/src/app/(embedded)/app/documents/[documentId]/page.tsx`, `apps/api/src/modules/documents/documents.controller.ts`, `apps/api/src/modules/documents/documents.service.ts`, `apps/web/src/components/uploads-panel.tsx`, `apps/web/src/app/(embedded)/app/leaks/[id]/page.tsx` | 현재 실행 변경분(본 실행 단위 커밋 예정) |
@@ -63,13 +64,13 @@
 ### P2-04) Assumption 잔여 항목 닫기
 
 - 출처: `docs/engineering/ultimate-guideline/06-assumptions-and-validation.ko.md`
-- 남은 작업:
-  - `displayStatus/latestRunStatus` 응답 계약 검증 로그 확정
-  - `errorCode` 응답 표준 적용 범위 확정
-  - AGENCY_ADMIN write scope 정책 확정 및 API/Web 동기화
-  - billing subscribe contract(confirmation URL/redirect) 재검증 기록
+- 현재 상태:
+  - 가정 1(displayStatus/latestRunStatus): 검증 완료
+  - 가정 2(errorCode 응답 표준): 명시적 deferred
+  - 가정 3(AGENCY_ADMIN write scope): 검증 완료
+  - 가정 4(billing subscribe confirmationUrl): 검증 완료
 - 완료 조건:
-  - 가정 1~4가 문서상 `검증 완료` 또는 `명시적 deferred`로 정리됨
+  - 가정 1~4가 문서상 `검증 완료` 또는 `명시적 deferred`로 정리됨 (충족)
 
 ### P2-05) 모바일/접근성/성능 자동 품질게이트
 
@@ -83,9 +84,9 @@
 
 ## 5) 실행 우선순위
 
-1. P2-04 (assumption closure)
-2. P2-03 (정확도 고도화)
-3. P2-05 (자동 품질게이트)
+1. P2-03 (정확도 고도화)
+2. P2-05 (자동 품질게이트)
+3. P2-04 deferred 항목(`errorCode` 전역 표준) 별도 배치
 
 ## 6) 검증 기준
 

@@ -57,5 +57,8 @@ describe.sequential('Billing endpoints', () => {
       .send({});
     expect(subscribeResponse.status).toBe(201);
     expect(subscribeResponse.body.plan).toBe('STARTER');
+    expect(String(subscribeResponse.body.confirmationUrl)).toContain(
+      '/app/settings/billing?status=confirmed&plan=STARTER',
+    );
   });
 });

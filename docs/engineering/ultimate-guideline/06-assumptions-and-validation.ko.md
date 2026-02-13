@@ -1,26 +1,31 @@
 ## 6) “확인 불가(가정)” 목록 + 검증 방법
 
-이 문서는 레포 코드/문서를 근거로 작성했지만, 다음은 환경/응답 스키마에 따라 달라질 수 있다.
+이 문서는 레포 코드/테스트를 근거로 가정 항목의 검증 상태를 기록한다.
 
 1. ASSUMPTION: `/v1/action-requests` 응답이 displayStatus/latestRunStatus를 제공하는지
 
-- 검증: 로컬/스테이징에서 API 호출, 실제 JSON 확인
-- 대안: 프론트에서 requestStatus + latestRunStatus를 합성(단, latestRunStatus를 가져올 수 있어야 함)
+- 상태: 검증 완료
+- 코드 근거: `apps/api/src/modules/auth/tenant-prisma.service.ts` (`listActionRequests`, `getActionRequest`)
+- 테스트 근거: `apps/api/test/actions-flow.spec.ts` (`displayStatus`, `latestRunStatus` 검증)
 
 2. ASSUMPTION: 에러 응답이 `{ errorCode, message }` 형태인지
 
-- 검증: 의도적으로 실패 케이스 발생(큰 파일, 미지원 mime) 후 응답 확인
-- 대안: 에러 메시지 문자열만으로 우선 표시, 다음 단계에서 API 표준화
+- 상태: 명시적 deferred
+- 현재 구현: 일부 도메인(예: 문서 버전 상태)은 `errorCode`를 저장/노출하지만, 전역 HTTP 에러 응답 스키마는 단일 표준으로 고정되지 않음
+- 후속 액션: 전역 exception filter + `docs/api/ERROR_CODES.md`/`docs/api/OPENAPI.yaml` 동기화 배치에서 통합 표준 확정
 
 3. ASSUMPTION: AGENCY_ADMIN write 권한 범위(특히 approve/send)
 
-- 검증: API guard 및 보안 정책 문서(SECURITY_PRIVACY) 최신 합의
-- 대안: 프론트는 보수적으로 read-only로 두고, 정책 확정 후 확장
+- 상태: 검증 완료
+- 정책: AGENCY_ADMIN은 tenant 내부 액션/파인딩/agency connect-code write 허용, billing write는 OWNER-only 유지
+- 코드 근거: `apps/api/src/modules/actions/actions.controller.ts`, `apps/api/src/modules/findings/findings.controller.ts`, `apps/api/src/modules/agency/agency.controller.ts`, `apps/api/src/modules/shops/shops.controller.ts`
+- 테스트 근거: `apps/api/test/actions-flow.spec.ts` (AGENCY_ADMIN approve 허용)
 
 4. ASSUMPTION: Shopify Billing subscribe API가 confirmationUrl을 반환하는지
 
-- 검증: `/v1/billing/subscribe` 응답 확인
-- 대안: API가 302 redirect를 직접 반환하는 방식이면, 프론트는 fetch 대신 window.location로 이동하는 방식으로 조정
+- 상태: 검증 완료
+- 코드 근거: `apps/api/src/modules/billing/billing.service.ts`
+- 테스트 근거: `apps/api/test/billing.spec.ts` (`confirmationUrl` 포함 여부 검증)
 
 ---
 
