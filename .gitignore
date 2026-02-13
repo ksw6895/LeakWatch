@@ -1,15 +1,1 @@
-node_modules
-.pnpm-store
-.turbo
-coverage
-dist
-.next
-.env
-.env.local
-.env.*.local
-apps/api/.env
-apps/web/.env.local
-apps/worker/.env
-*.log
-*.tsbuildinfo
-.DS_Store
+.sisyphus/
