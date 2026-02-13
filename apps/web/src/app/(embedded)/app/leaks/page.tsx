@@ -156,6 +156,10 @@ function LeaksPageContent() {
         }
       : null;
 
+  const openFinding = (findingId: string) => {
+    navigateEmbedded(`/app/leaks/${findingId}`, { host, shop });
+  };
+
   return (
     <AppProvider i18n={enTranslations}>
       {appBridgeConfig ? (
@@ -267,8 +271,16 @@ function LeaksPageContent() {
                                 <tr
                                   key={finding.id}
                                   className="lw-interactive-row"
+                                  role="button"
+                                  tabIndex={0}
                                   onClick={() => {
-                                    navigateEmbedded(`/app/leaks/${finding.id}`, { host, shop });
+                                    openFinding(finding.id);
+                                  }}
+                                  onKeyDown={(event) => {
+                                    if (event.key === 'Enter' || event.key === ' ') {
+                                      event.preventDefault();
+                                      openFinding(finding.id);
+                                    }
                                   }}
                                 >
                                   <td>
@@ -287,17 +299,23 @@ function LeaksPageContent() {
                                     <Badge tone={tone(finding.status)}>{finding.status}</Badge>
                                   </td>
                                   <td>
-                                    <Button
-                                      accessibilityLabel={`View finding ${finding.title}`}
-                                      onClick={() => {
-                                        navigateEmbedded(`/app/leaks/${finding.id}`, {
-                                          host,
-                                          shop,
-                                        });
+                                    <div
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                      }}
+                                      onKeyDown={(event) => {
+                                        event.stopPropagation();
                                       }}
                                     >
-                                      View
-                                    </Button>
+                                      <Button
+                                        accessibilityLabel={`View finding ${finding.title}`}
+                                        onClick={() => {
+                                          openFinding(finding.id);
+                                        }}
+                                      >
+                                        View
+                                      </Button>
+                                    </div>
                                   </td>
                                 </tr>
                               ))}

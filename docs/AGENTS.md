@@ -6,15 +6,17 @@ Documentation domain for product requirements, architecture decisions, implement
 
 ## WHERE TO LOOK
 
-| Task                             | Location                                     | Notes                                      |
-| -------------------------------- | -------------------------------------------- | ------------------------------------------ |
-| Docs index and stack assumptions | `README.md`                                  | canonical docs entrypoint                  |
-| Step-by-step build plan          | `steps/`                                     | numbered implementation milestones         |
-| Operational procedures           | `runbooks/`                                  | setup, incident, deletion, cost guardrails |
-| Product/architecture references  | `PRD.md`, `ARCHITECTURE.md`, `DATA_MODEL.md` | business + system context                  |
-| Security and ops constraints     | `SECURITY_PRIVACY.md`, `DEPLOYMENT_OPS.md`   | hard guardrails and operations             |
-| API contract docs                | `api/OPENAPI.yaml`, `api/ERROR_CODES.md`     | interface and error semantics              |
-| Prompt templates                 | `prompts/`                                   | model instruction templates                |
+| Task                             | Location                                                         | Notes                                      |
+| -------------------------------- | ---------------------------------------------------------------- | ------------------------------------------ |
+| Docs index and stack assumptions | `README.md`                                                      | canonical docs entrypoint                  |
+| Step-by-step build plan          | `steps/`                                                         | active steps + archived summaries          |
+| Operational procedures           | `operations/runbooks/`                                           | setup, incident, deletion, cost guardrails |
+| Product references               | `product/PRD.md`, `product/ROADMAP.md`                           | business scope and priorities              |
+| Architecture references          | `architecture/ARCHITECTURE.md`, `architecture/DATA_MODEL.md`     | system context                             |
+| Security and ops constraints     | `operations/SECURITY_PRIVACY.md`, `operations/DEPLOYMENT_OPS.md` | hard guardrails and operations             |
+| API contract docs                | `api/OPENAPI.yaml`, `api/ERROR_CODES.md`                         | interface and error semantics              |
+| Prompt templates                 | `prompts/`                                                       | model instruction templates                |
+| Audit references                 | `audits/`                                                        | implementation/documentation audit history |
 
 ## CONVENTIONS
 
@@ -52,5 +54,5 @@ pnpm db:deploy
 
 - `docs/README.md` is the navigation source for the documentation set; update it when adding/removing major docs.
 - Step and runbook documents should reference each other when they describe the same implementation phase.
-- Current implementation baseline is step-12; keep `docs/README.md` and root `README.md` in sync when step status changes.
+- Current implementation baseline is step-12, with step-13 documenting post-audit gap closure work; keep `docs/README.md` and root `README.md` in sync when step status changes.
 - Root `pnpm db:*` scripts auto-load `.env`; prefer those commands in docs to reduce environment drift.

@@ -113,6 +113,10 @@ function ActionsPageContent() {
         }
       : null;
 
+  const openActionRequest = (actionRequestId: string) => {
+    navigateEmbedded(`/app/actions/${actionRequestId}`, { host, shop });
+  };
+
   return (
     <AppProvider i18n={enTranslations}>
       {appBridgeConfig ? (
@@ -199,8 +203,16 @@ function ActionsPageContent() {
                                 <tr
                                   key={item.id}
                                   className="lw-interactive-row"
+                                  role="button"
+                                  tabIndex={0}
                                   onClick={() => {
-                                    navigateEmbedded(`/app/actions/${item.id}`, { host, shop });
+                                    openActionRequest(item.id);
+                                  }}
+                                  onKeyDown={(event) => {
+                                    if (event.key === 'Enter' || event.key === ' ') {
+                                      event.preventDefault();
+                                      openActionRequest(item.id);
+                                    }
                                   }}
                                 >
                                   <td>
@@ -219,13 +231,22 @@ function ActionsPageContent() {
                                   </td>
                                   <td>{item.toEmail}</td>
                                   <td>
-                                    <Button
-                                      onClick={() => {
-                                        navigateEmbedded(`/app/actions/${item.id}`, { host, shop });
+                                    <div
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                      }}
+                                      onKeyDown={(event) => {
+                                        event.stopPropagation();
                                       }}
                                     >
-                                      View
-                                    </Button>
+                                      <Button
+                                        onClick={() => {
+                                          openActionRequest(item.id);
+                                        }}
+                                      >
+                                        View
+                                      </Button>
+                                    </div>
                                   </td>
                                 </tr>
                               ))}

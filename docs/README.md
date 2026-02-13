@@ -1,116 +1,69 @@
-# LeakWatch 개발 문서 세트
+# LeakWatch Docs Index
 
-LeakWatch는 Shopify 스토어의 앱/SaaS 구독 비용을 **문서 업로드/이메일 인보이스 수집 → AI 표준화(JSON) → 누수 탐지 → 근거 포함 설명 → 해지/환불 액션 준비(메일/증빙 자동 생성) → 승인 후 발송/추적**까지 연결하는 솔루션이다.
+문서가 많아져서 영역별로 재정리했다. 이 파일을 기준으로 필요한 문서만 찾아본다.
 
-## 단일 기술 스택 (문서 전체에서 고정)
+## 1) 제품/범위
 
-- Frontend: **Next.js 14(App Router) + TypeScript + Shopify Polaris + App Bridge**
-- Backend API: **NestJS(Node 20) + TypeScript**
-- ORM/DB: **Postgres + Prisma**
-- Queue/Worker: **BullMQ + Redis(Upstash Redis 권장)**
-- File Storage: **Cloudflare R2(S3 호환) + Presigned URL**
-- Email (발송/추적): **Mailgun(Outbound + Webhook)**
-- LLM: **OpenAI API**
-  - 기본 모델(`OPENAI_MODEL_NORMALIZE`, `OPENAI_MODEL_VISION`, `OPENAI_MODEL_EMAIL_DRAFT`) = `gpt-4o-mini`
-  - 필요 시 업무별로 고품질 모델로 오버라이드
-  - 임베딩(옵션/RAG) = `text-embedding-3-small` (ASSUMPTION)
-  - 검증 방법: 실제 30개 인보이스로 정규화 정확도(필수 필드 누락률<2%) 측정 후 모델 교체
-- Hosting:
-  - Web: **Vercel**
-  - API/Worker: **Fly.io** (프로세스 그룹으로 api/worker 분리)
-  - DB: **Supabase Postgres** 또는 **Neon Postgres** (여기서는 Supabase 권장)
-- Observability:
-  - Error/Trace: **Sentry**
-  - Logs: **Pino(JSON) → Fly/Vercel 로그**
-  - Metrics(선택): Sentry + DB/Redis provider metrics 대시보드
+- `docs/product/PRD.md` - 제품 요구사항/사용자 스토리/수용 기준
+- `docs/product/ROADMAP.md` - MVP -> V1 로드맵
+- `docs/product/PRICING_AND_UNIT_ECONOMICS.md` - 가격/단위경제성
 
-## Shopify 데이터 전략 (현실적 제약 포함)
+## 2) 시스템 설계
 
-Shopify Admin API로 **“다른 앱들의 과금/청구 내역”을 직접 조회하는 것은 일반적으로 불가능**하다(앱별 결제는 Shopify 청구/카드/Stripe/PayPal/이메일 인보이스로 파편화).
+- `docs/architecture/ARCHITECTURE.md` - 전체 구조/모듈 경계
+- `docs/architecture/DATA_MODEL.md` - 도메인 모델/DB 관점
+- `docs/architecture/INGESTION.md` - ingestion 설계
+- `docs/architecture/NORMALIZATION_SCHEMA.md` - 정규화 스키마
+- `docs/architecture/DETECTION_RULES.md` - 탐지 규칙
+- `docs/architecture/ACTIONS_AUTOMATION.md` - 액션 자동화 흐름
 
-따라서 LeakWatch MVP는 아래 조합으로 동작한다:
+## 3) 구현/품질(개발팀)
 
-- (A) **업로드 기반(필수/MVP)**: Shopify Invoice PDF / SaaS 인보이스 PDF / CSV / 이미지 업로드
-- (B) **이메일 포워딩(선택/V1)**: 인보이스 메일을 LeakWatch 인바운드 주소로 자동 포워딩
-- (C) **Shopify 설치 앱 목록/메타데이터(가능한 범위/MVP)**: “설치되어 있지 않은 앱인데 청구가 발생” 같은 강력한 누수 신호를 만들기 위해 설치 앱 목록을 동기화 (가능 범위는 스코프/Shopify API 정책에 따라 다를 수 있음)
+- `docs/engineering/UI_UX.md` - 화면 구조/UX 정책
+- `docs/engineering/FRONTEND_REVAMP_HYPER_VISOR.md` - 프론트 리뱀프 가이드
+- `docs/engineering/TESTING_QA.md` - 테스트/QA 기준
+- `docs/engineering/ANALYTICS_METRICS.md` - 이벤트/지표 설계
 
-## 로컬 개발 Quickstart(권장)
+## 4) 운영/보안/연동
 
-ASSUMPTION: 모노레포(pnpm + turborepo), docker compose로 로컬 Postgres/Redis 사용.
+- `docs/operations/DEPLOYMENT_OPS.md` - 배포/운영 표준
+- `docs/operations/SECURITY_PRIVACY.md` - 보안/개인정보/권한
+- `docs/operations/INTEGRATIONS_SHOPIFY.md` - Shopify 통합 기준
+- `docs/operations/runbooks/step-00-04-setup-playbook.ko.md` - 초기 실전 설정
+- `docs/operations/runbooks/shopify-production-launch-checklist.ko.md` - 실서비스 출시 점검
+- `docs/operations/runbooks/incident.md` - 장애 대응
+- `docs/operations/runbooks/data-deletion.md` - 데이터 삭제 처리
+- `docs/operations/runbooks/cost-guardrails.md` - 비용 가드레일
 
-1. 사전 설치
+## 5) API/프롬프트
 
-- Node.js 20.x, pnpm 9.x
-- Docker Desktop
+- `docs/api/OPENAPI.yaml` - API 계약
+- `docs/api/ERROR_CODES.md` - 에러 코드
+- `docs/prompts/` - LLM 프롬프트 템플릿
 
-2. 로컬 인프라 실행
+## 6) 단계 문서
 
-- docker compose up -d postgres redis
-  - 기본 포트 매핑: Postgres `localhost:5433`, Redis `localhost:6379`
+- 활성 단계: `docs/steps/step-13-non-step-gap-closure.md`
+- 완료/보관 단계: `docs/steps/archive/`
 
-3. 환경변수
+## 7) 감사 리포트
 
-- 루트 `.env`를 `.env.example` 기준으로 작성한다.
-- step-04 업로드 기능까지 쓰려면 R2 관련 값(`R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`)이 필수다.
-- Mailgun 값(`MAILGUN_API_KEY`, `MAILGUN_DOMAIN`, `MAILGUN_WEBHOOK_SIGNING_KEY`)은 선택이다. 비어 있으면 SEND_EMAIL 잡은 `MAILGUN_NOT_CONFIGURED`로 실패 기록된다.
-- Shopify Embedded 검증(ngrok 1개 사용) 시 아래 2개는 같은 HTTPS 주소로 맞춘다:
-  - `SHOPIFY_APP_URL`
-  - `API_BASE_URL`
-- `NEXT_PUBLIC_API_URL`은 비워도 동작(현재 origin 자동 사용)하지만, 명시할 경우 같은 주소로 맞춘다.
+- `docs/audits/AUDIT_2026-02-13.ko.md`
 
-4. Shopify 앱 URL 등록(Dev Dashboard)
+## Quick Start
 
-- App URL: `SHOPIFY_APP_URL`
-- Redirect URL: `${API_BASE_URL}/v1/shopify/auth/callback`
-- Webhook URL: `${API_BASE_URL}/v1/shopify/webhooks/app-uninstalled`
+```bash
+docker compose up -d postgres redis
+pnpm install
+pnpm db:deploy
+pnpm dev
+```
 
-5. 의존성/마이그레이션
+검증:
 
-- pnpm install
-- pnpm db:migrate -- --name init (초기 1회)
-- pnpm db:deploy (이미 migration이 있는 환경에서 재실행 시)
-- pnpm db:seed
-
-6. 실행
-
-- pnpm dev
-  - web: http://localhost:3000
-  - api: http://localhost:4000
-  - embedded upload UI: http://localhost:3000/app/uploads?shop=<shop>.myshopify.com&host=<host>
-
-7. Shopify 설치 시작 URL(브라우저)
-
-- `https://<domain>/v1/shopify/auth/start?shop=<shop>.myshopify.com`
-
-ngrok 유료 플랜 권장:
-
-- Reserved Domain 1개를 고정해 `ngrok http --domain=<reserved-domain> 3000`으로 실행한다.
-- 이렇게 하면 개발 중 URL 변경이 거의 없어 Shopify 설정과 `.env`를 반복 수정할 필요가 없다.
-
-8. 스모크 테스트
-
-- pnpm db:deploy
-- pnpm lint
-- pnpm typecheck
-- pnpm test
-- pnpm build
-
-실전 상세 가이드는 아래 문서를 사용한다.
-
-- `docs/runbooks/step-00-04-setup-playbook.ko.md`
-- `docs/FRONTEND_REVAMP_HYPER_VISOR.md` (프론트엔드 리뱀프 실행 가이드)
-
-## 개발 순서
-
-- /docs/steps/step-00 → step-12 순으로 구현한다(현재 step-12까지 코드 반영됨).
-- API 변경은 반드시 /docs/api/OPENAPI.yaml 업데이트 후 서버/클라이언트 코드 생성(또는 타입 업데이트)한다.
-
-## 용어
-
-- Organization(Org): 결제/권한의 최상위 단위(에이전시 포함)
-- Shop: Shopify 스토어(tenant의 핵심). Org는 여러 Shop을 가질 수 있다.
-- Document: 업로드된 파일(인보이스/영수증/명세)
-- NormalizedInvoice: LLM이 표준화한 JSON 인보이스
-- LineItem: 인보이스의 청구 라인(반복 과금은 여러 달의 LineItem으로 쌓인다)
-- LeakFinding: 누수 탐지 결과(근거 포함)
-- ActionRequest/ActionRun: 액션(환불요청/해지요청 등) 생성 및 실행(발송/추적)
+```bash
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+```

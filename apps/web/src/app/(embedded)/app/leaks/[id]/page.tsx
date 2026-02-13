@@ -1,7 +1,18 @@
 'use client';
 
 import { Provider as AppBridgeProvider } from '@shopify/app-bridge-react';
-import { AppProvider, Box, Button, Card, Layout, Page, Text } from '@shopify/polaris';
+import {
+  AppProvider,
+  Box,
+  Button,
+  Card,
+  InlineError,
+  Layout,
+  Page,
+  Select,
+  Text,
+  TextField,
+} from '@shopify/polaris';
 import enTranslations from '@shopify/polaris/locales/en.json';
 import { useParams, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
@@ -34,6 +45,8 @@ type AuthMe = {
   roles: string[];
 };
 
+type ActionType = 'REFUND_REQUEST' | 'CANCEL_REQUEST' | 'DOWNGRADE_REQUEST' | 'CLARIFICATION';
+
 function LeaksDetailContent() {
   const searchParams = useSearchParams();
   const params = useParams<{ id: string }>();
@@ -44,6 +57,9 @@ function LeaksDetailContent() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<boolean>(false);
   const [roles, setRoles] = useState<string[]>([]);
+  const [actionType, setActionType] = useState<ActionType>('CLARIFICATION');
+  const [toEmail, setToEmail] = useState<string>('finance@example.com');
+  const [draftError, setDraftError] = useState<string | null>(null);
   const canMutate = canUpload(roles);
   const blockedReason = writeAccessReason(roles);
 
@@ -109,14 +125,22 @@ function LeaksDetailContent() {
       return;
     }
 
+    const recipient = toEmail.trim();
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailPattern.test(recipient)) {
+      setDraftError('Enter a valid recipient email before creating a draft.');
+      return;
+    }
+
     setBusy(true);
+    setDraftError(null);
     try {
       const response = await apiFetch(`/v1/findings/${finding.id}/actions`, {
         host,
         method: 'POST',
         body: JSON.stringify({
-          type: 'CLARIFICATION',
-          toEmail: 'finance@example.com',
+          type: actionType,
+          toEmail: recipient,
         }),
       });
       if (!response.ok) {
@@ -175,6 +199,33 @@ function LeaksDetailContent() {
                         </div>
 
                         <div className="lw-content-box">
+                          <div className="lw-summary-grid">
+                            <Select
+                              label="Action type"
+                              options={[
+                                { label: 'Refund request', value: 'REFUND_REQUEST' },
+                                { label: 'Cancel request', value: 'CANCEL_REQUEST' },
+                                { label: 'Downgrade request', value: 'DOWNGRADE_REQUEST' },
+                                { label: 'Clarification', value: 'CLARIFICATION' },
+                              ]}
+                              value={actionType}
+                              onChange={(value) => {
+                                setActionType(value as ActionType);
+                              }}
+                            />
+                            <TextField
+                              label="Recipient email"
+                              value={toEmail}
+                              onChange={setToEmail}
+                              autoComplete="email"
+                            />
+                          </div>
+                          {draftError ? (
+                            <Box paddingBlockStart="150">
+                              <InlineError message={draftError} fieldID="action-draft-error" />
+                            </Box>
+                          ) : null}
+                          <Box paddingBlockStart="200" />
                           <div className="lw-actions-row">
                             <Button
                               variant="primary"

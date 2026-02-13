@@ -52,4 +52,4 @@ pnpm --filter @leakwatch/api test -- test/documents-upload.spec.ts
 ## NOTES
 
 - Global guards order is defined in `src/app.module.ts`; preserve when adding new global providers.
-- Use `docs/steps/step-03-core-db-and-multitenancy.md` as tenancy policy reference.
+- Use `docs/steps/archive/step-03-core-db-and-multitenancy.md` as tenancy policy reference.

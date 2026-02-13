@@ -91,7 +91,7 @@ https://<ngrok-domain>/v1/shopify/auth/start?shop=<your-shop>.myshopify.com
 ## 문서
 
 - 전체 문서 인덱스: `docs/README.md`
-- Step 0-4 실전 가이드: `docs/runbooks/step-00-04-setup-playbook.ko.md`
+- Step 0-4 실전 가이드: `docs/operations/runbooks/step-00-04-setup-playbook.ko.md`
 - 단계별 구현: `docs/steps/`
 
 ## 지금 남은 핵심 작업(네 상태 기준)
