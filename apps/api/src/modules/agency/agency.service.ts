@@ -74,7 +74,7 @@ export class AgencyService {
       code = makeConnectCode();
     }
 
-    return this.prisma.connectCode.create({
+    const created = await this.prisma.connectCode.create({
       data: {
         orgId,
         code,
@@ -82,9 +82,24 @@ export class AgencyService {
         createdByUserId,
       },
     });
+
+    await this.prisma.auditLog.create({
+      data: {
+        orgId,
+        userId: createdByUserId,
+        action: 'AGENCY_CONNECT_CODE_CREATED',
+        targetType: 'connect_code',
+        targetId: created.id,
+        metaJson: {
+          expiresAt: created.expiresAt.toISOString(),
+        },
+      },
+    });
+
+    return created;
   }
 
-  async attachShopToOrg(codeRaw: string, shopId: string) {
+  async attachShopToOrg(codeRaw: string, shopId: string, actorOrgId: string, actorUserId: string) {
     const code = codeRaw.trim();
     const connectCode = await this.prisma.connectCode.findUnique({
       where: {
@@ -110,6 +125,10 @@ export class AgencyService {
         throw new NotFoundException('Shop not found');
       }
 
+      if (shop.orgId !== actorOrgId) {
+        throw new UnauthorizedException('Cannot attach shop outside current org scope');
+      }
+
       const updatedShop = await tx.shop.update({
         where: {
           id: shop.id,
@@ -126,6 +145,22 @@ export class AgencyService {
         data: {
           usedAt: new Date(),
           usedByShopId: updatedShop.id,
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          orgId: connectCode.orgId,
+          shopId: updatedShop.id,
+          userId: actorUserId,
+          action: 'AGENCY_CONNECT_CODE_ATTACHED',
+          targetType: 'shop',
+          targetId: updatedShop.id,
+          metaJson: {
+            sourceOrgId: actorOrgId,
+            targetOrgId: connectCode.orgId,
+            connectCodeId: connectCode.id,
+          },
         },
       });
 

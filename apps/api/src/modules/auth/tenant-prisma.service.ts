@@ -6,6 +6,7 @@ import {
   DocStatus,
   FindingStatus,
   OrgRole,
+  VendorStatus,
 } from '@prisma/client';
 
 import { PrismaService } from '../../common/prisma/prisma.service';
@@ -149,6 +150,103 @@ export class TenantPrismaService {
       currency: updatedShop.currency,
       timezone: updatedShop.timezone,
       contactEmail,
+    };
+  }
+
+  async syncInstalledAppsSnapshot(params: {
+    orgId: string;
+    shopId: string;
+    userId: string;
+    installedApps: string[];
+    source?: string;
+  }) {
+    const shop = await this.prisma.shop.findFirst({
+      where: {
+        orgId: params.orgId,
+        id: params.shopId,
+      },
+      select: {
+        id: true,
+      },
+    });
+    if (!shop) {
+      return null;
+    }
+
+    const normalizedInput = new Set(
+      params.installedApps
+        .map((value) => value.trim().toLowerCase())
+        .filter((value) => value.length > 0),
+    );
+
+    const vendorOnShops = await this.prisma.vendorOnShop.findMany({
+      where: {
+        shopId: params.shopId,
+      },
+      include: {
+        vendor: {
+          select: {
+            canonicalName: true,
+            aliases: true,
+          },
+        },
+      },
+    });
+
+    let activeCount = 0;
+    let suspectedCount = 0;
+
+    await this.prisma.$transaction(async (tx) => {
+      for (const relation of vendorOnShops) {
+        const candidates = [relation.vendor.canonicalName, ...relation.vendor.aliases]
+          .map((value) => value.trim().toLowerCase())
+          .filter((value) => value.length > 0);
+        const isInstalled = candidates.some((value) => normalizedInput.has(value));
+
+        await tx.vendorOnShop.update({
+          where: {
+            id: relation.id,
+          },
+          data: {
+            status: isInstalled ? VendorStatus.ACTIVE : VendorStatus.SUSPECTED_UNUSED,
+            notes: isInstalled
+              ? relation.notes
+              : `Snapshot mismatch from ${params.source ?? 'manual'} at ${new Date().toISOString()}`,
+          },
+        });
+
+        if (isInstalled) {
+          activeCount += 1;
+        } else {
+          suspectedCount += 1;
+        }
+      }
+
+      await tx.auditLog.create({
+        data: {
+          orgId: params.orgId,
+          shopId: params.shopId,
+          userId: params.userId,
+          action: 'SHOP_INSTALLED_APPS_SYNCED',
+          targetType: 'shop',
+          targetId: params.shopId,
+          metaJson: {
+            source: params.source ?? 'manual',
+            installedAppsInputCount: normalizedInput.size,
+            vendorsTracked: vendorOnShops.length,
+            activeCount,
+            suspectedCount,
+          },
+        },
+      });
+    });
+
+    return {
+      shopId: params.shopId,
+      source: params.source ?? 'manual',
+      vendorsTracked: vendorOnShops.length,
+      activeCount,
+      suspectedCount,
     };
   }
 

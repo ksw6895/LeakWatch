@@ -11,6 +11,7 @@ export class AgencyController {
   constructor(@Inject(AgencyService) private readonly agencyService: AgencyService) {}
 
   @Get('orgs/:orgId/shops')
+  @RequireRoles(OrgRole.OWNER, OrgRole.MEMBER, OrgRole.AGENCY_ADMIN, OrgRole.AGENCY_VIEWER)
   listOrgShops(@AuthContext() auth: RequestAuthContext, @Param('orgId') orgId: string) {
     if (auth.orgId !== orgId) {
       throw new UnauthorizedException('Cross-org access denied');
@@ -19,6 +20,7 @@ export class AgencyController {
   }
 
   @Get('orgs/:orgId/summary')
+  @RequireRoles(OrgRole.OWNER, OrgRole.MEMBER, OrgRole.AGENCY_ADMIN, OrgRole.AGENCY_VIEWER)
   summary(@AuthContext() auth: RequestAuthContext, @Param('orgId') orgId: string) {
     if (auth.orgId !== orgId) {
       throw new UnauthorizedException('Cross-org access denied');
@@ -37,7 +39,11 @@ export class AgencyController {
 
   @Post('shops/:shopId/connect-code')
   @RequireRoles(OrgRole.OWNER, OrgRole.AGENCY_ADMIN)
-  attachShop(@Param('shopId') shopId: string, @Body() body: AttachConnectCodeDto) {
-    return this.agencyService.attachShopToOrg(body.code, shopId);
+  attachShop(
+    @AuthContext() auth: RequestAuthContext,
+    @Param('shopId') shopId: string,
+    @Body() body: AttachConnectCodeDto,
+  ) {
+    return this.agencyService.attachShopToOrg(body.code, shopId, auth.orgId, auth.userId);
   }
 }
