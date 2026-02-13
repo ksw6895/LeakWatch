@@ -12,4 +12,10 @@ export class MailgunController {
   events(@Body() body: Record<string, unknown>) {
     return this.mailgunService.handleWebhook(body);
   }
+
+  @Public()
+  @Post('inbound')
+  inbound(@Body() body: Record<string, unknown>) {
+    return this.mailgunService.handleInboundWebhook(body);
+  }
 }
