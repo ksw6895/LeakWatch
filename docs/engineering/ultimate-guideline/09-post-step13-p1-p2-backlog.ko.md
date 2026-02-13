@@ -212,17 +212,39 @@
     - `apps/web/src/app/(embedded)/app/settings/billing/page.tsx`
 
 - P2-L (Agency 포털 본체)
-  - `/agency/login`, `/agency/shops/[shopId]`, `/agency/reports`를 실제 API 연동형 read flow로 연결
-  - 역할/테넌시 가드레일은 API(`TenantGuard`, `RolesGuard`)를 source-of-truth로 유지
+  - `/agency/login`, `/agency/shops/[shopId]`, `/agency/reports`를 실제 API 연동형 운영 흐름으로 연결
+  - API role matrix 보강(`OWNER`, `MEMBER`, `AGENCY_ADMIN`, `AGENCY_VIEWER`) + cross-org attach 차단
     - `apps/web/src/app/agency/login/page.tsx`
     - `apps/web/src/app/agency/shops/[shopId]/page.tsx`
     - `apps/web/src/app/agency/reports/page.tsx`
+    - `apps/api/src/modules/agency/agency.controller.ts`
+    - `apps/api/src/modules/agency/agency.service.ts`
 
-- P2-N/O 일부
-  - N: report export(csv/json payload) 구현
-  - O: mobile/a11y 보강(uploads dropzone keyboard/aria, reports table mobile hint)
+- P2-M (설치 앱 동기화 + 감지 정확도 보강)
+  - 설치 앱 스냅샷 sync endpoint 추가 + vendor status ACTIVE/SUSPECTED_UNUSED 갱신 + audit log 기록
+    - `apps/api/src/modules/shops/installed-apps-sync.dto.ts`
+    - `apps/api/src/modules/shops/shops.controller.ts`
+    - `apps/api/src/modules/auth/tenant-prisma.service.ts`
+  - Shopify `shop-update` webhook 추가(메타데이터 동기화)
+    - `apps/api/src/modules/shopify/shopify.controller.ts`
+    - `apps/api/src/modules/shopify/shopify-webhook.service.ts`
+
+- P2-N (export/share 협업 흐름)
+  - report share-link 발급 + public shared 조회/export endpoint 추가
+  - web shared viewer(`/reports/shared/[token]`) 및 embedded report 상세의 share action 연결
+    - `apps/api/src/modules/reports/reports.controller.ts`
+    - `apps/api/src/modules/reports/reports.service.ts`
+    - `apps/web/src/app/reports/shared/[token]/page.tsx`
+    - `apps/web/src/app/(embedded)/app/reports/[id]/page.tsx`
+
+- P2-O (Inbound email parsing V1 + 운영 UX 보강)
+  - Mailgun inbound webhook 추가 + message-id 후보 파싱 + action run 상태 연동 + 감사로그
+    - `apps/api/src/modules/mailgun/mailgun.controller.ts`
+    - `apps/api/src/modules/mailgun/mailgun.service.ts`
+  - 오탐 완화를 위한 negative context keyword 처리(`not resolved`, `unresolved`, `issue persists`) 반영
 
 미완료/리스크:
 
-- P2-M(자동 인입/설치 앱 동기화), P2-O의 인바운드 이메일 파싱 파이프라인은 이번 실행 단위 범위를 넘어선다.
-- Web `next build`는 기존 embedded pages의 `useSearchParams` pre-render 제약으로 여전히 실패한다(이번 변경으로 신규 agency 라우트 오류는 제거됨).
+- public share link는 현재 `SHOPIFY_APP_URL` 기반 7일 만료 JWT로 운영되며, 별도 단축/강제폐기 UX는 후속 범위다.
+- inbound parsing은 규칙 기반 V1이며, 고도화된 intent 분류(LLM/규칙 혼합) 전에는 문구 편차로 인한 false-positive/negative 가능성이 남는다.
+- Web `next build`의 embedded `useSearchParams` pre-render 제약은 기존 코드 이슈로 잔존할 수 있어, full build에서 신규 회귀와 분리해 판단이 필요하다.

@@ -54,6 +54,25 @@ paths:
         '201':
           description: Webhook accepted
 
+  /v1/shopify/webhooks/shop-update:
+    post:
+      summary: Shopify shop/update webhook
+      security: []
+      parameters:
+        - in: header
+          name: x-shopify-hmac-sha256
+          required: true
+          schema:
+            type: string
+        - in: header
+          name: x-shopify-shop-domain
+          required: true
+          schema:
+            type: string
+      responses:
+        '201':
+          description: Webhook accepted
+
   /v1/auth/me:
     get:
       summary: Resolve current auth context
@@ -103,6 +122,39 @@ paths:
       responses:
         '200':
           description: Finding list
+
+  /v1/shops/{shopId}/installed-apps/sync:
+    post:
+      summary: Sync installed app snapshot to tracked vendors
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: shopId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - installedApps
+              properties:
+                installedApps:
+                  type: array
+                  items:
+                    type: string
+                source:
+                  type: string
+                  maxLength: 100
+      responses:
+        '201':
+          description: Installed apps snapshot synced
+        '404':
+          description: Shop not found
 
   /v1/shops/{shopId}/documents:
     get:
@@ -458,6 +510,67 @@ paths:
         '404':
           description: Report not found
 
+  /v1/reports/{id}/share-link:
+    post:
+      summary: Create temporary share link token for report
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '201':
+          description: Share link generated
+        '404':
+          description: Report not found
+
+  /v1/reports/shared/{token}:
+    get:
+      summary: Read report via public share token
+      security: []
+      parameters:
+        - in: path
+          name: token
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Shared report detail
+        '403':
+          description: Invalid or expired share token
+        '404':
+          description: Report not found
+
+  /v1/reports/shared/{token}/export:
+    get:
+      summary: Export report via public share token
+      security: []
+      parameters:
+        - in: path
+          name: token
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: format
+          required: false
+          schema:
+            type: string
+            enum:
+              - csv
+              - json
+      responses:
+        '200':
+          description: Shared export payload generated
+        '403':
+          description: Invalid or expired share token
+        '404':
+          description: Report not found
+
   /v1/mailgun/webhooks/events:
     post:
       summary: Handle Mailgun delivery/failure webhook
@@ -472,6 +585,23 @@ paths:
       responses:
         '201':
           description: Webhook event processed
+        '401':
+          description: Invalid webhook signature
+
+  /v1/mailgun/webhooks/inbound:
+    post:
+      summary: Handle Mailgun inbound reply webhook
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '201':
+          description: Inbound webhook processed
         '401':
           description: Invalid webhook signature
 

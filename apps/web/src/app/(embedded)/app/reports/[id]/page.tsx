@@ -37,6 +37,7 @@ function ReportDetailPageContent() {
   const [report, setReport] = useState<ReportDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showRaw, setShowRaw] = useState(false);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!host || !params.id) {
@@ -163,6 +164,36 @@ function ReportDetailPageContent() {
                             return;
                           }
                           try {
+                            const response = await apiFetch(`/v1/reports/${report.id}/share-link`, {
+                              host,
+                              method: 'POST',
+                              body: JSON.stringify({}),
+                            });
+                            if (!response.ok) {
+                              throw new Error(`Share link failed (${response.status})`);
+                            }
+                            const payload = (await response.json()) as { shareUrl: string };
+                            setShareUrl(payload.shareUrl);
+                            if (navigator.clipboard?.writeText) {
+                              await navigator.clipboard.writeText(payload.shareUrl);
+                            }
+                          } catch (unknownError) {
+                            setError(
+                              unknownError instanceof Error
+                                ? unknownError.message
+                                : 'Share link failed',
+                            );
+                          }
+                        }}
+                      >
+                        Create share link
+                      </Button>
+                      <Button
+                        onClick={async () => {
+                          if (!host || !report) {
+                            return;
+                          }
+                          try {
                             const response = await apiFetch(
                               `/v1/reports/${report.id}/export?format=csv`,
                               { host },
@@ -196,6 +227,13 @@ function ReportDetailPageContent() {
                         Export CSV
                       </Button>
                     </div>
+                    {shareUrl ? (
+                      <Box paddingBlockStart="200">
+                        <Text as="p" variant="bodySm" tone="subdued">
+                          Share link: {shareUrl}
+                        </Text>
+                      </Box>
+                    ) : null}
                     {showRaw ? (
                       <>
                         <Text as="h3" variant="headingSm">
