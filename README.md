@@ -17,6 +17,8 @@ LeakWatch는 Shopify 스토어의 구독/앱 비용 누수를 탐지하기 위�
 docker compose up -d postgres redis
 ```
 
+※ `pnpm test`/`pnpm build` 실행 전에는 위 명령으로 `localhost:5433`의 PostgreSQL이 기동되어 있어야 합니다.
+
 3. 환경변수 준비
 
 ```bash
@@ -92,6 +94,6 @@ https://<ngrok-domain>/v1/shopify/auth/start?shop=<your-shop>.myshopify.com
 
 ## 지금 남은 핵심 작업(네 상태 기준)
 
-1. OpenAI 실키 설정(`OPENAI_API_KEY`) + 샘플 문서로 `/app/uploads` E2E 확인(create -> PUT -> complete -> EXTRACTED/NORMALIZED)
+1. OpenAI API 키 설정(`OPENAI_API_KEY`) + 샘플 문서로 `/app/uploads` E2E 확인(create -> PUT -> complete -> EXTRACTED/NORMALIZED)
 2. 운영용 정확도 검증(샘플 10건 기준 normalize 성공률/누락률 측정)
 3. 실운영 키 설정 후 E2E smoke 및 운영 튜닝

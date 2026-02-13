@@ -4,7 +4,7 @@ import { Provider as AppBridgeProvider } from '@shopify/app-bridge-react';
 import { AppProvider, Box, Button, Card, Layout, Page, Text } from '@shopify/polaris';
 import enTranslations from '@shopify/polaris/locales/en.json';
 import { useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 
 import { apiFetch } from '../../../../lib/api/fetcher';
 
@@ -25,7 +25,7 @@ function ReportsPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     if (!host) {
       setLoading(false);
       return;
@@ -50,11 +50,11 @@ function ReportsPageContent() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [host]);
 
   useEffect(() => {
     void load();
-  }, [host]);
+  }, [load]);
 
   const appBridgeConfig =
     host && apiKey

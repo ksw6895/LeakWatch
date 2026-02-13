@@ -14,7 +14,7 @@ import {
 } from '@shopify/polaris';
 import enTranslations from '@shopify/polaris/locales/en.json';
 import { useParams, useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 
 import { apiFetch } from '../../../../../lib/api/fetcher';
 
@@ -66,7 +66,7 @@ function ActionDetailContent() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     if (!host || !params.id) {
       return;
     }
@@ -82,7 +82,7 @@ function ActionDetailContent() {
     setBodyMarkdown(json.bodyMarkdown);
     setToEmail(json.toEmail);
     setCcEmails(json.ccEmails.join(', '));
-  };
+  }, [host, params.id]);
 
   useEffect(() => {
     void (async () => {
@@ -92,7 +92,7 @@ function ActionDetailContent() {
         setError(unknownError instanceof Error ? unknownError.message : 'Unknown error');
       }
     })();
-  }, [host, params.id]);
+  }, [load]);
 
   const appBridgeConfig =
     host && apiKey

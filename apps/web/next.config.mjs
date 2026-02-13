@@ -75,9 +75,9 @@ const allowedDevOrigins = Array.from(
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
+  allowedDevOrigins,
   experimental: {
     optimizePackageImports: ['@shopify/polaris'],
-    allowedDevOrigins,
   },
   async headers() {
     return [

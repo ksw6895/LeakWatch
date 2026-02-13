@@ -4,7 +4,7 @@ import { Provider as AppBridgeProvider } from '@shopify/app-bridge-react';
 import { AppProvider, Box, Button, Card, Layout, Page, Text } from '@shopify/polaris';
 import enTranslations from '@shopify/polaris/locales/en.json';
 import { useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 
 import { apiFetch } from '../../../../../lib/api/fetcher';
 
@@ -28,7 +28,7 @@ function BillingPageContent() {
   const apiKey = process.env.NEXT_PUBLIC_SHOPIFY_API_KEY;
   const [current, setCurrent] = useState<BillingCurrent | null>(null);
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     if (!host) {
       return;
     }
@@ -44,11 +44,11 @@ function BillingPageContent() {
       return;
     }
     setCurrent((await response.json()) as BillingCurrent);
-  };
+  }, [host]);
 
   useEffect(() => {
     void refresh();
-  }, [host]);
+  }, [refresh]);
 
   const appBridgeConfig =
     host && apiKey

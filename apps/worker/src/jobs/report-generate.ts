@@ -74,7 +74,7 @@ async function maybeSendReportEmail(args: {
   const reportUrl = `${appUrl}/app/reports`;
   const subject = `[LeakWatch] ${args.period.toLowerCase()} report ready`;
   const text = `Your ${args.period.toLowerCase()} report for ${args.shopDomain} is ready.\n\nOpen: ${reportUrl}`;
-  const html = `<p>Your <strong>${args.period.toLowerCase()}</strong> report for <strong>${args.shopDomain}</strong> is ready.</p><p><a href=\"${reportUrl}\">Open report list</a></p>`;
+  const html = `<p>Your <strong>${args.period.toLowerCase()}</strong> report for <strong>${args.shopDomain}</strong> is ready.</p><p><a href="${reportUrl}">Open report list</a></p>`;
 
   const form = new FormData();
   form.set('from', `LeakWatch <noreply@${env.MAILGUN_DOMAIN}>`);
