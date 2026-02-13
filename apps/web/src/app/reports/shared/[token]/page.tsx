@@ -99,6 +99,33 @@ export default function SharedReportPage() {
                     >
                       Download CSV
                     </Button>
+                    <Button
+                      onClick={async () => {
+                        const response = await apiFetch(
+                          `/v1/reports/shared/${encodeURIComponent(params.token)}/export?format=pdf`,
+                        );
+                        if (!response.ok) {
+                          setError(`Shared export failed (${response.status})`);
+                          return;
+                        }
+                        const payload = (await response.json()) as {
+                          fileName: string;
+                          contentType: string;
+                          content: string;
+                        };
+                        const blob = new Blob([payload.content], {
+                          type: payload.contentType,
+                        });
+                        const url = URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.download = payload.fileName;
+                        link.click();
+                        URL.revokeObjectURL(url);
+                      }}
+                    >
+                      Download PDF
+                    </Button>
                   </div>
                 </div>
               )}

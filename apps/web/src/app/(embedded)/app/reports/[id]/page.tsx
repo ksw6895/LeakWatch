@@ -189,6 +189,36 @@ function ReportDetailPageContent() {
                         Create share link
                       </Button>
                       <Button
+                        disabled={!shareUrl}
+                        onClick={async () => {
+                          if (!host || !report) {
+                            return;
+                          }
+                          try {
+                            const response = await apiFetch(
+                              `/v1/reports/${report.id}/share-link/revoke`,
+                              {
+                                host,
+                                method: 'POST',
+                                body: JSON.stringify({}),
+                              },
+                            );
+                            if (!response.ok) {
+                              throw new Error(`Share revoke failed (${response.status})`);
+                            }
+                            setShareUrl(null);
+                          } catch (unknownError) {
+                            setError(
+                              unknownError instanceof Error
+                                ? unknownError.message
+                                : 'Share revoke failed',
+                            );
+                          }
+                        }}
+                      >
+                        Revoke share link
+                      </Button>
+                      <Button
                         onClick={async () => {
                           if (!host || !report) {
                             return;
@@ -225,6 +255,44 @@ function ReportDetailPageContent() {
                         }}
                       >
                         Export CSV
+                      </Button>
+                      <Button
+                        onClick={async () => {
+                          if (!host || !report) {
+                            return;
+                          }
+                          try {
+                            const response = await apiFetch(
+                              `/v1/reports/${report.id}/export?format=pdf`,
+                              { host },
+                            );
+                            if (!response.ok) {
+                              throw new Error(`Export failed (${response.status})`);
+                            }
+                            const payload = (await response.json()) as {
+                              fileName: string;
+                              contentType: string;
+                              content: string;
+                            };
+                            const blob = new Blob([payload.content], {
+                              type: payload.contentType,
+                            });
+                            const url = URL.createObjectURL(blob);
+                            const link = document.createElement('a');
+                            link.href = url;
+                            link.download = payload.fileName;
+                            link.click();
+                            URL.revokeObjectURL(url);
+                          } catch (unknownError) {
+                            setError(
+                              unknownError instanceof Error
+                                ? unknownError.message
+                                : 'Export failed',
+                            );
+                          }
+                        }}
+                      >
+                        Export PDF
                       </Button>
                     </div>
                     {shareUrl ? (
