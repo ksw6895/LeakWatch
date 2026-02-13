@@ -9,6 +9,7 @@ import { useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
 import { apiFetch, getApiBaseUrl } from '../lib/api/fetcher';
+import { trackEvent } from '../lib/analytics/track';
 import { navigateEmbedded } from '../lib/navigation/embedded';
 import { StatePanel } from './common/StatePanel';
 import { ActionTile } from './dashboard/ActionTile';
@@ -71,6 +72,11 @@ function Content() {
   };
 
   const goTo = (path: string) => {
+    void trackEvent(host, 'dashboard_quick_action_clicked', {
+      host,
+      shop,
+      targetPath: path,
+    });
     navigateEmbedded(path, { host, shop });
   };
 

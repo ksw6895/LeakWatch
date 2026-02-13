@@ -1,9 +1,11 @@
-import { Controller, Get, Inject, NotFoundException, Param } from '@nestjs/common';
+import { Body, Controller, Get, Inject, NotFoundException, Param, Patch } from '@nestjs/common';
+import { OrgRole } from '@prisma/client';
 
-import { AuthContext } from '../auth/auth.decorators';
+import { AuthContext, RequireRoles } from '../auth/auth.decorators';
 import type { RequestAuthContext } from '../auth/auth.types';
 import { TenantPrismaService } from '../auth/tenant-prisma.service';
 import { ReportsService } from '../reports/reports.service';
+import { UpdateShopSettingsDto } from './update-shop-settings.dto';
 
 @Controller('shops')
 export class ShopsController {
@@ -34,5 +36,33 @@ export class ShopsController {
   @Get(':shopId/summary')
   summary(@AuthContext() auth: RequestAuthContext, @Param('shopId') shopId: string) {
     return this.reportsService.getSummary(auth.orgId, shopId);
+  }
+
+  @Get(':shopId/settings')
+  async getSettings(@AuthContext() auth: RequestAuthContext, @Param('shopId') shopId: string) {
+    const settings = await this.tenantPrisma.getShopSettings(auth.orgId, shopId);
+    if (!settings) {
+      throw new NotFoundException('Shop not found');
+    }
+    return settings;
+  }
+
+  @Patch(':shopId/settings')
+  @RequireRoles(OrgRole.OWNER, OrgRole.MEMBER)
+  async updateSettings(
+    @AuthContext() auth: RequestAuthContext,
+    @Param('shopId') shopId: string,
+    @Body() body: UpdateShopSettingsDto,
+  ) {
+    const updated = await this.tenantPrisma.updateShopSettings(
+      auth.orgId,
+      shopId,
+      auth.userId,
+      body,
+    );
+    if (!updated) {
+      throw new NotFoundException('Shop not found');
+    }
+    return updated;
   }
 }

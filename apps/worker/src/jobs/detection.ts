@@ -551,6 +551,67 @@ async function upsertFinding(
     return { findingId: updated.id, created: false };
   }
 
+  const closed = await prisma.leakFinding.findFirst({
+    where: {
+      orgId,
+      shopId,
+      type: draft.type,
+      status: {
+        in: [FindingStatus.DISMISSED, FindingStatus.RESOLVED],
+      },
+      ...(draft.vendorId ? { vendorId: draft.vendorId } : {}),
+    },
+    orderBy: {
+      createdAt: 'desc',
+    },
+  });
+
+  if (closed) {
+    const reopened = await prisma.leakFinding.update({
+      where: { id: closed.id },
+      data: {
+        status: FindingStatus.REOPENED,
+        title: draft.title,
+        summary: draft.summary,
+        confidence: draft.confidence,
+        estimatedSavingsAmount: draft.estimatedSavingsAmount,
+        currency: draft.currency,
+        periodEnd: draft.periodEnd,
+        primaryLineItemId: draft.primaryLineItemId,
+      },
+    });
+
+    await prisma.evidenceRef.deleteMany({ where: { findingId: reopened.id } });
+    if (draft.evidence.length > 0) {
+      await prisma.evidenceRef.createMany({
+        data: draft.evidence.map((evidence) => ({
+          findingId: reopened.id,
+          documentVersionId: evidence.documentVersionId,
+          kind: evidence.kind,
+          pointerJson: evidence.pointerJson,
+          excerpt: evidence.excerpt,
+        })),
+      });
+    }
+
+    await prisma.auditLog.create({
+      data: {
+        orgId,
+        shopId,
+        action: 'FINDING_REOPENED',
+        targetType: 'finding',
+        targetId: reopened.id,
+        metaJson: {
+          reason: 'Detection rule matched again after dismissed/resolved',
+          findingType: draft.type,
+        },
+      },
+    });
+
+    logger.info({ findingId: reopened.id, type: reopened.type }, 'Reopened detection finding');
+    return { findingId: reopened.id, created: false };
+  }
+
   const created = await prisma.leakFinding.create({
     data: {
       orgId,

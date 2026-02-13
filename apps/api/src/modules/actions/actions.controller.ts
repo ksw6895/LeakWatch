@@ -18,6 +18,7 @@ import type { RequestAuthContext } from '../auth/auth.types';
 import { TenantPrismaService } from '../auth/tenant-prisma.service';
 import { BillingService } from '../billing/billing.service';
 import { QueueService } from '../documents/queue.service';
+import { UpdateActionStatusDto } from './update-action-status.dto';
 import { UpdateActionRequestDto } from './update-action-request.dto';
 
 @Controller()
@@ -86,6 +87,26 @@ export class ActionsController {
     await this.billingService.incrementUsage(auth.orgId, auth.shopId, 'emails_sent', 1);
 
     return approved;
+  }
+
+  @Post('action-requests/:id/status')
+  @RequireRoles(OrgRole.OWNER, OrgRole.MEMBER, OrgRole.AGENCY_ADMIN)
+  async updateStatus(
+    @AuthContext() auth: RequestAuthContext,
+    @Param('id') id: string,
+    @Body() body: UpdateActionStatusDto,
+  ) {
+    const updated = await this.tenantPrisma.updateActionManualStatus(
+      auth.orgId,
+      id,
+      body.status,
+      auth.userId,
+    );
+    if (!updated) {
+      throw new NotFoundException('Action request not found');
+    }
+
+    return updated;
   }
 
   @Post('actions/:findingId/approve')

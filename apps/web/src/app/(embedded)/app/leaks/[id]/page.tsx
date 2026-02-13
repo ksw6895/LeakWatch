@@ -19,6 +19,7 @@ import { useParams, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 
 import { apiFetch } from '../../../../../lib/api/fetcher';
+import { trackEvent } from '../../../../../lib/analytics/track';
 import { StatePanel } from '../../../../../components/common/StatePanel';
 import { canUpload, writeAccessReason } from '../../../../../lib/auth/roles';
 import { navigateEmbedded } from '../../../../../lib/navigation/embedded';
@@ -89,6 +90,18 @@ function LeaksDetailContent() {
     })();
   }, [host, params.id]);
 
+  useEffect(() => {
+    if (!finding?.id) {
+      return;
+    }
+    void trackEvent(host, 'finding_detail_viewed', {
+      host,
+      shop,
+      findingId: finding.id,
+      status: finding.status,
+    });
+  }, [finding?.id, finding?.status, host, shop]);
+
   const appBridgeConfig =
     host && apiKey
       ? {
@@ -115,6 +128,11 @@ function LeaksDetailContent() {
       const json = (await response.json()) as FindingDetail;
       setFinding(json);
       setError(null);
+      void trackEvent(host, 'finding_dismissed', {
+        host,
+        shop,
+        findingId: finding.id,
+      });
     } catch (unknownError) {
       setError(unknownError instanceof Error ? unknownError.message : 'Unknown error');
     } finally {

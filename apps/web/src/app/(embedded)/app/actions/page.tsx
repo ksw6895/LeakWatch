@@ -13,6 +13,8 @@ import { navigateEmbedded } from '../../../../lib/navigation/embedded';
 type ActionRequestListItem = {
   id: string;
   status: string;
+  displayStatus?: string;
+  latestRunStatus?: string | null;
   type: string;
   toEmail: string;
   subject: string;
@@ -39,6 +41,15 @@ function tone(status: string): 'info' | 'success' | 'attention' | 'critical' {
   if (status === 'CANCELED') {
     return 'critical';
   }
+  if (status === 'FAILED') {
+    return 'critical';
+  }
+  if (status === 'WAITING_REPLY') {
+    return 'attention';
+  }
+  if (status === 'RESOLVED') {
+    return 'success';
+  }
   return 'success';
 }
 
@@ -50,9 +61,9 @@ function ActionsPageContent() {
   const [items, setItems] = useState<ActionRequestListItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
-  const [statusTab, setStatusTab] = useState<'ALL' | 'DRAFT' | 'APPROVED' | 'CANCELED' | 'SENT'>(
-    'ALL',
-  );
+  const [statusTab, setStatusTab] = useState<
+    'ALL' | 'DRAFT' | 'APPROVED' | 'WAITING_REPLY' | 'FAILED' | 'RESOLVED' | 'CANCELED'
+  >('ALL');
   const draftsCount = useMemo(
     () => items.filter((item) => item.status === 'DRAFT').length,
     [items],
@@ -67,7 +78,10 @@ function ActionsPageContent() {
   );
   const activeRecipients = useMemo(() => new Set(items.map((item) => item.toEmail)).size, [items]);
   const filteredItems = useMemo(
-    () => (statusTab === 'ALL' ? items : items.filter((item) => item.status === statusTab)),
+    () =>
+      statusTab === 'ALL'
+        ? items
+        : items.filter((item) => (item.displayStatus ?? item.status) === statusTab),
     [items, statusTab],
   );
 
@@ -163,17 +177,25 @@ function ActionsPageContent() {
 
                       <div className="lw-content-box">
                         <div className="lw-actions-row">
-                          {(['ALL', 'DRAFT', 'APPROVED', 'SENT', 'CANCELED'] as const).map(
-                            (status) => (
-                              <Button
-                                key={status}
-                                variant={statusTab === status ? 'primary' : 'tertiary'}
-                                onClick={() => setStatusTab(status)}
-                              >
-                                {status}
-                              </Button>
-                            ),
-                          )}
+                          {(
+                            [
+                              'ALL',
+                              'DRAFT',
+                              'APPROVED',
+                              'WAITING_REPLY',
+                              'FAILED',
+                              'RESOLVED',
+                              'CANCELED',
+                            ] as const
+                          ).map((status) => (
+                            <Button
+                              key={status}
+                              variant={statusTab === status ? 'primary' : 'tertiary'}
+                              onClick={() => setStatusTab(status)}
+                            >
+                              {status}
+                            </Button>
+                          ))}
                         </div>
                       </div>
 
@@ -217,6 +239,9 @@ function ActionsPageContent() {
                                 >
                                   <td>
                                     <Badge tone={tone(item.status)}>{item.status}</Badge>
+                                    <div className="lw-metric-hint">
+                                      display: {item.displayStatus ?? item.status}
+                                    </div>
                                   </td>
                                   <td>
                                     <span className="lw-inline-chip">{item.type}</span>

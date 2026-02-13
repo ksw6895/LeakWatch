@@ -18,6 +18,7 @@ import { useParams, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useState } from 'react';
 
 import { apiFetch } from '../../../../../lib/api/fetcher';
+import { trackEvent } from '../../../../../lib/analytics/track';
 import { StatePanel } from '../../../../../components/common/StatePanel';
 import { canApproveSend, writeAccessReason } from '../../../../../lib/auth/roles';
 import { navigateEmbedded } from '../../../../../lib/navigation/embedded';
@@ -40,6 +41,8 @@ type ActionRun = {
 type ActionRequestDetail = {
   id: string;
   status: string;
+  displayStatus?: string;
+  latestRunStatus?: string | null;
   type: string;
   toEmail: string;
   ccEmails: string[];
@@ -196,9 +199,39 @@ function ActionDetailContent() {
       if (!response.ok) {
         throw new Error(`Approve failed (${response.status})`);
       }
+      void trackEvent(host, 'action_approved_sent', {
+        host,
+        shop,
+        actionId: actionRequest.id,
+        findingId: actionRequest.finding.id,
+      });
       await load();
       setError(null);
       setApproveModalOpen(false);
+    } catch (unknownError) {
+      setError(unknownError instanceof Error ? unknownError.message : 'Unknown error');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const updateManualStatus = async (status: 'WAITING_REPLY' | 'RESOLVED') => {
+    if (!host || !actionRequest) {
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const response = await apiFetch(`/v1/action-requests/${actionRequest.id}/status`, {
+        host,
+        method: 'POST',
+        body: JSON.stringify({ status }),
+      });
+      if (!response.ok) {
+        throw new Error(`Status update failed (${response.status})`);
+      }
+      await load();
+      setError(null);
     } catch (unknownError) {
       setError(unknownError instanceof Error ? unknownError.message : 'Unknown error');
     } finally {
@@ -252,7 +285,12 @@ function ActionDetailContent() {
                           </div>
                           <Box paddingBlockStart="200">
                             <Badge>{actionRequest.type}</Badge>{' '}
-                            <span className="lw-inline-chip">status: {actionRequest.status}</span>{' '}
+                            <span className="lw-inline-chip">
+                              status: {actionRequest.displayStatus ?? actionRequest.status}
+                            </span>{' '}
+                            <span className="lw-inline-chip">
+                              latest run: {actionRequest.latestRunStatus ?? 'n/a'}
+                            </span>{' '}
                             <span className="lw-inline-chip">
                               savings: {actionRequest.finding.estimatedSavingsAmount}{' '}
                               {actionRequest.finding.currency}
@@ -344,6 +382,22 @@ function ActionDetailContent() {
                                 disabled={busy || !actionRequest.attachmentKey}
                               >
                                 Download evidence pack
+                              </Button>
+                              <Button
+                                onClick={() => {
+                                  void updateManualStatus('WAITING_REPLY');
+                                }}
+                                disabled={busy || actionRequest.status !== 'APPROVED' || !canWrite}
+                              >
+                                Mark waiting reply
+                              </Button>
+                              <Button
+                                onClick={() => {
+                                  void updateManualStatus('RESOLVED');
+                                }}
+                                disabled={busy || actionRequest.status !== 'APPROVED' || !canWrite}
+                              >
+                                Mark resolved
                               </Button>
                               <Button
                                 onClick={() => {

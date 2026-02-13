@@ -204,4 +204,87 @@ describe.sequential('Actions flow + Mailgun webhook', () => {
     expect(events.length).toBeGreaterThan(0);
     expect(events[0]?.event).toBe('delivered');
   });
+
+  it('updates action status manually to waiting reply and resolved', async () => {
+    const org = await prisma.organization.create({ data: { name: 'Org Manual Status' } });
+    const shop = await prisma.shop.create({
+      data: {
+        orgId: org.id,
+        shopifyDomain: 'manual-status.myshopify.com',
+        installedAt: new Date(),
+      },
+    });
+    const user = await prisma.user.create({ data: { shopifyUserId: 'manual-owner' } });
+    await prisma.membership.create({
+      data: {
+        orgId: org.id,
+        userId: user.id,
+        role: OrgRole.OWNER,
+      },
+    });
+    const finding = await prisma.leakFinding.create({
+      data: {
+        orgId: org.id,
+        shopId: shop.id,
+        type: LeakType.DUPLICATE_CHARGE,
+        status: FindingStatus.OPEN,
+        title: 'Manual status finding',
+        summary: 'Manual status transitions',
+        confidence: 80,
+        estimatedSavingsAmount: '20',
+        currency: 'USD',
+      },
+    });
+
+    const actionRequest = await prisma.actionRequest.create({
+      data: {
+        orgId: org.id,
+        shopId: shop.id,
+        findingId: finding.id,
+        type: ActionType.CLARIFICATION,
+        status: ActionRequestStatus.APPROVED,
+        toEmail: 'ops@example.com',
+        ccEmails: [],
+        subject: 'Manual status',
+        bodyMarkdown: 'Body',
+        createdByUserId: user.id,
+        approvedByUserId: user.id,
+      },
+    });
+    await prisma.actionRun.create({
+      data: {
+        actionRequestId: actionRequest.id,
+        status: ActionRunStatus.SENT,
+      },
+    });
+
+    const token = await createSessionToken({
+      sub: 'manual-owner',
+      shopDomain: shop.shopifyDomain,
+    });
+
+    const waitingReply = await request(app.getHttpServer())
+      .post(`/v1/action-requests/${actionRequest.id}/status`)
+      .set('authorization', `Bearer ${token}`)
+      .send({ status: 'WAITING_REPLY' });
+    expect(waitingReply.status).toBe(201);
+    expect(waitingReply.body.displayStatus).toBe('WAITING_REPLY');
+
+    const resolved = await request(app.getHttpServer())
+      .post(`/v1/action-requests/${actionRequest.id}/status`)
+      .set('authorization', `Bearer ${token}`)
+      .send({ status: 'RESOLVED' });
+    expect(resolved.status).toBe(201);
+    expect(resolved.body.displayStatus).toBe('RESOLVED');
+
+    const latestRun = await prisma.actionRun.findFirst({
+      where: {
+        actionRequestId: actionRequest.id,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+    expect(latestRun?.status).toBe(ActionRunStatus.RESOLVED);
+  });
 });

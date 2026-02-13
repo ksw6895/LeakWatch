@@ -14,6 +14,7 @@ import { BillingModule } from './modules/billing/billing.module';
 import { AuditInterceptor } from './modules/audit/audit.interceptor';
 import { DocumentsModule } from './modules/documents/documents.module';
 import { EvidenceModule } from './modules/evidence/evidence.module';
+import { EventsModule } from './modules/events/events.module';
 import { FindingsModule } from './modules/findings/findings.module';
 import { HealthController } from './modules/health/health.controller';
 import { MailgunModule } from './modules/mailgun/mailgun.module';
@@ -29,6 +30,7 @@ import { ShopsModule } from './modules/shops/shops.module';
     ShopifyModule,
     ShopsModule,
     DocumentsModule,
+    EventsModule,
     EvidenceModule,
     MailgunModule,
     BillingModule,

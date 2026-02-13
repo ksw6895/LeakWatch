@@ -5,6 +5,7 @@ import {
   ActionType,
   DocStatus,
   FindingStatus,
+  OrgRole,
 } from '@prisma/client';
 
 import { PrismaService } from '../../common/prisma/prisma.service';
@@ -22,6 +23,133 @@ export class TenantPrismaService {
 
   getShop(orgId: string, shopId: string) {
     return this.prisma.shop.findFirst({ where: { orgId, id: shopId } });
+  }
+
+  async getShopSettings(orgId: string, shopId: string) {
+    const shop = await this.prisma.shop.findFirst({
+      where: { orgId, id: shopId },
+      select: {
+        id: true,
+        currency: true,
+        timezone: true,
+      },
+    });
+
+    if (!shop) {
+      return null;
+    }
+
+    const settingsLog = await this.prisma.auditLog.findFirst({
+      where: {
+        orgId,
+        shopId,
+        action: 'SHOP_SETTINGS_UPDATED',
+        targetType: 'shop_settings',
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      select: {
+        metaJson: true,
+      },
+    });
+
+    const metaContactEmail =
+      settingsLog &&
+      typeof settingsLog.metaJson === 'object' &&
+      settingsLog.metaJson !== null &&
+      'contactEmail' in settingsLog.metaJson &&
+      typeof settingsLog.metaJson.contactEmail === 'string'
+        ? settingsLog.metaJson.contactEmail
+        : null;
+
+    if (metaContactEmail) {
+      return {
+        currency: shop.currency,
+        timezone: shop.timezone,
+        contactEmail: metaContactEmail,
+      };
+    }
+
+    const owner = await this.prisma.membership.findFirst({
+      where: {
+        orgId,
+        role: OrgRole.OWNER,
+      },
+      select: {
+        user: {
+          select: {
+            email: true,
+          },
+        },
+      },
+    });
+
+    return {
+      currency: shop.currency,
+      timezone: shop.timezone,
+      contactEmail: owner?.user.email ?? null,
+    };
+  }
+
+  async updateShopSettings(
+    orgId: string,
+    shopId: string,
+    userId: string,
+    data: {
+      currency?: string;
+      timezone?: string;
+      contactEmail?: string;
+    },
+  ) {
+    const shop = await this.prisma.shop.findFirst({
+      where: { orgId, id: shopId },
+      select: {
+        id: true,
+        currency: true,
+        timezone: true,
+      },
+    });
+    if (!shop) {
+      return null;
+    }
+
+    const updatedShop = await this.prisma.shop.update({
+      where: { id: shop.id },
+      data: {
+        ...(data.currency ? { currency: data.currency } : {}),
+        ...(data.timezone ? { timezone: data.timezone } : {}),
+      },
+      select: {
+        currency: true,
+        timezone: true,
+      },
+    });
+
+    const existing = await this.getShopSettings(orgId, shopId);
+    const contactEmail = data.contactEmail ?? existing?.contactEmail ?? null;
+
+    await this.prisma.auditLog.create({
+      data: {
+        orgId,
+        shopId,
+        userId,
+        action: 'SHOP_SETTINGS_UPDATED',
+        targetType: 'shop_settings',
+        targetId: shopId,
+        metaJson: {
+          currency: updatedShop.currency,
+          timezone: updatedShop.timezone,
+          contactEmail,
+        },
+      },
+    });
+
+    return {
+      currency: updatedShop.currency,
+      timezone: updatedShop.timezone,
+      contactEmail,
+    };
   }
 
   listDocuments(orgId: string, shopId?: string) {
@@ -174,66 +302,186 @@ export class TenantPrismaService {
   }
 
   listActionRequests(orgId: string, shopId?: string) {
-    return this.prisma.actionRequest.findMany({
-      where: {
-        orgId,
-        ...(shopId ? { shopId } : {}),
-      },
-      include: {
-        finding: {
-          select: {
-            id: true,
-            title: true,
-            type: true,
-            estimatedSavingsAmount: true,
-            currency: true,
+    return this.prisma.actionRequest
+      .findMany({
+        where: {
+          orgId,
+          ...(shopId ? { shopId } : {}),
+        },
+        include: {
+          finding: {
+            select: {
+              id: true,
+              title: true,
+              type: true,
+              estimatedSavingsAmount: true,
+              currency: true,
+            },
+          },
+          runs: {
+            orderBy: {
+              createdAt: 'desc',
+            },
+            take: 1,
           },
         },
-        runs: {
-          orderBy: {
-            createdAt: 'desc',
-          },
-          take: 1,
+        orderBy: {
+          createdAt: 'desc',
         },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
+      })
+      .then((items) =>
+        items.map((item) => {
+          const latestRunStatus = item.runs[0]?.status ?? null;
+          return {
+            ...item,
+            latestRunStatus,
+            displayStatus: this.toActionDisplayStatus(item.status, latestRunStatus),
+          };
+        }),
+      );
   }
 
   getActionRequest(orgId: string, actionRequestId: string) {
-    return this.prisma.actionRequest.findFirst({
+    return this.prisma.actionRequest
+      .findFirst({
+        where: {
+          orgId,
+          id: actionRequestId,
+        },
+        include: {
+          finding: {
+            select: {
+              id: true,
+              title: true,
+              summary: true,
+              type: true,
+              confidence: true,
+              estimatedSavingsAmount: true,
+              currency: true,
+            },
+          },
+          runs: {
+            include: {
+              mailEvents: {
+                orderBy: {
+                  occurredAt: 'desc',
+                },
+              },
+            },
+            orderBy: {
+              createdAt: 'desc',
+            },
+          },
+        },
+      })
+      .then((item) => {
+        if (!item) {
+          return null;
+        }
+        const latestRunStatus = item.runs[0]?.status ?? null;
+        return {
+          ...item,
+          latestRunStatus,
+          displayStatus: this.toActionDisplayStatus(item.status, latestRunStatus),
+        };
+      });
+  }
+
+  async updateActionManualStatus(
+    orgId: string,
+    actionRequestId: string,
+    status: 'WAITING_REPLY' | 'RESOLVED',
+    userId: string,
+  ) {
+    const actionRequest = await this.prisma.actionRequest.findFirst({
       where: {
         orgId,
         id: actionRequestId,
       },
-      include: {
-        finding: {
-          select: {
-            id: true,
-            title: true,
-            summary: true,
-            type: true,
-            confidence: true,
-            estimatedSavingsAmount: true,
-            currency: true,
-          },
+      select: {
+        id: true,
+        shopId: true,
+      },
+    });
+
+    if (!actionRequest) {
+      return null;
+    }
+
+    const nextRunStatus =
+      status === 'RESOLVED' ? ActionRunStatus.RESOLVED : ActionRunStatus.DELIVERED;
+
+    const latestRun = await this.prisma.actionRun.findFirst({
+      where: {
+        actionRequestId,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (latestRun) {
+      await this.prisma.actionRun.update({
+        where: {
+          id: latestRun.id,
         },
-        runs: {
-          include: {
-            mailEvents: {
-              orderBy: {
-                occurredAt: 'desc',
-              },
-            },
-          },
-          orderBy: {
-            createdAt: 'desc',
-          },
+        data: {
+          status: nextRunStatus,
+        },
+      });
+    } else {
+      await this.prisma.actionRun.create({
+        data: {
+          actionRequestId,
+          status: nextRunStatus,
+        },
+      });
+    }
+
+    await this.prisma.auditLog.create({
+      data: {
+        orgId,
+        shopId: actionRequest.shopId,
+        userId,
+        action: 'ACTION_STATUS_UPDATED',
+        targetType: 'action_request',
+        targetId: actionRequestId,
+        metaJson: {
+          requestedStatus: status,
+          mappedRunStatus: nextRunStatus,
         },
       },
     });
+
+    return this.getActionRequest(orgId, actionRequestId);
+  }
+
+  private toActionDisplayStatus(
+    requestStatus: ActionRequestStatus,
+    latestRunStatus: ActionRunStatus | null,
+  ) {
+    if (
+      requestStatus === ActionRequestStatus.DRAFT ||
+      requestStatus === ActionRequestStatus.CANCELED
+    ) {
+      return requestStatus;
+    }
+
+    if (!latestRunStatus) {
+      return requestStatus;
+    }
+
+    if (latestRunStatus === ActionRunStatus.RESOLVED) {
+      return 'RESOLVED';
+    }
+    if (latestRunStatus === ActionRunStatus.DELIVERED || latestRunStatus === ActionRunStatus.SENT) {
+      return 'WAITING_REPLY';
+    }
+
+    return latestRunStatus;
   }
 
   async updateActionDraft(
