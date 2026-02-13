@@ -353,6 +353,29 @@ paths:
         '404':
           description: Action request not found
 
+  /v1/action-requests/{id}/status:
+    post:
+      summary: Update manual lifecycle status (WAITING_REPLY or RESOLVED)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateActionStatus'
+      responses:
+        '201':
+          description: Action request status updated
+        '404':
+          description: Action request not found
+
   /v1/actions/{findingId}/approve:
     post:
       summary: Legacy approval endpoint by findingId (backward compatibility)
@@ -389,7 +412,7 @@ paths:
 
   /v1/reports:
     get:
-      summary: List reports (optionally filter by shop)
+      summary: List reports (optionally filter by shop and period)
       security:
         - bearerAuth: []
       parameters:
@@ -398,9 +421,42 @@ paths:
           required: false
           schema:
             type: string
+        - in: query
+          name: period
+          required: false
+          schema:
+            type: string
+            enum:
+              - WEEKLY
+              - MONTHLY
       responses:
         '200':
           description: Report list
+
+  /v1/reports/{id}/export:
+    get:
+      summary: Export report summary as csv or json payload
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: format
+          required: false
+          schema:
+            type: string
+            enum:
+              - csv
+              - json
+      responses:
+        '200':
+          description: Export payload generated
+        '404':
+          description: Report not found
 
   /v1/mailgun/webhooks/events:
     post:
@@ -490,3 +546,14 @@ components:
         bodyMarkdown:
           type: string
           maxLength: 10000
+
+    UpdateActionStatus:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum:
+            - WAITING_REPLY
+            - RESOLVED

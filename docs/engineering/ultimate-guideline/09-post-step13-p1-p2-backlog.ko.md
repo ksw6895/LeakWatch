@@ -180,3 +180,49 @@
 - `pnpm typecheck`
 - `pnpm test`
 - `pnpm build`
+
+## 7) 실행 단위 업데이트 (2026-02-14)
+
+이번 실행 단위에서 아래 항목을 코드/문서 동기화 기준으로 반영했다.
+
+- P1-I (Action lifecycle 정교화)
+  - API: `POST /v1/action-requests/:id/status` 흐름 유지 + dismiss RBAC 강화 + dismiss 감사로그 추가
+    - `apps/api/src/modules/actions/actions.controller.ts`
+    - `apps/api/src/modules/findings/findings.controller.ts`
+    - `apps/api/src/modules/auth/tenant-prisma.service.ts`
+  - Web: actions 리스트/상세에서 `displayStatus` 중심 표시 일관화
+    - `apps/web/src/app/(embedded)/app/actions/page.tsx`
+    - `apps/web/src/app/(embedded)/app/actions/[id]/page.tsx`
+
+- P1-J (리포트 UX/필터/요약)
+  - API: `period` 필터 지원 + report export endpoint 추가
+    - `apps/api/src/modules/reports/reports.controller.ts`
+    - `apps/api/src/modules/reports/reports.service.ts`
+  - Web: weekly/monthly/all 필터 탭, 요약 지표 확장, 상세 advanced JSON 토글 + CSV export
+    - `apps/web/src/app/(embedded)/app/reports/page.tsx`
+    - `apps/web/src/app/(embedded)/app/reports/[id]/page.tsx`
+
+- P1-K (플랜/쿼터 게이트)
+  - API: reports quota meter(`reports_generated`) 추가, report 생성 시 게이트 적용
+    - `apps/api/src/modules/billing/billing.service.ts`
+    - `apps/api/src/modules/reports/reports.service.ts`
+  - Web: upload/action/report 화면에서 quota 안내/차단 상태 노출 보강
+    - `apps/web/src/components/uploads-panel.tsx`
+    - `apps/web/src/app/(embedded)/app/actions/[id]/page.tsx`
+    - `apps/web/src/app/(embedded)/app/settings/billing/page.tsx`
+
+- P2-L (Agency 포털 본체)
+  - `/agency/login`, `/agency/shops/[shopId]`, `/agency/reports`를 실제 API 연동형 read flow로 연결
+  - 역할/테넌시 가드레일은 API(`TenantGuard`, `RolesGuard`)를 source-of-truth로 유지
+    - `apps/web/src/app/agency/login/page.tsx`
+    - `apps/web/src/app/agency/shops/[shopId]/page.tsx`
+    - `apps/web/src/app/agency/reports/page.tsx`
+
+- P2-N/O 일부
+  - N: report export(csv/json payload) 구현
+  - O: mobile/a11y 보강(uploads dropzone keyboard/aria, reports table mobile hint)
+
+미완료/리스크:
+
+- P2-M(자동 인입/설치 앱 동기화), P2-O의 인바운드 이메일 파싱 파이프라인은 이번 실행 단위 범위를 넘어선다.
+- Web `next build`는 기존 embedded pages의 `useSearchParams` pre-render 제약으로 여전히 실패한다(이번 변경으로 신규 agency 라우트 오류는 제거됨).
