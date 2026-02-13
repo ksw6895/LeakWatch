@@ -17,6 +17,9 @@ import { useParams, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useState } from 'react';
 
 import { apiFetch } from '../../../../../lib/api/fetcher';
+import { StatePanel } from '../../../../../components/common/StatePanel';
+import { canApproveSend, writeAccessReason } from '../../../../../lib/auth/roles';
+import { navigateEmbedded } from '../../../../../lib/navigation/embedded';
 
 type MailEvent = {
   id: string;
@@ -52,6 +55,10 @@ type ActionRequestDetail = {
   runs: ActionRun[];
 };
 
+type AuthMe = {
+  roles: string[];
+};
+
 function ActionDetailContent() {
   const searchParams = useSearchParams();
   const params = useParams<{ id: string }>();
@@ -65,6 +72,9 @@ function ActionDetailContent() {
   const [ccEmails, setCcEmails] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [roles, setRoles] = useState<string[]>([]);
+  const canWrite = canApproveSend(roles);
+  const blockedReason = writeAccessReason(roles);
 
   const load = useCallback(async () => {
     if (!host || !params.id) {
@@ -78,6 +88,11 @@ function ActionDetailContent() {
 
     const json = (await response.json()) as ActionRequestDetail;
     setActionRequest(json);
+    const meResponse = await apiFetch('/v1/auth/me', { host });
+    if (meResponse.ok) {
+      const me = (await meResponse.json()) as AuthMe;
+      setRoles(me.roles ?? []);
+    }
     setSubject(json.subject);
     setBodyMarkdown(json.bodyMarkdown);
     setToEmail(json.toEmail);
@@ -186,13 +201,12 @@ function ActionDetailContent() {
                 <Card>
                   <Box padding="400">
                     {error ? (
-                      <Text as="p" variant="bodyMd" tone="critical">
-                        {error}
-                      </Text>
+                      <StatePanel kind="error" message={error} />
                     ) : !actionRequest ? (
-                      <Text as="p" variant="bodyMd">
-                        Loading...
-                      </Text>
+                      <StatePanel
+                        kind="loading"
+                        message="Loading action request and send timeline."
+                      />
                     ) : (
                       <div className="lw-page-stack lw-animate-in">
                         <div className="lw-hero">
@@ -218,72 +232,99 @@ function ActionDetailContent() {
                         </div>
 
                         <div className="lw-content-box">
-                          <TextField
-                            label="To"
-                            value={toEmail}
-                            onChange={setToEmail}
-                            autoComplete="email"
-                          />
+                          <Text as="h3" variant="headingSm">
+                            Editable outreach content
+                          </Text>
                           <Box paddingBlockStart="200">
-                            <TextField
-                              label="CC (comma separated)"
-                              value={ccEmails}
-                              onChange={setCcEmails}
-                              autoComplete="off"
-                            />
+                            <Text as="p" variant="bodySm" tone="subdued">
+                              Update recipient and message fields before approval.
+                            </Text>
                           </Box>
                           <Box paddingBlockStart="200">
                             <TextField
-                              label="Subject"
-                              value={subject}
-                              onChange={setSubject}
-                              autoComplete="off"
+                              label="To"
+                              value={toEmail}
+                              onChange={setToEmail}
+                              autoComplete="email"
                             />
-                          </Box>
-                          <Box paddingBlockStart="200">
-                            <TextField
-                              label="Body"
-                              value={bodyMarkdown}
-                              onChange={setBodyMarkdown}
-                              multiline={8}
-                              autoComplete="off"
-                            />
+                            <Box paddingBlockStart="200">
+                              <TextField
+                                label="CC (comma separated)"
+                                value={ccEmails}
+                                onChange={setCcEmails}
+                                autoComplete="off"
+                              />
+                            </Box>
+                            <Box paddingBlockStart="200">
+                              <TextField
+                                label="Subject"
+                                value={subject}
+                                onChange={setSubject}
+                                autoComplete="off"
+                              />
+                            </Box>
+                            <Box paddingBlockStart="200">
+                              <TextField
+                                label="Body"
+                                value={bodyMarkdown}
+                                onChange={setBodyMarkdown}
+                                multiline={8}
+                                autoComplete="off"
+                              />
+                            </Box>
                           </Box>
                         </div>
 
                         <div className="lw-content-box">
-                          <div className="lw-actions-row">
-                            <Button
-                              onClick={saveDraft}
-                              disabled={busy || actionRequest.status !== 'DRAFT'}
-                            >
-                              Save draft
-                            </Button>
-                            <Button
-                              variant="primary"
-                              onClick={approve}
-                              disabled={busy || actionRequest.status !== 'DRAFT'}
-                            >
-                              Approve and send
-                            </Button>
-                            <Button onClick={downloadEvidence} disabled={busy || !actionRequest.attachmentKey}>
-                              Download evidence pack
-                            </Button>
-                            <Button
-                              onClick={() => {
-                                const target = new URL('/app/actions', window.location.origin);
-                                if (host) {
-                                  target.searchParams.set('host', host);
-                                }
-                                if (shop) {
-                                  target.searchParams.set('shop', shop);
-                                }
-                                window.location.assign(target.toString());
-                              }}
-                            >
-                              Back to actions
-                            </Button>
-                          </div>
+                          <Text as="h3" variant="headingSm">
+                            Immutable finding context
+                          </Text>
+                          <Box paddingBlockStart="150">
+                            <Text as="p" variant="bodySm" tone="subdued">
+                              {actionRequest.finding.summary}
+                            </Text>
+                            <Text as="p" variant="bodySm">
+                              Savings: {actionRequest.finding.estimatedSavingsAmount}{' '}
+                              {actionRequest.finding.currency}
+                            </Text>
+                          </Box>
+                          <Box paddingBlockStart="300">
+                            <div className="lw-actions-row">
+                              <Button
+                                onClick={saveDraft}
+                                disabled={busy || actionRequest.status !== 'DRAFT' || !canWrite}
+                              >
+                                Save draft
+                              </Button>
+                              <Button
+                                variant="primary"
+                                onClick={approve}
+                                disabled={busy || actionRequest.status !== 'DRAFT' || !canWrite}
+                              >
+                                Approve and send
+                              </Button>
+                              <Button
+                                onClick={downloadEvidence}
+                                disabled={busy || !actionRequest.attachmentKey}
+                              >
+                                Download evidence pack
+                              </Button>
+                              <Button
+                                onClick={() => {
+                                  navigateEmbedded('/app/actions', { host, shop });
+                                }}
+                              >
+                                Back to actions
+                              </Button>
+                            </div>
+                            {!canWrite ? (
+                              <Box paddingBlockStart="150">
+                                <Text as="p" variant="bodySm" tone="subdued">
+                                  {blockedReason}
+                                </Text>
+                              </Box>
+                            ) : null}
+                          </Box>
                         </div>
 
                         <div className="lw-content-box">
@@ -304,6 +345,9 @@ function ActionDetailContent() {
                                     <Text as="p" variant="bodySm">
                                       {run.status} at {new Date(run.createdAt).toLocaleString()}
                                     </Text>
+                                    {run.status === 'FAILED' ? (
+                                      <Badge tone="critical">Failed run</Badge>
+                                    ) : null}
                                     {run.mailgunMessageId ? (
                                       <div className="lw-metric-hint">
                                         message-id: {run.mailgunMessageId}
@@ -317,8 +361,14 @@ function ActionDetailContent() {
                                     {run.mailEvents.length > 0 ? (
                                       <Box paddingBlockStart="100">
                                         {run.mailEvents.map((event) => (
-                                          <Text key={event.id} as="p" variant="bodySm" tone="subdued">
-                                            - {event.event} ({new Date(event.occurredAt).toLocaleString()})
+                                          <Text
+                                            key={event.id}
+                                            as="p"
+                                            variant="bodySm"
+                                            tone="subdued"
+                                          >
+                                            - {event.event} (
+                                            {new Date(event.occurredAt).toLocaleString()})
                                           </Text>
                                         ))}
                                       </Box>

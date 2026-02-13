@@ -1,13 +1,15 @@
 'use client';
 
 import { Provider as AppBridgeProvider } from '@shopify/app-bridge-react';
-import { Badge, Box, Button, Card, Layout, Page, Text } from '@shopify/polaris';
+import { Badge, Box, Button, Card, Layout, Page, Select, Text, TextField } from '@shopify/polaris';
 import { AppProvider } from '@shopify/polaris';
 import enTranslations from '@shopify/polaris/locales/en.json';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useMemo, useState } from 'react';
 
 import { apiFetch } from '../../../../lib/api/fetcher';
+import { StatePanel } from '../../../../components/common/StatePanel';
+import { navigateEmbedded } from '../../../../lib/navigation/embedded';
 
 type Finding = {
   id: string;
@@ -58,8 +60,13 @@ function LeaksPageContent() {
   const [findings, setFindings] = useState<Finding[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [typeFilter, setTypeFilter] = useState<string>('ALL');
+  const [minSavings, setMinSavings] = useState<string>('0');
   const openCount = useMemo(
-    () => findings.filter((finding) => finding.status === 'OPEN' || finding.status === 'REOPENED').length,
+    () =>
+      findings.filter((finding) => finding.status === 'OPEN' || finding.status === 'REOPENED')
+        .length,
     [findings],
   );
   const resolvedCount = useMemo(
@@ -82,6 +89,35 @@ function LeaksPageContent() {
     [findings],
   );
   const displayCurrency = findings[0]?.currency ?? 'USD';
+  const typeOptions = useMemo(
+    () =>
+      ['ALL', ...new Set(findings.map((finding) => finding.type))].map((value) => ({
+        label: value,
+        value,
+      })),
+    [findings],
+  );
+  const filteredFindings = useMemo(() => {
+    const threshold = Number.parseFloat(minSavings);
+    return findings.filter((finding) => {
+      if (statusFilter !== 'ALL' && finding.status !== statusFilter) {
+        return false;
+      }
+      if (typeFilter !== 'ALL' && finding.type !== typeFilter) {
+        return false;
+      }
+      const amount = Number.parseFloat(finding.estimatedSavingsAmount);
+      if (
+        Number.isFinite(threshold) &&
+        threshold > 0 &&
+        Number.isFinite(amount) &&
+        amount < threshold
+      ) {
+        return false;
+      }
+      return true;
+    });
+  }, [findings, minSavings, statusFilter, typeFilter]);
 
   useEffect(() => {
     if (!host) {
@@ -165,18 +201,55 @@ function LeaksPageContent() {
                         </div>
                       </div>
 
+                      <div className="lw-content-box">
+                        <div className="lw-summary-grid">
+                          <Select
+                            label="Status"
+                            options={[
+                              { label: 'All statuses', value: 'ALL' },
+                              { label: 'OPEN', value: 'OPEN' },
+                              { label: 'REOPENED', value: 'REOPENED' },
+                              { label: 'RESOLVED', value: 'RESOLVED' },
+                              { label: 'DISMISSED', value: 'DISMISSED' },
+                            ]}
+                            value={statusFilter}
+                            onChange={setStatusFilter}
+                          />
+                          <Select
+                            label="Type"
+                            options={typeOptions}
+                            value={typeFilter}
+                            onChange={setTypeFilter}
+                          />
+                          <TextField
+                            label="Min savings"
+                            value={minSavings}
+                            onChange={setMinSavings}
+                            autoComplete="off"
+                            suffix={displayCurrency}
+                          />
+                        </div>
+                      </div>
+
                       {loading ? (
-                        <Text as="p" variant="bodyMd">
-                          Loading...
-                        </Text>
+                        <StatePanel
+                          kind="loading"
+                          message="Loading findings and confidence signals."
+                        />
                       ) : error ? (
-                        <Text as="p" variant="bodyMd" tone="critical">
-                          {error}
-                        </Text>
-                      ) : findings.length === 0 ? (
-                        <Text as="p" variant="bodyMd">
-                          No findings yet
-                        </Text>
+                        <StatePanel
+                          kind="error"
+                          message={error}
+                          actionLabel="Retry"
+                          onAction={() => {
+                            window.location.reload();
+                          }}
+                        />
+                      ) : filteredFindings.length === 0 ? (
+                        <StatePanel
+                          kind="empty"
+                          message="No findings match current filters. Try lowering min savings or clearing filters."
+                        />
                       ) : (
                         <div className="lw-table-wrap">
                           <table className="lw-table">
@@ -190,8 +263,14 @@ function LeaksPageContent() {
                               </tr>
                             </thead>
                             <tbody>
-                              {findings.map((finding) => (
-                                <tr key={finding.id}>
+                              {filteredFindings.map((finding) => (
+                                <tr
+                                  key={finding.id}
+                                  className="lw-interactive-row"
+                                  onClick={() => {
+                                    navigateEmbedded(`/app/leaks/${finding.id}`, { host, shop });
+                                  }}
+                                >
                                   <td>
                                     <span className="lw-inline-chip">{finding.type}</span>
                                   </td>
@@ -209,18 +288,12 @@ function LeaksPageContent() {
                                   </td>
                                   <td>
                                     <Button
+                                      accessibilityLabel={`View finding ${finding.title}`}
                                       onClick={() => {
-                                        const target = new URL(
-                                          `/app/leaks/${finding.id}`,
-                                          window.location.origin,
-                                        );
-                                        if (host) {
-                                          target.searchParams.set('host', host);
-                                        }
-                                        if (shop) {
-                                          target.searchParams.set('shop', shop);
-                                        }
-                                        window.location.assign(target.toString());
+                                        navigateEmbedded(`/app/leaks/${finding.id}`, {
+                                          host,
+                                          shop,
+                                        });
                                       }}
                                     >
                                       View

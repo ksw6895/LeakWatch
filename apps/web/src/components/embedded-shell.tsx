@@ -3,12 +3,17 @@
 import { Redirect } from '@shopify/app-bridge/actions';
 import createApp from '@shopify/app-bridge';
 import { Provider as AppBridgeProvider } from '@shopify/app-bridge-react';
-import { AppProvider, Badge, Box, Button, Card, Layout, Page, Text } from '@shopify/polaris';
+import { AppProvider, Badge, Box, Card, Layout, Page, Text } from '@shopify/polaris';
 import enTranslations from '@shopify/polaris/locales/en.json';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
 import { apiFetch, getApiBaseUrl } from '../lib/api/fetcher';
+import { navigateEmbedded } from '../lib/navigation/embedded';
+import { StatePanel } from './common/StatePanel';
+import { ActionTile } from './dashboard/ActionTile';
+import { MetricCard } from './dashboard/MetricCard';
+import { StatusWidget } from './dashboard/StatusWidget';
 import { StoreSwitcher } from './StoreSwitcher';
 
 type Summary = {
@@ -30,6 +35,7 @@ function Content() {
   const host = searchParams.get('host');
   const [apiStatus, setApiStatus] = useState<string>('idle');
   const [summary, setSummary] = useState<Summary | null>(null);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
 
   const authStartUrl = useMemo(() => {
     if (!shop) {
@@ -65,18 +71,14 @@ function Content() {
   };
 
   const goTo = (path: string) => {
-    const next = new URL(path, window.location.origin);
-    if (shop) {
-      next.searchParams.set('shop', shop);
-    }
-    if (host) {
-      next.searchParams.set('host', host);
-    }
-    window.location.assign(next.toString());
+    navigateEmbedded(path, { host, shop });
   };
 
   useEffect(() => {
     if (!host) {
+      setSummaryError(
+        'Missing host parameter. Re-open this app from Shopify Admin to restore session.',
+      );
       return;
     }
 
@@ -89,12 +91,15 @@ function Content() {
         const meJson = (await me.json()) as { shopId: string };
         const response = await apiFetch(`/v1/shops/${meJson.shopId}/summary`, { host });
         if (!response.ok) {
+          setSummaryError(`Summary fetch failed (${response.status})`);
           return;
         }
         const json = (await response.json()) as Summary;
         setSummary(json);
+        setSummaryError(null);
       } catch {
         setSummary(null);
+        setSummaryError('Unable to load dashboard summary right now.');
       }
     })();
   }, [host]);
@@ -156,39 +161,29 @@ function Content() {
           <Card>
             <Box padding="400">
               <div className="lw-page-stack lw-animate-in">
-                <div className="lw-shell lw-hero">
-                  <span className="lw-eyebrow">Command Center</span>
-                  <div className="lw-title">
-                    <Text as="h2" variant="headingLg">
-                      Shopify Auth + LeakWatch Ops
-                    </Text>
-                  </div>
-                  <div className="lw-subtitle">
-                    <Text as="p" variant="bodyMd">
-                      Every store signal in one place: connect, verify session token, upload
-                      evidence, and chase savings.
-                    </Text>
-                  </div>
-                  <Box paddingBlockStart="200">
-                    <span className="lw-inline-chip lw-inline-chip--strong">
-                      shop: {shop ?? 'missing'}
-                    </span>{' '}
-                    <span className="lw-inline-chip">host: {host ?? 'missing'}</span>{' '}
-                    <span className="lw-inline-chip">API call: {apiStatus}</span>
-                  </Box>
-                  <Box paddingBlockStart="300">
-                    <div className="lw-actions-row">
-                      <Button variant="primary" onClick={onAuthenticate} disabled={!shop}>
-                        Authenticate store
-                      </Button>
-                      <Button onClick={onCallApi} disabled={!host}>
-                        Verify session token
-                      </Button>
-                    </div>
-                  </Box>
+                <div className="lw-shell">
+                  <StatusWidget
+                    shop={shop}
+                    host={host}
+                    apiStatus={apiStatus}
+                    onAuthenticate={onAuthenticate}
+                    onCallApi={onCallApi}
+                  />
                 </div>
 
-                {summary && (
+                {summaryError ? (
+                  <StatePanel
+                    kind="error"
+                    title="Session or summary issue"
+                    message={summaryError}
+                    actionLabel="Retry API check"
+                    onAction={() => {
+                      void onCallApi();
+                    }}
+                  />
+                ) : null}
+
+                {summary ? (
                   <div className="lw-surface">
                     <Box padding="300">
                       <div className="lw-title">
@@ -199,10 +194,7 @@ function Content() {
                       <Box paddingBlockStart="200">
                         <div className="lw-summary-grid">
                           {snapshot.map((item) => (
-                            <div key={item.label} className="lw-metric">
-                              <div className="lw-metric-label">{item.label}</div>
-                              <div className="lw-metric-value">{item.value}</div>
-                            </div>
+                            <MetricCard key={item.label} label={item.label} value={item.value} />
                           ))}
                         </div>
                       </Box>
@@ -212,8 +204,8 @@ function Content() {
                             <div key={finding.id} className="lw-list-item">
                               <Badge tone="attention">Top finding</Badge>{' '}
                               <Text as="span" variant="bodySm">
-                                {finding.title} ({finding.estimatedSavingsAmount}{' '}
-                                {finding.currency})
+                                {finding.title} ({finding.estimatedSavingsAmount} {finding.currency}
+                                )
                               </Text>
                             </div>
                           ))}
@@ -221,6 +213,12 @@ function Content() {
                       </Box>
                     </Box>
                   </div>
+                ) : (
+                  <StatePanel
+                    kind="empty"
+                    title="No summary yet"
+                    message="Authenticate and upload billing evidence to populate your command center."
+                  />
                 )}
 
                 <div className="lw-surface">
@@ -233,15 +231,12 @@ function Content() {
                     <Box paddingBlockStart="200">
                       <div className="lw-action-grid">
                         {quickActions.map((action) => (
-                          <button
+                          <ActionTile
                             key={action.path}
-                            type="button"
-                            className="lw-action-tile"
+                            label={action.label}
+                            hint={action.hint}
                             onClick={() => goTo(action.path)}
-                          >
-                            <span className="lw-action-title">{action.label}</span>
-                            <span className="lw-action-hint">{action.hint}</span>
-                          </button>
+                          />
                         ))}
                       </div>
                     </Box>

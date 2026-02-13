@@ -14,6 +14,8 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { apiFetch } from '../lib/api/fetcher';
+import { canUpload, writeAccessReason } from '../lib/auth/roles';
+import { StatePanel } from './common/StatePanel';
 
 type AuthMe = {
   orgId: string;
@@ -94,10 +96,18 @@ export function UploadsPanel({ host }: { host: string | null }) {
   const [uploadState, setUploadState] = useState<UploadState>({ step: 'idle', progress: 0 });
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const canUpload = useMemo(
-    () => Boolean(host && auth?.shopId && selectedFile && uploadState.step !== 'uploading'),
-    [host, auth?.shopId, selectedFile, uploadState.step],
+  const canStartUpload = useMemo(
+    () =>
+      Boolean(
+        host &&
+        auth?.shopId &&
+        selectedFile &&
+        uploadState.step !== 'uploading' &&
+        canUpload(auth?.roles ?? []),
+      ),
+    [host, auth?.roles, auth?.shopId, selectedFile, uploadState.step],
   );
+  const uploadBlockedReason = writeAccessReason(auth?.roles ?? []);
   const latestStatuses = useMemo(
     () => documents.map((document) => document.versions?.[0]?.status ?? 'UNKNOWN'),
     [documents],
@@ -114,7 +124,8 @@ export function UploadsPanel({ host }: { host: string | null }) {
     [latestStatuses],
   );
   const runningCount = useMemo(
-    () => latestStatuses.filter((status) => status.endsWith('RUNNING') || status === 'CREATED').length,
+    () =>
+      latestStatuses.filter((status) => status.endsWith('RUNNING') || status === 'CREATED').length,
     [latestStatuses],
   );
 
@@ -222,6 +233,26 @@ export function UploadsPanel({ host }: { host: string | null }) {
     }
   };
 
+  if (!host) {
+    return (
+      <Page title="Uploads">
+        <Layout>
+          <Layout.Section>
+            <Card>
+              <Box padding="400">
+                <StatePanel
+                  kind="error"
+                  title="Missing host context"
+                  message="Re-open the app from Shopify Admin so embedded session parameters are available."
+                />
+              </Box>
+            </Card>
+          </Layout.Section>
+        </Layout>
+      </Page>
+    );
+  }
+
   return (
     <Page title="Uploads">
       <Layout>
@@ -291,6 +322,12 @@ export function UploadsPanel({ host }: { host: string | null }) {
                     <Text as="p" variant="bodySm" tone="subdued">
                       Drop a file here or choose one manually
                     </Text>
+                    <Box paddingBlockStart="100">
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        File limits: PDF, CSV, PNG, JPG - keep documents within your plan upload
+                        quota.
+                      </Text>
+                    </Box>
                     <Box paddingBlockStart="200">
                       <input
                         type="file"
@@ -326,13 +363,30 @@ export function UploadsPanel({ host }: { host: string | null }) {
                   {errorMessage && (
                     <Box paddingBlockStart="300">
                       <InlineError message={errorMessage} fieldID="upload-error" />
+                      <Box paddingBlockStart="150">
+                        <Button
+                          onClick={() => {
+                            setUploadState({ step: 'idle', progress: 0 });
+                            setErrorMessage(null);
+                          }}
+                        >
+                          Re-enter upload flow
+                        </Button>
+                      </Box>
                     </Box>
                   )}
 
                   <Box paddingBlockStart="300">
-                    <Button variant="primary" onClick={onUpload} disabled={!canUpload}>
+                    <Button variant="primary" onClick={onUpload} disabled={!canStartUpload}>
                       Upload file
                     </Button>
+                    {!canUpload(auth?.roles ?? []) ? (
+                      <Box paddingBlockStart="100">
+                        <Text as="p" variant="bodySm" tone="subdued">
+                          {uploadBlockedReason}
+                        </Text>
+                      </Box>
+                    ) : null}
                   </Box>
                 </div>
               </div>
@@ -350,9 +404,11 @@ export function UploadsPanel({ host }: { host: string | null }) {
                   </Text>
                 </div>
                 {documents.length === 0 ? (
-                  <Text as="p" variant="bodySm" tone="subdued">
-                    No documents yet
-                  </Text>
+                  <StatePanel
+                    kind="empty"
+                    title="No evidence uploaded"
+                    message="Upload an invoice to start extraction, normalization, and leak detection."
+                  />
                 ) : (
                   <div className="lw-table-wrap">
                     <table className="lw-table">
@@ -373,7 +429,9 @@ export function UploadsPanel({ host }: { host: string | null }) {
                                   {latest?.fileName ?? document.id}
                                 </Text>
                                 {document.vendorHint ? (
-                                  <div className="lw-metric-hint">vendor: {document.vendorHint}</div>
+                                  <div className="lw-metric-hint">
+                                    vendor: {document.vendorHint}
+                                  </div>
                                 ) : null}
                               </td>
                               <td>

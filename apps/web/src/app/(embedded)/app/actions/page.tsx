@@ -7,6 +7,8 @@ import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useMemo, useState } from 'react';
 
 import { apiFetch } from '../../../../lib/api/fetcher';
+import { StatePanel } from '../../../../components/common/StatePanel';
+import { navigateEmbedded } from '../../../../lib/navigation/embedded';
 
 type ActionRequestListItem = {
   id: string;
@@ -48,6 +50,9 @@ function ActionsPageContent() {
   const [items, setItems] = useState<ActionRequestListItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [statusTab, setStatusTab] = useState<'ALL' | 'DRAFT' | 'APPROVED' | 'CANCELED' | 'SENT'>(
+    'ALL',
+  );
   const draftsCount = useMemo(
     () => items.filter((item) => item.status === 'DRAFT').length,
     [items],
@@ -61,6 +66,10 @@ function ActionsPageContent() {
     [items],
   );
   const activeRecipients = useMemo(() => new Set(items.map((item) => item.toEmail)).size, [items]);
+  const filteredItems = useMemo(
+    () => (statusTab === 'ALL' ? items : items.filter((item) => item.status === statusTab)),
+    [items, statusTab],
+  );
 
   useEffect(() => {
     if (!host) {
@@ -148,18 +157,31 @@ function ActionsPageContent() {
                         </div>
                       </div>
 
+                      <div className="lw-content-box">
+                        <div className="lw-actions-row">
+                          {(['ALL', 'DRAFT', 'APPROVED', 'SENT', 'CANCELED'] as const).map(
+                            (status) => (
+                              <Button
+                                key={status}
+                                variant={statusTab === status ? 'primary' : 'tertiary'}
+                                onClick={() => setStatusTab(status)}
+                              >
+                                {status}
+                              </Button>
+                            ),
+                          )}
+                        </div>
+                      </div>
+
                       {loading ? (
-                        <Text as="p" variant="bodyMd">
-                          Loading...
-                        </Text>
+                        <StatePanel kind="loading" message="Loading action queue and recipients." />
                       ) : error ? (
-                        <Text as="p" variant="bodyMd" tone="critical">
-                          {error}
-                        </Text>
-                      ) : items.length === 0 ? (
-                        <Text as="p" variant="bodyMd">
-                          No action requests yet
-                        </Text>
+                        <StatePanel kind="error" message={error} />
+                      ) : filteredItems.length === 0 ? (
+                        <StatePanel
+                          kind="empty"
+                          message="No action requests in this status bucket."
+                        />
                       ) : (
                         <div className="lw-table-wrap">
                           <table className="lw-table">
@@ -173,8 +195,14 @@ function ActionsPageContent() {
                               </tr>
                             </thead>
                             <tbody>
-                              {items.map((item) => (
-                                <tr key={item.id}>
+                              {filteredItems.map((item) => (
+                                <tr
+                                  key={item.id}
+                                  className="lw-interactive-row"
+                                  onClick={() => {
+                                    navigateEmbedded(`/app/actions/${item.id}`, { host, shop });
+                                  }}
+                                >
                                   <td>
                                     <Badge tone={tone(item.status)}>{item.status}</Badge>
                                   </td>
@@ -193,17 +221,7 @@ function ActionsPageContent() {
                                   <td>
                                     <Button
                                       onClick={() => {
-                                        const target = new URL(
-                                          `/app/actions/${item.id}`,
-                                          window.location.origin,
-                                        );
-                                        if (host) {
-                                          target.searchParams.set('host', host);
-                                        }
-                                        if (shop) {
-                                          target.searchParams.set('shop', shop);
-                                        }
-                                        window.location.assign(target.toString());
+                                        navigateEmbedded(`/app/actions/${item.id}`, { host, shop });
                                       }}
                                     >
                                       View

@@ -7,6 +7,7 @@ import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 
 import { apiFetch } from '../../../../lib/api/fetcher';
+import { StatePanel } from '../../../../components/common/StatePanel';
 
 type AgencySummary = {
   shopsCount: number;
@@ -61,9 +62,10 @@ function AgencyPageContent() {
           <Card>
             <Box padding="400">
               {!summary ? (
-                <Text as="p" variant="bodyMd">
-                  Loading...
-                </Text>
+                <StatePanel
+                  kind="loading"
+                  message="Loading connected shop rollup and top findings."
+                />
               ) : (
                 <div className="lw-page-stack lw-animate-in">
                   <div className="lw-hero">
@@ -76,6 +78,7 @@ function AgencyPageContent() {
                     <div className="lw-subtitle">
                       <Text as="p" variant="bodySm">
                         Rollup across connected shops with prioritized cross-account findings.
+                        Totals represent aggregated shop-level values.
                       </Text>
                     </div>
                   </div>
@@ -102,18 +105,22 @@ function AgencyPageContent() {
                       </Text>
                     </div>
                     <Box paddingBlockStart="200">
-                      <div className="lw-list">
-                        {summary.topFindingsAcrossShops.map((finding) => (
-                          <div key={finding.id} className="lw-list-item">
-                            <Text as="p" variant="bodySm">
-                              [{finding.shopId}] {finding.title}
-                            </Text>
-                            <div className="lw-metric-hint">
-                              {finding.estimatedSavingsAmount} {finding.currency}
+                      {summary.topFindingsAcrossShops.length === 0 ? (
+                        <StatePanel kind="empty" message="No cross-shop findings yet." />
+                      ) : (
+                        <div className="lw-list">
+                          {summary.topFindingsAcrossShops.map((finding) => (
+                            <div key={finding.id} className="lw-list-item">
+                              <Text as="p" variant="bodySm">
+                                [{finding.shopId}] {finding.title}
+                              </Text>
+                              <div className="lw-metric-hint">
+                                {finding.estimatedSavingsAmount} {finding.currency}
+                              </div>
                             </div>
-                          </div>
-                        ))}
-                      </div>
+                          ))}
+                        </div>
+                      )}
                     </Box>
                   </div>
                 </div>

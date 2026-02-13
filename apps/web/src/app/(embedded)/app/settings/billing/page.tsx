@@ -7,6 +7,8 @@ import { useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { apiFetch } from '../../../../../lib/api/fetcher';
+import { StatePanel } from '../../../../../components/common/StatePanel';
+import { canManageBilling, writeAccessReason } from '../../../../../lib/auth/roles';
 
 type BillingCurrent = {
   plan: string;
@@ -22,12 +24,20 @@ type BillingCurrent = {
   };
 };
 
+type AuthMe = {
+  shopId: string;
+  roles: string[];
+};
+
 function BillingPageContent() {
   const searchParams = useSearchParams();
   const host = searchParams.get('host');
   const apiKey = process.env.NEXT_PUBLIC_SHOPIFY_API_KEY;
   const [current, setCurrent] = useState<BillingCurrent | null>(null);
   const [upgradingPlan, setUpgradingPlan] = useState<'STARTER' | 'PRO' | null>(null);
+  const [roles, setRoles] = useState<string[]>([]);
+  const billingAllowed = canManageBilling(roles);
+  const blockedReason = writeAccessReason(roles);
 
   const refresh = useCallback(async () => {
     if (!host) {
@@ -37,7 +47,8 @@ function BillingPageContent() {
     if (!meResponse.ok) {
       return;
     }
-    const me = (await meResponse.json()) as { shopId: string };
+    const me = (await meResponse.json()) as AuthMe;
+    setRoles(me.roles ?? []);
     const response = await apiFetch(`/v1/billing/current?shopId=${encodeURIComponent(me.shopId)}`, {
       host,
     });
@@ -65,7 +76,7 @@ function BillingPageContent() {
   }, [current]);
 
   const upgradeTo = async (plan: 'STARTER' | 'PRO') => {
-    if (!host) {
+    if (!host || !billingAllowed) {
       return;
     }
     setUpgradingPlan(plan);
@@ -97,9 +108,7 @@ function BillingPageContent() {
           <Card>
             <Box padding="400">
               {!current ? (
-                <Text as="p" variant="bodyMd">
-                  Loading...
-                </Text>
+                <StatePanel kind="loading" message="Loading billing quota and plan information." />
               ) : (
                 <div className="lw-page-stack lw-animate-in">
                   <div className="lw-hero">
@@ -151,6 +160,7 @@ function BillingPageContent() {
                         <Button
                           variant="primary"
                           loading={upgradingPlan === 'STARTER'}
+                          disabled={!billingAllowed}
                           onClick={() => {
                             void upgradeTo('STARTER');
                           }}
@@ -159,6 +169,7 @@ function BillingPageContent() {
                         </Button>
                         <Button
                           loading={upgradingPlan === 'PRO'}
+                          disabled={!billingAllowed}
                           onClick={() => {
                             void upgradeTo('PRO');
                           }}
@@ -166,6 +177,13 @@ function BillingPageContent() {
                           Upgrade to PRO
                         </Button>
                       </div>
+                      {!billingAllowed ? (
+                        <Box paddingBlockStart="200">
+                          <Text as="p" variant="bodySm" tone="subdued">
+                            {blockedReason}
+                          </Text>
+                        </Box>
+                      ) : null}
                     </Box>
                   </div>
                 </div>

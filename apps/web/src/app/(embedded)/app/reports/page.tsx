@@ -7,6 +7,8 @@ import { useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { apiFetch } from '../../../../lib/api/fetcher';
+import { StatePanel } from '../../../../components/common/StatePanel';
+import { navigateEmbedded } from '../../../../lib/navigation/embedded';
 
 type ReportItem = {
   id: string;
@@ -38,14 +40,19 @@ function ReportsPageContent() {
     () => items.filter((item) => item.period === 'MONTHLY').length,
     [items],
   );
-  const weeklyCount = useMemo(() => items.filter((item) => item.period === 'WEEKLY').length, [items]);
+  const weeklyCount = useMemo(
+    () => items.filter((item) => item.period === 'WEEKLY').length,
+    [items],
+  );
   const latestGeneratedAt = useMemo(
     () =>
       items.reduce<string | null>((latest, item) => {
         if (!latest) {
           return item.createdAt;
         }
-        return new Date(item.createdAt).getTime() > new Date(latest).getTime() ? item.createdAt : latest;
+        return new Date(item.createdAt).getTime() > new Date(latest).getTime()
+          ? item.createdAt
+          : latest;
       }, null),
     [items],
   );
@@ -171,17 +178,14 @@ function ReportsPageContent() {
                 </div>
 
                 {loading ? (
-                  <Text as="p" variant="bodyMd">
-                    Loading...
-                  </Text>
+                  <StatePanel kind="loading" message="Loading weekly and monthly reports." />
                 ) : error ? (
-                  <Text as="p" variant="bodyMd" tone="critical">
-                    {error}
-                  </Text>
+                  <StatePanel kind="error" message={error} />
                 ) : items.length === 0 ? (
-                  <Text as="p" variant="bodyMd">
-                    No reports yet.
-                  </Text>
+                  <StatePanel
+                    kind="empty"
+                    message="No reports yet. Generate monthly report to start benchmarking."
+                  />
                 ) : (
                   <div className="lw-table-wrap">
                     <table className="lw-table">
@@ -206,14 +210,7 @@ function ReportsPageContent() {
                             <td>
                               <Button
                                 onClick={() => {
-                                  const next = new URL(`/app/reports/${item.id}`, window.location.origin);
-                                  if (host) {
-                                    next.searchParams.set('host', host);
-                                  }
-                                  if (shop) {
-                                    next.searchParams.set('shop', shop);
-                                  }
-                                  window.location.assign(next.toString());
+                                  navigateEmbedded(`/app/reports/${item.id}`, { host, shop });
                                 }}
                               >
                                 View

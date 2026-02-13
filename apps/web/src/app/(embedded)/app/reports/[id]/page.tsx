@@ -1,12 +1,14 @@
 'use client';
 
 import { Provider as AppBridgeProvider } from '@shopify/app-bridge-react';
-import { AppProvider, Box, Card, Layout, Page, Text } from '@shopify/polaris';
+import { AppProvider, Box, Button, Card, Layout, Page, Text } from '@shopify/polaris';
 import enTranslations from '@shopify/polaris/locales/en.json';
 import { useParams, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 
 import { apiFetch } from '../../../../../lib/api/fetcher';
+import { StatePanel } from '../../../../../components/common/StatePanel';
+import { navigateEmbedded } from '../../../../../lib/navigation/embedded';
 
 type ReportDetail = {
   id: string;
@@ -30,6 +32,7 @@ function ReportDetailPageContent() {
   const params = useParams<{ id: string }>();
   const searchParams = useSearchParams();
   const host = searchParams.get('host');
+  const shop = searchParams.get('shop');
   const apiKey = process.env.NEXT_PUBLIC_SHOPIFY_API_KEY;
   const [report, setReport] = useState<ReportDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -68,13 +71,9 @@ function ReportDetailPageContent() {
           <Card>
             <Box padding="400">
               {error ? (
-                <Text as="p" variant="bodyMd" tone="critical">
-                  {error}
-                </Text>
+                <StatePanel kind="error" message={error} />
               ) : !report ? (
-                <Text as="p" variant="bodyMd">
-                  Loading...
-                </Text>
+                <StatePanel kind="loading" message="Loading report detail and generated summary." />
               ) : (
                 <div className="lw-page-stack lw-animate-in">
                   <div className="lw-hero">
@@ -86,7 +85,8 @@ function ReportDetailPageContent() {
                     </div>
                     <Box paddingBlockStart="200">
                       <span className="lw-inline-chip">
-                        range: {formatUtcDate(report.periodStart)} - {formatUtcDate(report.periodEnd)}
+                        range: {formatUtcDate(report.periodStart)} -{' '}
+                        {formatUtcDate(report.periodEnd)}
                       </span>{' '}
                       <span className="lw-inline-chip">
                         generated: {new Date(report.createdAt).toLocaleString()}
@@ -95,7 +95,43 @@ function ReportDetailPageContent() {
                   </div>
 
                   <div className="lw-content-box">
-                    <pre className="lw-pre">{JSON.stringify(report.summaryJson, null, 2)}</pre>
+                    <Text as="h3" variant="headingSm">
+                      Summary fields
+                    </Text>
+                    <Box paddingBlockStart="200">
+                      <div className="lw-list">
+                        {Object.entries(report.summaryJson)
+                          .slice(0, 8)
+                          .map(([key, value]) => (
+                            <div key={key} className="lw-list-item">
+                              <Text as="p" variant="bodySm">
+                                {key}
+                              </Text>
+                              <Text as="p" variant="bodySm" tone="subdued">
+                                {typeof value === 'object' ? 'structured value' : String(value)}
+                              </Text>
+                            </div>
+                          ))}
+                      </div>
+                    </Box>
+                  </div>
+
+                  <div className="lw-content-box">
+                    <Text as="h3" variant="headingSm">
+                      Raw JSON
+                    </Text>
+                    <Box paddingBlockStart="200">
+                      <pre className="lw-pre">{JSON.stringify(report.summaryJson, null, 2)}</pre>
+                    </Box>
+                    <Box paddingBlockStart="200">
+                      <Button
+                        onClick={() => {
+                          navigateEmbedded('/app/reports', { host, shop });
+                        }}
+                      >
+                        Back to reports
+                      </Button>
+                    </Box>
                   </div>
                 </div>
               )}

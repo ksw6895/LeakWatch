@@ -7,6 +7,9 @@ import { useParams, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 
 import { apiFetch } from '../../../../../lib/api/fetcher';
+import { StatePanel } from '../../../../../components/common/StatePanel';
+import { canUpload, writeAccessReason } from '../../../../../lib/auth/roles';
+import { navigateEmbedded } from '../../../../../lib/navigation/embedded';
 
 type EvidenceRef = {
   id: string;
@@ -27,6 +30,10 @@ type FindingDetail = {
   evidence: EvidenceRef[];
 };
 
+type AuthMe = {
+  roles: string[];
+};
+
 function LeaksDetailContent() {
   const searchParams = useSearchParams();
   const params = useParams<{ id: string }>();
@@ -36,6 +43,9 @@ function LeaksDetailContent() {
   const [finding, setFinding] = useState<FindingDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<boolean>(false);
+  const [roles, setRoles] = useState<string[]>([]);
+  const canMutate = canUpload(roles);
+  const blockedReason = writeAccessReason(roles);
 
   useEffect(() => {
     if (!host || !params.id) {
@@ -50,6 +60,11 @@ function LeaksDetailContent() {
         }
         const json = (await response.json()) as FindingDetail;
         setFinding(json);
+        const me = await apiFetch('/v1/auth/me', { host });
+        if (me.ok) {
+          const meJson = (await me.json()) as AuthMe;
+          setRoles(meJson.roles ?? []);
+        }
       } catch (unknownError) {
         setError(unknownError instanceof Error ? unknownError.message : 'Unknown error');
       }
@@ -108,14 +123,7 @@ function LeaksDetailContent() {
         throw new Error(`Create action draft failed (${response.status})`);
       }
       const json = (await response.json()) as { id: string };
-      const target = new URL(`/app/actions/${json.id}`, window.location.origin);
-      if (host) {
-        target.searchParams.set('host', host);
-      }
-      if (shop) {
-        target.searchParams.set('shop', shop);
-      }
-      window.location.assign(target.toString());
+      navigateEmbedded(`/app/actions/${json.id}`, { host, shop });
     } catch (unknownError) {
       setError(unknownError instanceof Error ? unknownError.message : 'Unknown error');
       setBusy(false);
@@ -132,13 +140,12 @@ function LeaksDetailContent() {
                 <Card>
                   <Box padding="400">
                     {error ? (
-                      <Text as="p" variant="bodyMd" tone="critical">
-                        {error}
-                      </Text>
+                      <StatePanel kind="error" message={error} />
                     ) : !finding ? (
-                      <Text as="p" variant="bodyMd">
-                        Loading...
-                      </Text>
+                      <StatePanel
+                        kind="loading"
+                        message="Loading finding evidence and confidence."
+                      />
                     ) : (
                       <div className="lw-page-stack lw-animate-in">
                         <div className="lw-hero">
@@ -151,7 +158,9 @@ function LeaksDetailContent() {
                           <Box paddingBlockStart="200">
                             <span className="lw-inline-chip">{finding.type}</span>{' '}
                             <span className="lw-inline-chip">status: {finding.status}</span>{' '}
-                            <span className="lw-inline-chip">confidence: {finding.confidence}%</span>
+                            <span className="lw-inline-chip">
+                              confidence: {finding.confidence}%
+                            </span>
                           </Box>
                           <Box paddingBlockStart="200">
                             <Text as="p" variant="bodySm">
@@ -169,29 +178,29 @@ function LeaksDetailContent() {
                           <div className="lw-actions-row">
                             <Button
                               variant="primary"
-                              disabled={busy || finding.status === 'DISMISSED'}
+                              disabled={busy || finding.status === 'DISMISSED' || !canMutate}
                               onClick={dismiss}
                             >
                               Dismiss finding
                             </Button>
-                            <Button onClick={createActionDraft} disabled={busy}>
+                            <Button onClick={createActionDraft} disabled={busy || !canMutate}>
                               Create action draft
                             </Button>
                             <Button
                               onClick={() => {
-                                const target = new URL('/app/leaks', window.location.origin);
-                                if (host) {
-                                  target.searchParams.set('host', host);
-                                }
-                                if (shop) {
-                                  target.searchParams.set('shop', shop);
-                                }
-                                window.location.assign(target.toString());
+                                navigateEmbedded('/app/leaks', { host, shop });
                               }}
                             >
                               Back to list
                             </Button>
                           </div>
+                          {!canMutate ? (
+                            <Box paddingBlockStart="200">
+                              <Text as="p" variant="bodySm" tone="subdued">
+                                {blockedReason}
+                              </Text>
+                            </Box>
+                          ) : null}
                         </div>
 
                         <div className="lw-content-box">
