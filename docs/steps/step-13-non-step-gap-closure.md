@@ -43,12 +43,12 @@
 
 ### A. 스토어 설정 관리
 
-- [ ] API
+- [x] API
   - `GET /v1/shops/:shopId/settings`
   - `PATCH /v1/shops/:shopId/settings`
-- [ ] DTO 검증: currency/timezone/contactEmail
-- [ ] RBAC: OWNER/MEMBER write 정책 확인
-- [ ] Web UI: Settings 페이지에서 수정/저장/오류 상태
+- [x] DTO 검증: currency/timezone/contactEmail
+- [x] RBAC: OWNER/MEMBER write 정책 확인
+- [x] Web UI: Settings 페이지에서 수정/저장/오류 상태
 
 권장 파일:
 
@@ -57,10 +57,10 @@
 
 ### B. Finding 재오픈 규칙
 
-- [ ] detection upsert 시 기존 `DISMISSED/RESOLVED` finding 재발 조건 정의
-- [ ] 조건 만족 시 `REOPENED` 전이
-- [ ] 이력/감사로그 남기기
-- [ ] 테스트: dismissed -> 재탐지 -> reopened
+- [x] detection upsert 시 기존 `DISMISSED/RESOLVED` finding 재발 조건 정의
+- [x] 조건 만족 시 `REOPENED` 전이
+- [x] 이력/감사로그 남기기
+- [x] 테스트: dismissed -> 재탐지 -> reopened
 
 권장 파일:
 
@@ -69,10 +69,10 @@
 
 ### C. Action 수동 상태 갱신
 
-- [ ] Action 상태 모델 확장(필요 시 enum)
-- [ ] `POST /v1/action-requests/:id/status` 또는 동등 엔드포인트
-- [ ] UI 버튼: WaitingReply/Resolved
-- [ ] 감사로그 및 권한 차단 테스트
+- [x] Action 상태 모델 확장(필요 시 enum)
+- [x] `POST /v1/action-requests/:id/status` 또는 동등 엔드포인트
+- [x] UI 버튼: WaitingReply/Resolved
+- [x] 감사로그 및 권한 차단 테스트
 
 권장 파일:
 
@@ -81,10 +81,10 @@
 
 ### D. Agency 라우트 확장
 
-- [ ] `/agency/login`
-- [ ] `/agency/shops/[shopId]`
-- [ ] `/agency/reports`
-- [ ] 권한 없는 write 액션은 disabled + 이유 표시
+- [x] `/agency/login`
+- [x] `/agency/shops/[shopId]`
+- [x] `/agency/reports`
+- [x] 권한 없는 write 액션은 disabled + 이유 표시
 
 권장 파일:
 
@@ -93,9 +93,9 @@
 
 ### E. 이벤트 계측
 
-- [ ] 공통 track 유틸 추가
-- [ ] 핵심 이벤트 4종 전송
-- [ ] 실패 시 no-op(사용자 플로우 방해 금지)
+- [x] 공통 track 유틸 추가
+- [x] 핵심 이벤트 4종 전송
+- [x] 실패 시 no-op(사용자 플로우 방해 금지)
 
 권장 파일:
 
@@ -117,9 +117,20 @@
 4. Agency 신규 라우트 권한 차단
 5. 이벤트 계측 호출이 렌더링/행동 흐름을 방해하지 않음
 
+## 실행 로그 (2026-02-14)
+
+- 반영 커밋
+  - `6c6563a`: Embedded app layout/nav + billing OWNER-only guard + 404 대체 라우트
+  - `9e8ef25`: Uploads 복구 UX(vendorHint/polling/error recovery) + Leaks/Actions confirm safety
+  - `e0c4d6c`: Shop settings API/UI + action manual status + finding reopened + agency routes + analytics
+- 검증 로그
+  - API: `pnpm --filter @leakwatch/api lint && pnpm --filter @leakwatch/api typecheck && pnpm --filter @leakwatch/api test`
+  - Web: `pnpm --filter @leakwatch/web lint && pnpm --filter @leakwatch/web typecheck && pnpm --filter @leakwatch/web test`
+  - Worker: `pnpm --filter @leakwatch/worker lint && pnpm --filter @leakwatch/worker typecheck && pnpm --filter @leakwatch/worker test`
+
 ## Definition of Done
 
-- [ ] non-step 점검 리포트의 P0/P1 항목이 코드로 반영됨
-- [ ] API/Web 테스트 통과
-- [ ] 문서(`PRD`, `UI_UX`, `ANALYTICS_METRICS`)와 구현 불일치 항목 갱신
-- [ ] 운영/보안 가드레일 위반 없음(tenant scope, RBAC, webhook, secret handling)
+- [x] non-step 점검 리포트의 P0/P1 항목이 코드로 반영됨
+- [x] API/Web 테스트 통과
+- [x] 문서(`PRD`, `UI_UX`, `ANALYTICS_METRICS`)와 구현 불일치 항목 갱신
+- [x] 운영/보안 가드레일 위반 없음(tenant scope, RBAC, webhook, secret handling)

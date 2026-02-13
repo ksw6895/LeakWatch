@@ -94,3 +94,23 @@
 - [ ] P0 대상 항목이 구현 또는 명시적 deferred 상태로 분류됨
 - [ ] 미해결 가정은 근거와 다음 액션이 기록됨
 - [ ] PR/체크리스트/검증 로그로 재현 가능한 증거가 남아 있음
+
+## 6) 구현 상태 스냅샷 (2026-02-14)
+
+완료(코드 반영 + 검증 + 커밋/푸시):
+
+- App Shell 공통 레이아웃/Recover Panel/네비게이션 추가
+- billing OWNER-only UI 차단 + 별도 reason 문구 적용
+- `/app/settings`, `/app/documents/[documentId]` 404 대체 라우트 제공
+- Uploads: vendorHint 입력/전송, processing 폴링, 실패 사유 + 재업로드 CTA
+- Leak detail: dismiss confirm modal, toEmail 기본값 제거 + 형식 검증
+- Actions: Approve & Send confirm modal, to/cc 검증, 상태 수동 업데이트(WaitingReply/Resolved)
+- Finding 재탐지 시 DISMISSED/RESOLVED -> REOPENED 전이 + 감사로그
+- 핵심 이벤트 4종 계측 + 실패 시 no-op
+- Agency 라우트 골격(`/agency/login`, `/agency/shops/[shopId]`, `/agency/reports`) 추가
+
+증거 커밋:
+
+- `6c6563a`
+- `9e8ef25`
+- `e0c4d6c`
