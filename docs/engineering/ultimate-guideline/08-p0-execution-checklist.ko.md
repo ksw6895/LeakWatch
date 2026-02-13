@@ -111,8 +111,7 @@
 
 Deferred/후속(근거 및 액션은 `09-post-step13-p1-p2-backlog.ko.md`로 승격):
 
-- inbound parsing 정확도 고도화
-- Assumption 1~4 정책/계약 재검증 고도화
+- `errorCode` 전역 표준화(Assumption 2) 별도 배치
 
 증거 커밋:
 

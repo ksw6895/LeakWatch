@@ -59,3 +59,7 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
+      - run: pnpm --filter @leakwatch/web exec playwright install --with-deps chromium
+      - run: pnpm --filter @leakwatch/web test:e2e
+        env:
+          NEXT_PUBLIC_SHOPIFY_API_KEY: ''

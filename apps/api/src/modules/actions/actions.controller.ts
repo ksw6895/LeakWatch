@@ -35,6 +35,21 @@ export class ActionsController {
     return this.tenantPrisma.listActionRequests(auth.orgId, shopId ?? auth.shopId);
   }
 
+  @Get('action-requests/inbound-parse/metrics')
+  @RequireRoles(OrgRole.OWNER, OrgRole.MEMBER, OrgRole.AGENCY_ADMIN, OrgRole.AGENCY_VIEWER)
+  inboundParseMetrics(
+    @AuthContext() auth: RequestAuthContext,
+    @Query('shopId') shopId?: string,
+    @Query('windowDays') windowDays?: string,
+  ) {
+    const parsedWindowDays = windowDays ? Number.parseInt(windowDays, 10) : undefined;
+    return this.tenantPrisma.getInboundParseFeedbackMetrics(
+      auth.orgId,
+      shopId ?? auth.shopId,
+      Number.isFinite(parsedWindowDays) ? parsedWindowDays : undefined,
+    );
+  }
+
   @Get('action-requests/:id')
   async get(@AuthContext() auth: RequestAuthContext, @Param('id') id: string) {
     const actionRequest = await this.tenantPrisma.getActionRequest(auth.orgId, id);

@@ -25,6 +25,17 @@ type MailgunInboundPayload = MailgunEventPayload & {
   References?: string;
 };
 
+type InboundParseDecision = 'resolved' | 'waiting_reply' | 'uncertain';
+
+type InboundParseResult = {
+  decision: InboundParseDecision;
+  score: number;
+  matchedPositiveSignals: string[];
+  matchedNegativeSignals: string[];
+  matchedUncertainSignals: string[];
+  classifierVersion: 'rule-v2';
+};
+
 function normalizeMessageId(value: string): string {
   return value.trim().replace(/^<|>$/g, '');
 }
@@ -42,6 +53,101 @@ function toDateFromSeconds(value: unknown): Date {
   }
 
   return new Date();
+}
+
+function parseInboundResolutionSignal(subject: string, bodyText: string): InboundParseResult {
+  const normalized = `${subject}\n${bodyText}`.toLowerCase();
+
+  const positiveSignals: Array<{ phrase: string; weight: number }> = [
+    { phrase: 'resolved', weight: 2 },
+    { phrase: 'issue fixed', weight: 3 },
+    { phrase: 'fixed now', weight: 3 },
+    { phrase: 'refund completed', weight: 3 },
+    { phrase: 'refund issued', weight: 3 },
+    { phrase: 'refund processed', weight: 3 },
+    { phrase: 'we refunded', weight: 2 },
+    { phrase: 'canceled and refunded', weight: 3 },
+    { phrase: 'cancelled and refunded', weight: 3 },
+    { phrase: 'closed the case', weight: 2 },
+  ];
+
+  const negativeSignals: Array<{ phrase: string; weight: number }> = [
+    { phrase: 'not resolved', weight: 4 },
+    { phrase: 'unresolved', weight: 4 },
+    { phrase: 'issue persists', weight: 4 },
+    { phrase: 'still charged', weight: 3 },
+    { phrase: 'still being charged', weight: 3 },
+    { phrase: 'cannot refund', weight: 3 },
+    { phrase: 'can not refund', weight: 3 },
+    { phrase: 'unable to refund', weight: 3 },
+    { phrase: 'investigating', weight: 2 },
+    { phrase: 'looking into', weight: 2 },
+    { phrase: 'working on this', weight: 2 },
+    { phrase: 'pending review', weight: 2 },
+  ];
+
+  const uncertainSignals = [
+    'please clarify',
+    'can you share',
+    'need more information',
+    'follow up',
+  ];
+
+  const matchedPositiveSignals = positiveSignals
+    .filter((signal) => normalized.includes(signal.phrase))
+    .map((signal) => signal.phrase);
+  const matchedNegativeSignals = negativeSignals
+    .filter((signal) => normalized.includes(signal.phrase))
+    .map((signal) => signal.phrase);
+  const matchedUncertainSignals = uncertainSignals.filter((phrase) => normalized.includes(phrase));
+
+  const positiveScore = positiveSignals
+    .filter((signal) => matchedPositiveSignals.includes(signal.phrase))
+    .reduce((sum, signal) => sum + signal.weight, 0);
+  const negativeScore = negativeSignals
+    .filter((signal) => matchedNegativeSignals.includes(signal.phrase))
+    .reduce((sum, signal) => sum + signal.weight, 0);
+  const uncertainPenalty = matchedUncertainSignals.length > 0 ? 1 : 0;
+  const score = positiveScore - negativeScore - uncertainPenalty;
+
+  let decision: InboundParseDecision = 'uncertain';
+  if (matchedNegativeSignals.length > 0 && negativeScore >= positiveScore) {
+    decision = 'waiting_reply';
+  } else if (score >= 2) {
+    decision = 'resolved';
+  } else if (score <= -1) {
+    decision = 'waiting_reply';
+  }
+
+  return {
+    decision,
+    score,
+    matchedPositiveSignals,
+    matchedNegativeSignals,
+    matchedUncertainSignals,
+    classifierVersion: 'rule-v2',
+  };
+}
+
+function extractMessageIdCandidates(payload: MailgunInboundPayload): string[] {
+  const sourceText = [
+    payload['In-Reply-To'],
+    payload.References,
+    payload.subject,
+    payload['stripped-text'],
+    payload['body-plain'],
+  ]
+    .filter((value): value is string => typeof value === 'string')
+    .join(' ');
+
+  const bracketed = Array.from(sourceText.matchAll(/<([^>]+)>/g)).map((match) => match[1] ?? '');
+  const prefixed = Array.from(
+    sourceText.matchAll(
+      /(?:message-id|in-reply-to|references)\s*[:=]\s*([\w.!#$%&'*+/=?^`{|}~-]+@[\w.-]+)/gi,
+    ),
+  ).map((match) => match[1] ?? '');
+
+  return Array.from(new Set([...bracketed, ...prefixed]));
 }
 
 @Injectable()
@@ -157,17 +263,7 @@ export class MailgunService {
   async handleInboundWebhook(payload: MailgunInboundPayload) {
     this.verifySignature(payload);
 
-    const candidates = [
-      payload['In-Reply-To'],
-      payload.References,
-      payload['stripped-text'],
-      payload['body-plain'],
-    ]
-      .filter((value): value is string => typeof value === 'string')
-      .join(' ');
-
-    const messageIds = Array.from(candidates.matchAll(/<([^>]+)>/g)).map((match) => match[1] ?? '');
-    const normalizedCandidates = messageIds
+    const normalizedCandidates = extractMessageIdCandidates(payload)
       .map((value) => normalizeMessageId(value))
       .filter((value) => value.length > 0);
 
@@ -196,20 +292,9 @@ export class MailgunService {
       (typeof payload['stripped-text'] === 'string' ? payload['stripped-text'] : null) ??
       (typeof payload['body-plain'] === 'string' ? payload['body-plain'] : null) ??
       '';
-    const lowered = bodyText.toLowerCase();
-    const resolvedKeywords = [
-      'resolved',
-      'refund completed',
-      'issue fixed',
-      'cancelled',
-      'canceled',
-    ];
-    const hasNegativeContext =
-      lowered.includes('not resolved') ||
-      lowered.includes('unresolved') ||
-      lowered.includes('issue persists');
-    const shouldResolve =
-      !hasNegativeContext && resolvedKeywords.some((keyword) => lowered.includes(keyword));
+    const subject = typeof payload.subject === 'string' ? payload.subject : '';
+    const parseResult = parseInboundResolutionSignal(subject, bodyText);
+    const shouldResolve = parseResult.decision === 'resolved';
 
     const occurredAt = new Date();
     await this.prisma.mailEvent.create({
@@ -217,7 +302,10 @@ export class MailgunService {
         ...(actionRun ? { actionRunId: actionRun.id } : {}),
         mailgunMessageId: normalizedCandidates[0] ?? 'unknown',
         event: 'inbound_reply',
-        payloadJson: payload as unknown as Prisma.InputJsonValue,
+        payloadJson: {
+          ...payload,
+          _parse: parseResult,
+        } as unknown as Prisma.InputJsonValue,
         occurredAt,
       },
     });
@@ -246,6 +334,12 @@ export class MailgunService {
             sender: payload.sender ?? null,
             subject: payload.subject ?? null,
             resolvedByKeyword: shouldResolve,
+            parseDecision: parseResult.decision,
+            parseScore: parseResult.score,
+            parseClassifierVersion: parseResult.classifierVersion,
+            matchedPositiveSignals: parseResult.matchedPositiveSignals,
+            matchedNegativeSignals: parseResult.matchedNegativeSignals,
+            matchedUncertainSignals: parseResult.matchedUncertainSignals,
             snippet: bodyText.slice(0, 280),
           },
         },
@@ -256,6 +350,8 @@ export class MailgunService {
       ok: true,
       matchedActionRunId: actionRun?.id ?? null,
       resolvedByKeyword: shouldResolve,
+      parseDecision: parseResult.decision,
+      parseScore: parseResult.score,
     };
   }
 }

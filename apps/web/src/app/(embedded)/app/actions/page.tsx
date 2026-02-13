@@ -31,6 +31,22 @@ type AuthMe = {
   shopId: string;
 };
 
+type InboundParseMetrics = {
+  windowDays: number;
+  inboundReplyEvents: number;
+  labeledFeedback: number;
+  labels: {
+    TRUE_POSITIVE: number;
+    FALSE_POSITIVE: number;
+    TRUE_NEGATIVE: number;
+    FALSE_NEGATIVE: number;
+    UNLABELED: number;
+  };
+  correctionRate: number | null;
+  falsePositiveRate: number | null;
+  falseNegativeRate: number | null;
+};
+
 function tone(status: string): 'info' | 'success' | 'attention' | 'critical' {
   if (status === 'DRAFT') {
     return 'attention';
@@ -63,6 +79,7 @@ function ActionsPageContent() {
   const shop = searchParams.get('shop');
   const apiKey = process.env.NEXT_PUBLIC_SHOPIFY_API_KEY;
   const [items, setItems] = useState<ActionRequestListItem[]>([]);
+  const [parseMetrics, setParseMetrics] = useState<InboundParseMetrics | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [statusTab, setStatusTab] = useState<
@@ -106,11 +123,20 @@ function ActionsPageContent() {
             host,
           },
         );
+        const metricsResponse = await apiFetch(
+          `/v1/action-requests/inbound-parse/metrics?shopId=${encodeURIComponent(me.shopId)}&windowDays=30`,
+          {
+            host,
+          },
+        );
         if (!response.ok) {
           throw new Error(`Action requests fetch failed (${response.status})`);
         }
         const json = (await response.json()) as ActionRequestListItem[];
         setItems(json);
+        if (metricsResponse.ok) {
+          setParseMetrics((await metricsResponse.json()) as InboundParseMetrics);
+        }
         setError(null);
       } catch (unknownError) {
         setError(unknownError instanceof Error ? unknownError.message : 'Unknown error');
@@ -176,6 +202,58 @@ function ActionsPageContent() {
                           <div className="lw-metric-hint">canceled: {canceledCount}</div>
                         </div>
                       </div>
+
+                      {parseMetrics ? (
+                        <div className="lw-content-box">
+                          <Text as="h3" variant="headingSm">
+                            Inbound parsing quality (last {parseMetrics.windowDays}d)
+                          </Text>
+                          <Box paddingBlockStart="200">
+                            <div className="lw-summary-grid">
+                              <div className="lw-metric lw-metric--compact">
+                                <div className="lw-metric-label">Inbound replies</div>
+                                <div className="lw-metric-value">
+                                  {parseMetrics.inboundReplyEvents}
+                                </div>
+                              </div>
+                              <div className="lw-metric lw-metric--compact">
+                                <div className="lw-metric-label">Labeled feedback</div>
+                                <div className="lw-metric-value">
+                                  {parseMetrics.labeledFeedback}
+                                </div>
+                              </div>
+                              <div className="lw-metric lw-metric--compact">
+                                <div className="lw-metric-label">False positives</div>
+                                <div className="lw-metric-value">
+                                  {parseMetrics.labels.FALSE_POSITIVE}
+                                </div>
+                              </div>
+                              <div className="lw-metric lw-metric--compact">
+                                <div className="lw-metric-label">False negatives</div>
+                                <div className="lw-metric-value">
+                                  {parseMetrics.labels.FALSE_NEGATIVE}
+                                </div>
+                              </div>
+                            </div>
+                            <Box paddingBlockStart="150">
+                              <Text as="p" variant="bodySm" tone="subdued">
+                                Correction rate:{' '}
+                                {parseMetrics.correctionRate === null
+                                  ? 'n/a'
+                                  : `${Math.round(parseMetrics.correctionRate * 100)}%`}
+                                {' · '}FP rate:{' '}
+                                {parseMetrics.falsePositiveRate === null
+                                  ? 'n/a'
+                                  : `${Math.round(parseMetrics.falsePositiveRate * 100)}%`}
+                                {' · '}FN rate:{' '}
+                                {parseMetrics.falseNegativeRate === null
+                                  ? 'n/a'
+                                  : `${Math.round(parseMetrics.falseNegativeRate * 100)}%`}
+                              </Text>
+                            </Box>
+                          </Box>
+                        </div>
+                      ) : null}
 
                       <div className="lw-content-box">
                         <div className="lw-actions-row">

@@ -15,6 +15,37 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 export class TenantPrismaService {
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
+  private readParseDecisionFromPayload(
+    payload: unknown,
+  ): 'resolved' | 'waiting_reply' | 'uncertain' | null {
+    if (typeof payload !== 'object' || payload === null || !('_parse' in payload)) {
+      return null;
+    }
+    const parse = (payload as { _parse?: unknown })._parse;
+    if (typeof parse !== 'object' || parse === null || !('decision' in parse)) {
+      return null;
+    }
+    const decision = (parse as { decision?: unknown }).decision;
+    if (decision === 'resolved' || decision === 'waiting_reply' || decision === 'uncertain') {
+      return decision;
+    }
+    return null;
+  }
+
+  private getInboundFeedbackLabel(params: {
+    parseDecision: 'resolved' | 'waiting_reply' | 'uncertain' | null;
+    requestedStatus: 'WAITING_REPLY' | 'RESOLVED';
+  }): 'TRUE_POSITIVE' | 'FALSE_POSITIVE' | 'TRUE_NEGATIVE' | 'FALSE_NEGATIVE' | 'UNLABELED' {
+    const { parseDecision, requestedStatus } = params;
+    if (parseDecision === null) {
+      return 'UNLABELED';
+    }
+    if (requestedStatus === 'RESOLVED') {
+      return parseDecision === 'resolved' ? 'TRUE_POSITIVE' : 'FALSE_NEGATIVE';
+    }
+    return parseDecision === 'resolved' ? 'FALSE_POSITIVE' : 'TRUE_NEGATIVE';
+  }
+
   listShops(orgId: string) {
     return this.prisma.shop.findMany({
       where: { orgId },
@@ -574,7 +605,28 @@ export class TenantPrismaService {
       },
       select: {
         id: true,
+        mailEvents: {
+          where: {
+            event: 'inbound_reply',
+          },
+          orderBy: {
+            occurredAt: 'desc',
+          },
+          take: 1,
+          select: {
+            id: true,
+            payloadJson: true,
+          },
+        },
       },
+    });
+
+    const parseDecision = latestRun?.mailEvents[0]
+      ? this.readParseDecisionFromPayload(latestRun.mailEvents[0].payloadJson)
+      : null;
+    const feedbackLabel = this.getInboundFeedbackLabel({
+      parseDecision,
+      requestedStatus: status,
     });
 
     if (latestRun) {
@@ -610,7 +662,101 @@ export class TenantPrismaService {
       },
     });
 
+    await this.prisma.auditLog.create({
+      data: {
+        orgId,
+        shopId: actionRequest.shopId,
+        userId,
+        action: 'ACTION_INBOUND_PARSE_FEEDBACK',
+        targetType: 'action_request',
+        targetId: actionRequestId,
+        metaJson: {
+          requestedStatus: status,
+          parseDecision,
+          feedbackLabel,
+        },
+      },
+    });
+
     return this.getActionRequest(orgId, actionRequestId);
+  }
+
+  async getInboundParseFeedbackMetrics(orgId: string, shopId: string, windowDays?: number) {
+    const sanitizedWindowDays = Math.max(1, Math.min(windowDays ?? 30, 90));
+    const since = new Date(Date.now() - sanitizedWindowDays * 24 * 60 * 60 * 1000);
+
+    const feedbackLogs = await this.prisma.auditLog.findMany({
+      where: {
+        orgId,
+        shopId,
+        action: 'ACTION_INBOUND_PARSE_FEEDBACK',
+        createdAt: {
+          gte: since,
+        },
+      },
+      select: {
+        metaJson: true,
+      },
+    });
+
+    const counters = {
+      TRUE_POSITIVE: 0,
+      FALSE_POSITIVE: 0,
+      TRUE_NEGATIVE: 0,
+      FALSE_NEGATIVE: 0,
+      UNLABELED: 0,
+    };
+
+    for (const entry of feedbackLogs) {
+      const meta = entry.metaJson;
+      if (
+        typeof meta === 'object' &&
+        meta !== null &&
+        'feedbackLabel' in meta &&
+        typeof meta.feedbackLabel === 'string' &&
+        meta.feedbackLabel in counters
+      ) {
+        counters[meta.feedbackLabel as keyof typeof counters] += 1;
+      } else {
+        counters.UNLABELED += 1;
+      }
+    }
+
+    const inboundReplyEvents = await this.prisma.mailEvent.count({
+      where: {
+        actionRun: {
+          actionRequest: {
+            orgId,
+            shopId,
+          },
+        },
+        event: 'inbound_reply',
+        occurredAt: {
+          gte: since,
+        },
+      },
+    });
+
+    const labeled =
+      counters.TRUE_POSITIVE +
+      counters.FALSE_POSITIVE +
+      counters.TRUE_NEGATIVE +
+      counters.FALSE_NEGATIVE;
+
+    return {
+      windowDays: sanitizedWindowDays,
+      inboundReplyEvents,
+      labeledFeedback: labeled,
+      labels: counters,
+      correctionRate:
+        labeled > 0
+          ? Number(((counters.FALSE_POSITIVE + counters.FALSE_NEGATIVE) / labeled).toFixed(4))
+          : null,
+      falsePositiveRate:
+        labeled > 0 ? Number((counters.FALSE_POSITIVE / labeled).toFixed(4)) : null,
+      falseNegativeRate:
+        labeled > 0 ? Number((counters.FALSE_NEGATIVE / labeled).toFixed(4)) : null,
+    };
   }
 
   private toActionDisplayStatus(

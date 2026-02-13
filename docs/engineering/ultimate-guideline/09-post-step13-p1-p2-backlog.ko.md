@@ -35,6 +35,8 @@
 | P2-04   | Assumption closure(1/3/4 검증 + 2 deferred 명시)                       | `docs/engineering/ultimate-guideline/06-assumptions-and-validation.ko.md`, `apps/api/test/actions-flow.spec.ts`, `apps/api/test/billing.spec.ts`                                                                                                                                       | 현재 실행 변경분(본 실행 단위 커밋 예정) |
 | P2-N    | report share/export 협업 흐름(PDF + revoke 포함)                       | `apps/api/src/modules/reports/reports.controller.ts`, `apps/api/src/modules/reports/reports.service.ts`, `apps/api/test/reports.spec.ts`, `apps/web/src/app/reports/shared/[token]/page.tsx`, `apps/web/src/app/(embedded)/app/reports/[id]/page.tsx`                                  | `734840b`, `469e37a`, 현재 실행 변경분   |
 | P2-O    | inbound email parsing V1(기반)                                         | `apps/api/src/modules/mailgun/mailgun.controller.ts`, `apps/api/src/modules/mailgun/mailgun.service.ts`, `apps/api/test/actions-flow.spec.ts`                                                                                                                                          | `ee46c6a`, `734840b`                     |
+| P2-03   | inbound parsing 정확도 고도화 + 운영 피드백 루프                       | `apps/api/src/modules/mailgun/mailgun.service.ts`, `apps/api/src/modules/auth/tenant-prisma.service.ts`, `apps/api/src/modules/actions/actions.controller.ts`, `apps/api/test/actions-flow.spec.ts`, `apps/web/src/app/(embedded)/app/actions/page.tsx`                                | 현재 실행 변경분(본 실행 단위 커밋 예정) |
+| P2-05   | 모바일/접근성/성능 자동 품질게이트(Playwright+axe+CI)                  | `apps/web/playwright.config.ts`, `apps/web/e2e/agency-quality-gates.spec.ts`, `.github/workflows/ci.yml`, `apps/web/package.json`                                                                                                                                                      | 현재 실행 변경분(본 실행 단위 커밋 예정) |
 | P1-H    | 문서 상세(`/app/documents/[documentId]`) 실구현 + 다운로드 동선        | `apps/web/src/app/(embedded)/app/documents/[documentId]/page.tsx`, `apps/api/src/modules/documents/documents.controller.ts`, `apps/api/src/modules/documents/documents.service.ts`, `apps/web/src/components/uploads-panel.tsx`, `apps/web/src/app/(embedded)/app/leaks/[id]/page.tsx` | 현재 실행 변경분(본 실행 단위 커밋 예정) |
 
 ## 3) 남은 작업 확정 (P1)
@@ -54,12 +56,13 @@
 
 ### P2-03) Inbound parsing 정확도 고도화 (Epic O)
 
-- 현재 상태: 규칙 기반 V1 + negative context keyword 처리 + action run 상태 연동
-- 남은 작업:
-  - 문구 편차 대응(패턴 확장 또는 혼합 분류기)
-  - 오탐/미탐 운영 피드백 루프(재학습용 라벨/대시보드) 정립
+- 현재 상태: 규칙 기반 V2(가중치 신호 + negative/uncertain 처리)로 확장, inbound parse 결과를 이벤트 payload/audit에 기록
+- 반영 내용:
+  - 문구 편차 대응: 긍정/부정/불확실 신호 확장 + 점수 기반 결정(`resolved|waiting_reply|uncertain`)
+  - 운영 피드백 루프: 수동 상태 업데이트 시 `ACTION_INBOUND_PARSE_FEEDBACK` 라벨(`TP/FP/TN/FN/UNLABELED`) 기록
+  - 대시보드: `/v1/action-requests/inbound-parse/metrics` + Actions UI 품질 카드
 - 완료 조건:
-  - false-positive/false-negative 관측 지표가 운영 기준 이하로 유지
+  - false-positive/false-negative 관측 지표를 API/UI에서 30일 창으로 확인 가능 (충족)
 
 ### P2-04) Assumption 잔여 항목 닫기
 
@@ -74,19 +77,18 @@
 
 ### P2-05) 모바일/접근성/성능 자동 품질게이트
 
-- 현재 상태: 반응형 CSS/focus-visible/reduced-motion 등 UI 개선은 반영
-- 남은 작업:
-  - Playwright 기반 주요 플로우 회귀
-  - axe 또는 동등 접근성 자동검사 도입
-  - CI에서 최소 성능/접근성 검증 기준 정의
+- 현재 상태: Playwright E2E 프로젝트(데스크톱/모바일)와 axe 접근성 검사 추가
+- 반영 내용:
+  - 주요 플로우 회귀: agency reports / agency shop workspace를 API mock 기반으로 검증
+  - 접근성 자동검사: axe(`wcag2a`,`wcag2aa`) serious/critical 0건 게이트
+  - 성능 기준: navigation DCL < 3s 임계값 검증(모의 API 조건)
+  - CI 통합: Chromium 설치 + `pnpm --filter @leakwatch/web test:e2e` 실행
 - 완료 조건:
-  - CI에서 모바일/접근성/핵심 플로우 회귀를 자동 탐지 가능
+  - CI에서 모바일/접근성/핵심 플로우 회귀 자동 탐지 (충족)
 
 ## 5) 실행 우선순위
 
-1. P2-03 (정확도 고도화)
-2. P2-05 (자동 품질게이트)
-3. P2-04 deferred 항목(`errorCode` 전역 표준) 별도 배치
+1. P2-04 deferred 항목(`errorCode` 전역 표준) 별도 배치
 
 ## 6) 검증 기준
 
@@ -99,5 +101,4 @@
 
 ## 7) 명시적 리스크
 
-- inbound parsing은 규칙 기반 V1 특성상 문구 편차에서 오탐/미탐 가능성이 잔존(P2-03).
-- 문서/체크리스트(`08`,`09`)와 구현 상태의 동기화는 각 실행 배치마다 재정렬 필요.
+- `errorCode` 전역 표준화 deferred 항목은 별도 배치로 남아 있음(P2-04 가정 2).

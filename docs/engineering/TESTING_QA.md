@@ -39,9 +39,12 @@
 
 ### 1.4 Frontend 검증(현재)
 
-- 현재 자동화는 Vitest(jsdom) 기반의 API 클라이언트/렌더 단위 테스트를 사용한다.
-- Embedded Shopify iframe 통합 검증은 로컬 자동화 대신 스테이징 수동 스모크로 보완한다.
-- Playwright E2E는 향후 도입 항목으로 관리한다.
+- 자동화 1차: Vitest(jsdom) 기반의 API 클라이언트/렌더 단위 테스트
+- 자동화 2차: Playwright 기반 브라우저 회귀(데스크톱/모바일)
+  - 대상: agency reports, agency shop workspace 핵심 동선
+  - 접근성: axe(`wcag2a`,`wcag2aa`) serious/critical 0건
+  - 성능(모의 API 기준): navigation `domContentLoadedEventEnd < 3000ms`
+- Embedded Shopify iframe 완전 통합(E2E)은 스테이징 수동 스모크를 병행한다.
 
 ## 2) 테스트 데이터/픽스처
 
@@ -72,6 +75,7 @@
 - pnpm test:api
 - pnpm test:worker
 - pnpm --filter @leakwatch/web test
+- pnpm --filter @leakwatch/web test:e2e
 - pnpm lint
 - pnpm typecheck
 

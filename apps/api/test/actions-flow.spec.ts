@@ -353,9 +353,184 @@ describe.sequential('Actions flow + Mailgun webhook', () => {
     expect(response.status).toBe(201);
     expect(response.body.matchedActionRunId).toBe(run.id);
     expect(response.body.resolvedByKeyword).toBe(true);
+    expect(response.body.parseDecision).toBe('resolved');
+    expect(typeof response.body.parseScore).toBe('number');
 
     const updatedRun = await prisma.actionRun.findUnique({ where: { id: run.id } });
     expect(updatedRun?.status).toBe(ActionRunStatus.RESOLVED);
+
+    const inboundMailEvent = await prisma.mailEvent.findFirst({
+      where: {
+        actionRunId: run.id,
+        event: 'inbound_reply',
+      },
+      orderBy: {
+        occurredAt: 'desc',
+      },
+    });
+    expect(inboundMailEvent).not.toBeNull();
+    if (inboundMailEvent) {
+      const payload = inboundMailEvent.payloadJson as {
+        _parse?: { decision?: string; classifierVersion?: string };
+      };
+      expect(payload._parse?.decision).toBe('resolved');
+      expect(payload._parse?.classifierVersion).toBe('rule-v2');
+    }
+  });
+
+  it('tracks inbound parsing false-positive and false-negative feedback labels', async () => {
+    const org = await prisma.organization.create({ data: { name: 'Org Inbound Feedback' } });
+    const shop = await prisma.shop.create({
+      data: {
+        orgId: org.id,
+        shopifyDomain: 'inbound-feedback.myshopify.com',
+        installedAt: new Date(),
+      },
+    });
+    const user = await prisma.user.create({ data: { shopifyUserId: 'inbound-feedback-owner' } });
+    await prisma.membership.create({
+      data: {
+        orgId: org.id,
+        userId: user.id,
+        role: OrgRole.OWNER,
+      },
+    });
+
+    const fpFinding = await prisma.leakFinding.create({
+      data: {
+        orgId: org.id,
+        shopId: shop.id,
+        type: LeakType.DUPLICATE_CHARGE,
+        status: FindingStatus.OPEN,
+        title: 'FP feedback finding',
+        summary: 'For false-positive feedback case',
+        confidence: 76,
+        estimatedSavingsAmount: '13',
+        currency: 'USD',
+      },
+    });
+    const fpRequest = await prisma.actionRequest.create({
+      data: {
+        orgId: org.id,
+        shopId: shop.id,
+        findingId: fpFinding.id,
+        type: ActionType.CLARIFICATION,
+        status: ActionRequestStatus.APPROVED,
+        toEmail: 'ops@example.com',
+        ccEmails: [],
+        subject: 'FP request',
+        bodyMarkdown: 'Body',
+      },
+    });
+    await prisma.actionRun.create({
+      data: {
+        actionRequestId: fpRequest.id,
+        status: ActionRunStatus.DELIVERED,
+        mailgunMessageId: '<fp-thread@example.com>',
+      },
+    });
+
+    const fnFinding = await prisma.leakFinding.create({
+      data: {
+        orgId: org.id,
+        shopId: shop.id,
+        type: LeakType.POST_CANCELLATION,
+        status: FindingStatus.OPEN,
+        title: 'FN feedback finding',
+        summary: 'For false-negative feedback case',
+        confidence: 79,
+        estimatedSavingsAmount: '21',
+        currency: 'USD',
+      },
+    });
+    const fnRequest = await prisma.actionRequest.create({
+      data: {
+        orgId: org.id,
+        shopId: shop.id,
+        findingId: fnFinding.id,
+        type: ActionType.CLARIFICATION,
+        status: ActionRequestStatus.APPROVED,
+        toEmail: 'ops@example.com',
+        ccEmails: [],
+        subject: 'FN request',
+        bodyMarkdown: 'Body',
+      },
+    });
+    await prisma.actionRun.create({
+      data: {
+        actionRequestId: fnRequest.id,
+        status: ActionRunStatus.DELIVERED,
+        mailgunMessageId: '<fn-thread@example.com>',
+      },
+    });
+
+    const timestamp = String(Math.floor(Date.now() / 1000));
+    const signingKey = process.env.MAILGUN_WEBHOOK_SIGNING_KEY ?? 'test_mailgun_signing_key';
+    const fpToken = 'fp-token';
+    const fpSignature = createHmac('sha256', signingKey)
+      .update(`${timestamp}${fpToken}`)
+      .digest('hex');
+    const fnToken = 'fn-token';
+    const fnSignature = createHmac('sha256', signingKey)
+      .update(`${timestamp}${fnToken}`)
+      .digest('hex');
+
+    const fpInbound = await request(app.getHttpServer())
+      .post('/v1/mailgun/webhooks/inbound')
+      .send({
+        signature: {
+          timestamp,
+          token: fpToken,
+          signature: fpSignature,
+        },
+        sender: 'support@example.com',
+        subject: 'Re: FP request',
+        'body-plain': 'Issue fixed and refund completed.',
+        'In-Reply-To': '<fp-thread@example.com>',
+      });
+    expect(fpInbound.status).toBe(201);
+    expect(fpInbound.body.parseDecision).toBe('resolved');
+
+    const fnInbound = await request(app.getHttpServer())
+      .post('/v1/mailgun/webhooks/inbound')
+      .send({
+        signature: {
+          timestamp,
+          token: fnToken,
+          signature: fnSignature,
+        },
+        sender: 'support@example.com',
+        subject: 'Re: FN request',
+        'body-plain': 'Thanks for the details. We can close the case now.',
+        'In-Reply-To': '<fn-thread@example.com>',
+      });
+    expect(fnInbound.status).toBe(201);
+    expect(fnInbound.body.parseDecision).toBe('uncertain');
+
+    const token = await createSessionToken({
+      sub: 'inbound-feedback-owner',
+      shopDomain: shop.shopifyDomain,
+    });
+
+    const fpManual = await request(app.getHttpServer())
+      .post(`/v1/action-requests/${fpRequest.id}/status`)
+      .set('authorization', `Bearer ${token}`)
+      .send({ status: 'WAITING_REPLY' });
+    expect(fpManual.status).toBe(201);
+
+    const fnManual = await request(app.getHttpServer())
+      .post(`/v1/action-requests/${fnRequest.id}/status`)
+      .set('authorization', `Bearer ${token}`)
+      .send({ status: 'RESOLVED' });
+    expect(fnManual.status).toBe(201);
+
+    const metrics = await request(app.getHttpServer())
+      .get(`/v1/action-requests/inbound-parse/metrics?shopId=${shop.id}&windowDays=30`)
+      .set('authorization', `Bearer ${token}`);
+    expect(metrics.status).toBe(200);
+    expect(metrics.body.labels.FALSE_POSITIVE).toBeGreaterThanOrEqual(1);
+    expect(metrics.body.labels.FALSE_NEGATIVE).toBeGreaterThanOrEqual(1);
+    expect(metrics.body.labeledFeedback).toBeGreaterThanOrEqual(2);
   });
 
   it('allows AGENCY_ADMIN to approve action requests in-tenant', async () => {
