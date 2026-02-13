@@ -52,6 +52,7 @@ ASSUMPTION: 모노레포(pnpm + turborepo), docker compose로 로컬 Postgres/Re
 
 - 루트 `.env`를 `.env.example` 기준으로 작성한다.
 - step-04 업로드 기능까지 쓰려면 R2 관련 값(`R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`)이 필수다.
+- step-08 액션 발송/추적까지 검증하려면 Mailgun 값(`MAILGUN_API_KEY`, `MAILGUN_DOMAIN`, `MAILGUN_WEBHOOK_SIGNING_KEY`)이 필요하다.
 - Shopify Embedded 검증(ngrok 1개 사용) 시 아래 2개는 같은 HTTPS 주소로 맞춘다:
   - `SHOPIFY_APP_URL`
   - `API_BASE_URL`

@@ -118,9 +118,9 @@ MVP 구현 팁:
 ## 7) 메일 발송/추적(Mailgun)
 
 - From: `LeakWatch <noreply@${MAILGUN_DOMAIN}>` (환경변수 기반)
-- Reply-To: 사용자 입력 contactEmail(가능하면)
+- Reply-To: 사용자 입력 contactEmail(권장, 현재 코드 미구현)
 - To: vendor support email(사용자 입력/registry)
-- CC: 사용자 contactEmail 기본 포함(ASSUMPTION: 사용자 확인을 위해)
+- CC: 현재 자동 기본 주입 없음(필요 시 UI에서 직접 입력)
 - Mailgun message-id 저장 → webhook에서 상태 업데이트
 
 ## 8) 운영상 주의(법/정책)

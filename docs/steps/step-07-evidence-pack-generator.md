@@ -43,7 +43,7 @@
 3. Worker job
 
 - GENERATE_EVIDENCE_PACK enqueue from ActionRequest create
-- idempotent: findingId 기준 이미 있으면 재사용
+- idempotent: actionRequest의 attachmentKey가 이미 있고 R2 객체가 존재하면 재사용
 
 4. API
 
