@@ -13,6 +13,7 @@ import { DocumentsModule } from './modules/documents/documents.module';
 import { EvidenceModule } from './modules/evidence/evidence.module';
 import { FindingsModule } from './modules/findings/findings.module';
 import { HealthController } from './modules/health/health.controller';
+import { MailgunModule } from './modules/mailgun/mailgun.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { ShopifyModule } from './modules/shopify/shopify.module';
 import { ShopsModule } from './modules/shops/shops.module';
@@ -26,6 +27,7 @@ import { ShopsModule } from './modules/shops/shops.module';
     ShopsModule,
     DocumentsModule,
     EvidenceModule,
+    MailgunModule,
     FindingsModule,
     ActionsModule,
     ReportsModule,

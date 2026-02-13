@@ -2,6 +2,7 @@ import {
   GENERATE_EVIDENCE_PACK_JOB_NAME,
   INGEST_DOCUMENT_JOB_NAME,
   INGESTION_QUEUE_NAME,
+  SEND_EMAIL_JOB_NAME,
 } from '@leakwatch/shared';
 import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { Queue } from 'bullmq';
@@ -48,6 +49,27 @@ export class QueueService implements OnModuleDestroy {
       },
       {
         jobId: `${GENERATE_EVIDENCE_PACK_JOB_NAME}-${actionRequestId}`,
+        removeOnComplete: 1000,
+        removeOnFail: 1000,
+        attempts: 3,
+        backoff: {
+          type: 'exponential',
+          delay: 1000,
+        },
+      },
+    );
+
+    return String(job.id);
+  }
+
+  async enqueueSendEmail(actionRunId: string) {
+    const job = await this.queue.add(
+      SEND_EMAIL_JOB_NAME,
+      {
+        actionRunId,
+      },
+      {
+        jobId: `${SEND_EMAIL_JOB_NAME}-${actionRunId}`,
         removeOnComplete: 1000,
         removeOnFail: 1000,
         attempts: 3,

@@ -61,6 +61,8 @@ export class FindingsController {
       type: body.type,
       toEmail: body.toEmail,
       ...(body.ccEmails ? { ccEmails: body.ccEmails } : {}),
+      ...(body.subject ? { subject: body.subject } : {}),
+      ...(body.bodyMarkdown ? { bodyMarkdown: body.bodyMarkdown } : {}),
     });
 
     if (!actionRequest) {

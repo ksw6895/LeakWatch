@@ -12,3 +12,5 @@ process.env.OPENAI_MODEL_NORMALIZE = process.env.OPENAI_MODEL_NORMALIZE ?? 'gpt-
 process.env.OPENAI_MODEL_VISION = process.env.OPENAI_MODEL_VISION ?? 'gpt-4o-mini';
 process.env.OPENAI_MODEL_EMAIL_DRAFT = process.env.OPENAI_MODEL_EMAIL_DRAFT ?? 'gpt-4o-mini';
 process.env.OPENAI_MAX_RETRIES = process.env.OPENAI_MAX_RETRIES ?? '1';
+process.env.MAILGUN_API_KEY = process.env.MAILGUN_API_KEY ?? 'test-mailgun-api-key';
+process.env.MAILGUN_DOMAIN = process.env.MAILGUN_DOMAIN ?? 'mg.example.com';

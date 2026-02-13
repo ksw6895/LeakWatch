@@ -89,6 +89,39 @@ function LeaksDetailContent() {
     }
   };
 
+  const createActionDraft = async () => {
+    if (!host || !finding) {
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const response = await apiFetch(`/v1/findings/${finding.id}/actions`, {
+        host,
+        method: 'POST',
+        body: JSON.stringify({
+          type: 'CLARIFICATION',
+          toEmail: 'finance@example.com',
+        }),
+      });
+      if (!response.ok) {
+        throw new Error(`Create action draft failed (${response.status})`);
+      }
+      const json = (await response.json()) as { id: string };
+      const target = new URL(`/app/actions/${json.id}`, window.location.origin);
+      if (host) {
+        target.searchParams.set('host', host);
+      }
+      if (shop) {
+        target.searchParams.set('shop', shop);
+      }
+      window.location.assign(target.toString());
+    } catch (unknownError) {
+      setError(unknownError instanceof Error ? unknownError.message : 'Unknown error');
+      setBusy(false);
+    }
+  };
+
   return (
     <AppProvider i18n={enTranslations}>
       {appBridgeConfig ? (
@@ -135,6 +168,11 @@ function LeaksDetailContent() {
                           >
                             Dismiss finding
                           </Button>
+                          <Box paddingBlockStart="200">
+                            <Button onClick={createActionDraft} disabled={busy}>
+                              Create action draft
+                            </Button>
+                          </Box>
                           <Box paddingBlockStart="200">
                             <Button
                               onClick={() => {
