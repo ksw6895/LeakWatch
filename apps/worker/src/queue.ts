@@ -6,11 +6,13 @@ import {
   GENERATE_EVIDENCE_PACK_JOB_NAME,
   INGEST_DOCUMENT_JOB_NAME,
   INGESTION_QUEUE_NAME,
+  INSTALLED_APPS_SYNC_JOB_NAME,
   NORMALIZE_INVOICE_JOB_NAME,
   REPORT_GENERATE_JOB_NAME,
   RUN_DETECTION_JOB_NAME,
   SEND_EMAIL_JOB_NAME,
   type GenerateEvidencePackJobPayload,
+  type InstalledAppsSyncJobPayload,
   type IngestDocumentJobPayload,
   type NormalizeInvoiceJobPayload,
   type ReportGenerateJobPayload,
@@ -25,6 +27,7 @@ import { processIngestDocumentJob } from './jobs/ingest';
 import { processNormalizeInvoiceJob } from './jobs/normalize';
 import { processReportGenerateJob } from './jobs/report-generate';
 import { processSendEmailJob } from './jobs/send-email';
+import { processInstalledAppsSyncJob } from './jobs/installed-apps-sync';
 
 const env = getWorkerEnv();
 const logger = createLogger('worker-queue');
@@ -66,6 +69,10 @@ export const ingestionWorker = new Worker(
 
     if (job.name === REPORT_GENERATE_JOB_NAME) {
       return processReportGenerateJob(job.data as ReportGenerateJobPayload, logger);
+    }
+
+    if (job.name === INSTALLED_APPS_SYNC_JOB_NAME) {
+      return processInstalledAppsSyncJob(job.data as InstalledAppsSyncJobPayload, logger);
     }
 
     logger.warn({ jobId: job.id, name: job.name }, 'Unknown ingestion job');

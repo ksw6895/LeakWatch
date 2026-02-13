@@ -151,5 +151,20 @@ describe.sequential('Shop settings API', () => {
     });
     const statuses = relations.map((relation) => relation.status).sort();
     expect(statuses).toEqual(['ACTIVE', 'SUSPECTED_UNUSED']);
+
+    const latestSyncAudit = await prisma.auditLog.findFirst({
+      where: {
+        orgId: org.id,
+        shopId: shop.id,
+        action: 'SHOP_INSTALLED_APPS_SYNCED',
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    expect(latestSyncAudit).not.toBeNull();
+    const meta = latestSyncAudit?.metaJson as { installedAppsNormalized?: string[] };
+    expect(meta.installedAppsNormalized).toEqual(['klaviyo']);
   });
 });

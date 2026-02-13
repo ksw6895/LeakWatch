@@ -233,6 +233,7 @@ export class TenantPrismaService {
           metaJson: {
             source: params.source ?? 'manual',
             installedAppsInputCount: normalizedInput.size,
+            installedAppsNormalized: Array.from(normalizedInput).sort(),
             vendorsTracked: vendorOnShops.length,
             activeCount,
             suspectedCount,

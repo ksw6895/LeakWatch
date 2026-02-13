@@ -5,6 +5,7 @@ export const RUN_DETECTION_JOB_NAME = 'RUN_DETECTION';
 export const GENERATE_EVIDENCE_PACK_JOB_NAME = 'GENERATE_EVIDENCE_PACK';
 export const SEND_EMAIL_JOB_NAME = 'SEND_EMAIL';
 export const REPORT_GENERATE_JOB_NAME = 'REPORT_GENERATE';
+export const INSTALLED_APPS_SYNC_JOB_NAME = 'INSTALLED_APPS_SYNC';
 
 export type IngestDocumentJobPayload = {
   documentVersionId: string;
@@ -31,4 +32,9 @@ export type ReportGenerateJobPayload = {
   shopId: string;
   period: 'WEEKLY' | 'MONTHLY';
   trigger: 'manual' | 'weekly' | 'monthly';
+};
+
+export type InstalledAppsSyncJobPayload = {
+  shopId: string;
+  trigger: 'scheduled';
 };

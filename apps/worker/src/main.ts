@@ -1,5 +1,10 @@
 import { createLogger } from '@leakwatch/shared';
-import { REPORT_GENERATE_JOB_NAME, type ReportGenerateJobPayload } from '@leakwatch/shared';
+import {
+  INSTALLED_APPS_SYNC_JOB_NAME,
+  REPORT_GENERATE_JOB_NAME,
+  type InstalledAppsSyncJobPayload,
+  type ReportGenerateJobPayload,
+} from '@leakwatch/shared';
 import { ReportPeriod } from '@prisma/client';
 
 import { prisma } from './db';
@@ -59,8 +64,39 @@ async function registerReportSchedules() {
   );
 }
 
+async function registerInstalledAppsSyncSchedules() {
+  const shops = await prisma.shop.findMany({
+    where: {
+      uninstalledAt: null,
+    },
+    select: {
+      id: true,
+      timezone: true,
+    },
+  });
+
+  await Promise.all(
+    shops.map((shop) => {
+      const payload: InstalledAppsSyncJobPayload = {
+        shopId: shop.id,
+        trigger: 'scheduled',
+      };
+      return ingestionQueue.add(INSTALLED_APPS_SYNC_JOB_NAME, payload, {
+        jobId: `${INSTALLED_APPS_SYNC_JOB_NAME}-daily-${shop.id}`,
+        repeat: {
+          pattern: '0 8 * * *',
+          tz: shop.timezone,
+        },
+        removeOnComplete: 1000,
+        removeOnFail: 1000,
+      });
+    }),
+  );
+}
+
 async function bootstrap() {
   await registerReportSchedules();
+  await registerInstalledAppsSyncSchedules();
   logger.info('LeakWatch worker started');
 
   const shutdown = async () => {
