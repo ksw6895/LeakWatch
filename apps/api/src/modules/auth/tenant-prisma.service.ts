@@ -245,17 +245,34 @@ export class TenantPrismaService {
     });
   }
 
-  async dismissFinding(orgId: string, findingId: string) {
+  async dismissFinding(orgId: string, findingId: string, userId: string) {
     const finding = await this.prisma.leakFinding.findFirst({ where: { orgId, id: findingId } });
     if (!finding) {
       return null;
     }
-    return this.prisma.leakFinding.update({
+    const updated = await this.prisma.leakFinding.update({
       where: { id: finding.id },
       data: {
         status: FindingStatus.DISMISSED,
       },
     });
+
+    await this.prisma.auditLog.create({
+      data: {
+        orgId,
+        shopId: finding.shopId,
+        userId,
+        action: 'FINDING_DISMISSED',
+        targetType: 'finding',
+        targetId: findingId,
+        metaJson: {
+          previousStatus: finding.status,
+          nextStatus: FindingStatus.DISMISSED,
+        },
+      },
+    });
+
+    return updated;
   }
 
   async createActionDraft(params: {

@@ -10,8 +10,18 @@ export class ReportsController {
   constructor(@Inject(ReportsService) private readonly reportsService: ReportsService) {}
 
   @Get()
-  list(@AuthContext() auth: RequestAuthContext, @Query('shopId') shopId?: string) {
-    return this.reportsService.listReports(auth.orgId, shopId ?? auth.shopId);
+  list(
+    @AuthContext() auth: RequestAuthContext,
+    @Query('shopId') shopId?: string,
+    @Query('period') period?: string,
+  ) {
+    const targetPeriod =
+      period?.toUpperCase() === 'WEEKLY'
+        ? ReportPeriod.WEEKLY
+        : period?.toUpperCase() === 'MONTHLY'
+          ? ReportPeriod.MONTHLY
+          : undefined;
+    return this.reportsService.listReports(auth.orgId, shopId ?? auth.shopId, targetPeriod);
   }
 
   @Get(':id')
@@ -21,6 +31,16 @@ export class ReportsController {
       throw new NotFoundException('Report not found');
     }
     return report;
+  }
+
+  @Get(':id/export')
+  export(
+    @AuthContext() auth: RequestAuthContext,
+    @Param('id') id: string,
+    @Query('format') format?: string,
+  ) {
+    const targetFormat = format?.toLowerCase() === 'json' ? 'json' : 'csv';
+    return this.reportsService.exportReport(auth.orgId, id, targetFormat);
   }
 
   @Post('generate')

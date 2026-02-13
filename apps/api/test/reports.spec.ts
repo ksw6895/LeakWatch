@@ -98,4 +98,70 @@ describe.sequential('Reports API', () => {
     expect(response.body.period).toBe('WEEKLY');
     expect(response.body).toHaveProperty('queuedJobId');
   });
+
+  it('filters report list by period and exports csv payload', async () => {
+    const org = await prisma.organization.create({ data: { name: 'Org Report Filter' } });
+    const shop = await prisma.shop.create({
+      data: {
+        orgId: org.id,
+        shopifyDomain: 'report-filter.myshopify.com',
+        installedAt: new Date(),
+      },
+    });
+    const user = await prisma.user.create({ data: { shopifyUserId: 'report-filter-owner' } });
+    await prisma.membership.create({
+      data: {
+        orgId: org.id,
+        userId: user.id,
+        role: OrgRole.OWNER,
+      },
+    });
+
+    const periodStart = new Date('2026-02-02T00:00:00.000Z');
+    const periodEnd = new Date('2026-02-08T23:59:59.999Z');
+    const weekly = await prisma.report.create({
+      data: {
+        orgId: org.id,
+        shopId: shop.id,
+        period: ReportPeriod.WEEKLY,
+        periodStart,
+        periodEnd,
+        summaryJson: {
+          totalSpend: '10',
+        },
+      },
+    });
+    await prisma.report.create({
+      data: {
+        orgId: org.id,
+        shopId: shop.id,
+        period: ReportPeriod.MONTHLY,
+        periodStart: new Date('2026-02-01T00:00:00.000Z'),
+        periodEnd: new Date('2026-02-28T23:59:59.999Z'),
+        summaryJson: {
+          totalSpend: '99',
+        },
+      },
+    });
+
+    const token = await createSessionToken({
+      sub: 'report-filter-owner',
+      shopDomain: shop.shopifyDomain,
+    });
+
+    const listResponse = await request(app.getHttpServer())
+      .get(`/v1/reports?shopId=${shop.id}&period=WEEKLY`)
+      .set('authorization', `Bearer ${token}`);
+    expect(listResponse.status).toBe(200);
+    expect(Array.isArray(listResponse.body)).toBe(true);
+    expect(listResponse.body).toHaveLength(1);
+    expect(listResponse.body[0]?.period).toBe('WEEKLY');
+
+    const exportResponse = await request(app.getHttpServer())
+      .get(`/v1/reports/${weekly.id}/export?format=csv`)
+      .set('authorization', `Bearer ${token}`);
+    expect(exportResponse.status).toBe(200);
+    expect(exportResponse.body.contentType).toBe('text/csv; charset=utf-8');
+    expect(String(exportResponse.body.content)).toContain('key,value');
+  });
 });

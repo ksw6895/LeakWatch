@@ -7,6 +7,7 @@ type Limits = {
   uploads: number;
   emails: number;
   findings: number;
+  reports: number;
 };
 
 function startOfUtcDay(date: Date) {
@@ -14,10 +15,10 @@ function startOfUtcDay(date: Date) {
 }
 
 const PLAN_LIMITS: Record<Plan, Limits> = {
-  FREE: { uploads: 3, emails: 0, findings: 3 },
-  STARTER: { uploads: 50, emails: 10, findings: 1000 },
-  PRO: { uploads: 200, emails: 50, findings: 1000 },
-  AGENCY: { uploads: 500, emails: 200, findings: 5000 },
+  FREE: { uploads: 3, emails: 0, findings: 3, reports: 4 },
+  STARTER: { uploads: 50, emails: 10, findings: 1000, reports: 60 },
+  PRO: { uploads: 200, emails: 50, findings: 1000, reports: 300 },
+  AGENCY: { uploads: 500, emails: 200, findings: 5000, reports: 1000 },
 };
 
 @Injectable()
@@ -104,11 +105,24 @@ export class BillingService {
     };
   }
 
+  async canGenerateReport(orgId: string, shopId: string) {
+    const org = await this.getOrgPlan(orgId);
+    const limits = this.getLimits(org.plan);
+    const used = await this.getUsage(orgId, shopId, 'reports_generated');
+    return {
+      allowed: used < limits.reports,
+      used,
+      limit: limits.reports,
+      plan: org.plan,
+    };
+  }
+
   async getCurrent(orgId: string, shopId: string) {
     const org = await this.getOrgPlan(orgId);
     const limits = this.getLimits(org.plan);
     const uploadsUsed = await this.getUsage(orgId, shopId, 'uploads_created');
     const emailsUsed = await this.getUsage(orgId, shopId, 'emails_sent');
+    const reportsUsed = await this.getUsage(orgId, shopId, 'reports_generated');
 
     return {
       plan: org.plan,
@@ -117,6 +131,7 @@ export class BillingService {
       usage: {
         uploads: uploadsUsed,
         emails: emailsUsed,
+        reports: reportsUsed,
       },
     };
   }

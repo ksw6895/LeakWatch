@@ -1,7 +1,8 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { FindingStatus, ReportPeriod } from '@prisma/client';
 
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { BillingService } from '../billing/billing.service';
 import { QueueService } from '../documents/queue.service';
 
 function startOfUtcDay(date: Date) {
@@ -33,11 +34,12 @@ export class ReportsService {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(QueueService) private readonly queueService: QueueService,
+    @Inject(BillingService) private readonly billingService: BillingService,
   ) {}
 
-  listReports(orgId: string, shopId: string) {
+  listReports(orgId: string, shopId: string, period?: ReportPeriod) {
     return this.prisma.report.findMany({
-      where: { orgId, shopId },
+      where: { orgId, shopId, ...(period ? { period } : {}) },
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -46,6 +48,41 @@ export class ReportsService {
     return this.prisma.report.findFirst({
       where: { id: reportId, orgId },
     });
+  }
+
+  async exportReport(orgId: string, reportId: string, format: 'json' | 'csv') {
+    const report = await this.getReport(orgId, reportId);
+    if (!report) {
+      throw new NotFoundException('Report not found');
+    }
+
+    const stamp = `${report.period.toLowerCase()}-${report.periodStart.toISOString().slice(0, 10)}`;
+
+    if (format === 'json') {
+      return {
+        fileName: `leakwatch-report-${stamp}.json`,
+        contentType: 'application/json; charset=utf-8',
+        content: JSON.stringify(report.summaryJson, null, 2),
+      };
+    }
+
+    const summary = report.summaryJson as Record<string, unknown>;
+    const rows: string[] = ['key,value'];
+    for (const [key, value] of Object.entries(summary)) {
+      if (Array.isArray(value) || (value && typeof value === 'object')) {
+        continue;
+      }
+      const rendered = String(value ?? '')
+        .replace(/"/g, '""')
+        .replace(/\n/g, ' ');
+      rows.push(`"${key}","${rendered}"`);
+    }
+
+    return {
+      fileName: `leakwatch-report-${stamp}.csv`,
+      contentType: 'text/csv; charset=utf-8',
+      content: rows.join('\n'),
+    };
   }
 
   async getSummary(orgId: string, shopId: string) {
@@ -131,6 +168,11 @@ export class ReportsService {
       throw new NotFoundException('Shop not found');
     }
 
+    const reportEntitlement = await this.billingService.canGenerateReport(orgId, shopId);
+    if (!reportEntitlement.allowed) {
+      throw new ForbiddenException('REPORT_LIMIT_EXCEEDED');
+    }
+
     const { start, end } = getPeriodRange(period, new Date());
     let replacedExisting = false;
     if (options?.force) {
@@ -151,6 +193,8 @@ export class ReportsService {
       period,
       trigger: 'manual',
     });
+
+    await this.billingService.incrementUsage(orgId, shopId, 'reports_generated', 1);
 
     return {
       queuedJobId: jobId,

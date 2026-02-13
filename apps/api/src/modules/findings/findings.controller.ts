@@ -48,8 +48,9 @@ export class FindingsController {
   }
 
   @Post(':findingId/dismiss')
+  @RequireRoles(OrgRole.OWNER, OrgRole.MEMBER, OrgRole.AGENCY_ADMIN)
   async dismiss(@AuthContext() auth: RequestAuthContext, @Param('findingId') findingId: string) {
-    const finding = await this.tenantPrisma.dismissFinding(auth.orgId, findingId);
+    const finding = await this.tenantPrisma.dismissFinding(auth.orgId, findingId, auth.userId);
     if (!finding) {
       throw new NotFoundException('Finding not found');
     }
