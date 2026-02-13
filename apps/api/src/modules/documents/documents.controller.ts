@@ -23,6 +23,25 @@ export class DocumentsController {
     return document;
   }
 
+  @Get(':documentId/versions/:versionId/download')
+  async downloadVersion(
+    @AuthContext() auth: RequestAuthContext,
+    @Param('documentId') documentId: string,
+    @Param('versionId') versionId: string,
+  ) {
+    const download = await this.documentsService.getDocumentVersionDownloadUrl({
+      orgId: auth.orgId,
+      documentId,
+      versionId,
+    });
+
+    if (!download) {
+      throw new NotFoundException('Document version not found');
+    }
+
+    return download;
+  }
+
   @Post(':documentId/versions/:versionId/complete')
   async completeVersion(
     @AuthContext() auth: RequestAuthContext,

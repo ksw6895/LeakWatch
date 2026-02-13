@@ -63,8 +63,68 @@ export class DocumentsService {
   async getDocument(orgId: string, documentId: string) {
     return this.prisma.document.findFirst({
       where: { orgId, id: documentId },
-      include: { versions: { orderBy: { version: 'desc' } } },
+      include: {
+        versions: {
+          orderBy: { version: 'desc' },
+          include: {
+            normalized: {
+              include: {
+                lineItems: {
+                  orderBy: {
+                    createdAt: 'asc',
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
     });
+  }
+
+  async getDocumentVersionDownloadUrl(params: {
+    orgId: string;
+    documentId: string;
+    versionId: string;
+  }) {
+    const version = await this.prisma.documentVersion.findFirst({
+      where: {
+        id: params.versionId,
+        documentId: params.documentId,
+        document: {
+          orgId: params.orgId,
+        },
+      },
+      select: {
+        id: true,
+        documentId: true,
+        version: true,
+        fileName: true,
+        mimeType: true,
+        byteSize: true,
+        storageKey: true,
+      },
+    });
+
+    if (!version) {
+      return null;
+    }
+
+    const downloadUrl = await this.storageClient.presignGet(
+      version.storageKey,
+      PRESIGNED_URL_EXPIRES_SECONDS,
+    );
+
+    return {
+      documentId: version.documentId,
+      versionId: version.id,
+      version: version.version,
+      fileName: version.fileName,
+      mimeType: version.mimeType,
+      byteSize: version.byteSize,
+      downloadUrl,
+      expiresInSec: PRESIGNED_URL_EXPIRES_SECONDS,
+    };
   }
 
   async createDocumentUpload(params: CreateUploadParams) {

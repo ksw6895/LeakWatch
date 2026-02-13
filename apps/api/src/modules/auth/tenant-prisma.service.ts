@@ -330,8 +330,8 @@ export class TenantPrismaService {
     });
   }
 
-  getFinding(orgId: string, findingId: string) {
-    return this.prisma.leakFinding.findFirst({
+  async getFinding(orgId: string, findingId: string) {
+    const finding = await this.prisma.leakFinding.findFirst({
       where: { orgId, id: findingId },
       include: {
         evidence: {
@@ -341,6 +341,44 @@ export class TenantPrismaService {
         },
       },
     });
+
+    if (!finding) {
+      return null;
+    }
+
+    const versionIds = finding.evidence
+      .map((item) => item.documentVersionId)
+      .filter((value): value is string => typeof value === 'string');
+
+    const versionRows =
+      versionIds.length > 0
+        ? await this.prisma.documentVersion.findMany({
+            where: {
+              id: {
+                in: versionIds,
+              },
+            },
+            select: {
+              id: true,
+              documentId: true,
+              version: true,
+            },
+          })
+        : [];
+
+    const versionMap = new Map(versionRows.map((row) => [row.id, row]));
+
+    return {
+      ...finding,
+      evidence: finding.evidence.map((item) => {
+        const version = item.documentVersionId ? versionMap.get(item.documentVersionId) : undefined;
+        return {
+          ...item,
+          documentId: version?.documentId ?? null,
+          documentVersionNumber: version?.version ?? null,
+        };
+      }),
+    };
   }
 
   async dismissFinding(orgId: string, findingId: string, userId: string) {

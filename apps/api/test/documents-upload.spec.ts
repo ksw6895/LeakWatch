@@ -89,10 +89,49 @@ describe.sequential('Documents upload flow', () => {
 
     expect(updatedVersion?.status).toBe('UPLOADED');
 
-    const queuedJob = await queue.getJob(`${INGEST_DOCUMENT_JOB_NAME}-${createResponse.body.versionId}`);
+    const queuedJob = await queue.getJob(
+      `${INGEST_DOCUMENT_JOB_NAME}-${createResponse.body.versionId}`,
+    );
     expect(queuedJob).toBeTruthy();
     expect(queuedJob?.name).toBe(INGEST_DOCUMENT_JOB_NAME);
     expect(queuedJob?.data?.documentVersionId).toBe(createResponse.body.versionId);
+  });
+
+  it('returns presigned download URL for document version', async () => {
+    const org = await prisma.organization.create({ data: { name: 'Org Download' } });
+    const shop = await prisma.shop.create({
+      data: {
+        orgId: org.id,
+        shopifyDomain: 'download.myshopify.com',
+        installedAt: new Date(),
+      },
+    });
+
+    const token = await createSessionToken({ sub: 'download-sub', shopDomain: shop.shopifyDomain });
+
+    const createResponse = await request(app.getHttpServer())
+      .post(`/v1/shops/${shop.id}/documents`)
+      .set('authorization', `Bearer ${token}`)
+      .send({
+        fileName: 'invoice-download.pdf',
+        mimeType: 'application/pdf',
+        byteSize: 18000,
+        sha256: 'd'.repeat(64),
+      });
+
+    expect(createResponse.status).toBe(201);
+
+    const downloadResponse = await request(app.getHttpServer())
+      .get(
+        `/v1/documents/${createResponse.body.documentId}/versions/${createResponse.body.versionId}/download`,
+      )
+      .set('authorization', `Bearer ${token}`);
+
+    expect(downloadResponse.status).toBe(200);
+    expect(downloadResponse.body.documentId).toBe(createResponse.body.documentId);
+    expect(downloadResponse.body.versionId).toBe(createResponse.body.versionId);
+    expect(downloadResponse.body.downloadUrl).toContain('X-Amz-Algorithm=AWS4-HMAC-SHA256');
+    expect(downloadResponse.body.fileName).toBe('invoice-download.pdf');
   });
 
   it('rejects unsupported mime type with 415', async () => {
@@ -105,7 +144,10 @@ describe.sequential('Documents upload flow', () => {
       },
     });
 
-    const token = await createSessionToken({ sub: 'uploader-sub-2', shopDomain: shop.shopifyDomain });
+    const token = await createSessionToken({
+      sub: 'uploader-sub-2',
+      shopDomain: shop.shopifyDomain,
+    });
 
     const response = await request(app.getHttpServer())
       .post(`/v1/shops/${shop.id}/documents`)
@@ -130,7 +172,10 @@ describe.sequential('Documents upload flow', () => {
       },
     });
 
-    const token = await createSessionToken({ sub: 'uploader-sub-3', shopDomain: shop.shopifyDomain });
+    const token = await createSessionToken({
+      sub: 'uploader-sub-3',
+      shopDomain: shop.shopifyDomain,
+    });
 
     const response = await request(app.getHttpServer())
       .post(`/v1/shops/${shop.id}/documents`)
