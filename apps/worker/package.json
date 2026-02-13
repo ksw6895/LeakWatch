@@ -20,7 +20,7 @@
     "ajv-formats": "^3.0.1",
     "bullmq": "^5.34.4",
     "csv-parse": "^5.5.6",
-    "ioredis": "^5.4.2",
+    "ioredis": "^5.9.3",
     "jszip": "^3.10.1",
     "openai": "^4.104.0",
     "pino": "^9.6.0",
