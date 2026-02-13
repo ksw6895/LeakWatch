@@ -2,7 +2,9 @@ import {
   GENERATE_EVIDENCE_PACK_JOB_NAME,
   INGEST_DOCUMENT_JOB_NAME,
   INGESTION_QUEUE_NAME,
+  REPORT_GENERATE_JOB_NAME,
   SEND_EMAIL_JOB_NAME,
+  type ReportGenerateJobPayload,
 } from '@leakwatch/shared';
 import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { Queue } from 'bullmq';
@@ -79,6 +81,21 @@ export class QueueService implements OnModuleDestroy {
         },
       },
     );
+
+    return String(job.id);
+  }
+
+  async enqueueReportGenerate(payload: ReportGenerateJobPayload) {
+    const job = await this.queue.add(REPORT_GENERATE_JOB_NAME, payload, {
+      jobId: `${REPORT_GENERATE_JOB_NAME}-${payload.period}-${payload.shopId}-${Date.now()}`,
+      removeOnComplete: 1000,
+      removeOnFail: 1000,
+      attempts: 3,
+      backoff: {
+        type: 'exponential',
+        delay: 1000,
+      },
+    });
 
     return String(job.id);
   }

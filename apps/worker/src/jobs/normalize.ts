@@ -9,8 +9,10 @@ import type pino from 'pino';
 
 import { prisma } from '../db';
 import { LLMClient } from '../llm/client';
+import { buildLlmCacheKey, getLlmCache, setLlmCache } from '../normalization/cache';
 import { persistNormalizedInvoice } from '../normalization/persistence';
 import { maskPii, numberLinesByPage, trimForPrompt } from '../normalization/text';
+import { incrementOpenAiUsage } from '../normalization/usage';
 import { coerceNormalizedInvoice, validateNormalizedInvoice } from '../normalization/validator';
 
 const llmClient = new LLMClient();
@@ -99,7 +101,23 @@ export async function processNormalizeInvoiceJob(
       shopifyDomain: documentVersion.document.shop.shopifyDomain,
     } as const;
 
-    const normalizedResult = await llmClient.normalizeInvoice(promptMeta, selected.text);
+    const model = process.env.OPENAI_MODEL_NORMALIZE ?? 'gpt-4o-mini';
+    const cacheKey = buildLlmCacheKey({
+      model,
+      payload: `${JSON.stringify(promptMeta)}\n${selected.text}`,
+    });
+
+    const cached = await getLlmCache(prisma, cacheKey);
+    const normalizedResult = cached
+      ? {
+          json: cached,
+          usage: {
+            inputTokens: 0,
+            outputTokens: 0,
+          },
+        }
+      : await llmClient.normalizeInvoice(promptMeta, selected.text);
+
     usage = {
       inputTokens: usage.inputTokens + normalizedResult.usage.inputTokens,
       outputTokens: usage.outputTokens + normalizedResult.usage.outputTokens,
@@ -134,12 +152,62 @@ export async function processNormalizeInvoiceJob(
 
     const normalizedInvoice = coerceNormalizedInvoice(payloadCandidate);
 
+    if (!cached) {
+      await setLlmCache(prisma, {
+        cacheKey,
+        model,
+        valueJson: payloadCandidate as Record<string, unknown>,
+      });
+    } else {
+      await prisma.usageCounter.upsert({
+        where: {
+          orgId_shopId_day_metric: {
+            orgId: documentVersion.document.orgId,
+            shopId: documentVersion.document.shopId,
+            day: new Date(
+              Date.UTC(
+                new Date().getUTCFullYear(),
+                new Date().getUTCMonth(),
+                new Date().getUTCDate(),
+              ),
+            ),
+            metric: 'llm_cache_hits',
+          },
+        },
+        create: {
+          orgId: documentVersion.document.orgId,
+          shopId: documentVersion.document.shopId,
+          day: new Date(
+            Date.UTC(
+              new Date().getUTCFullYear(),
+              new Date().getUTCMonth(),
+              new Date().getUTCDate(),
+            ),
+          ),
+          metric: 'llm_cache_hits',
+          value: BigInt(1),
+        },
+        update: {
+          value: {
+            increment: BigInt(1),
+          },
+        },
+      });
+    }
+
     const persisted = await persistNormalizedInvoice(prisma, {
       documentVersionId: documentVersion.id,
       orgId: documentVersion.document.orgId,
       shopId: documentVersion.document.shopId,
       normalizedInvoice,
       tokenUsage: usage,
+    });
+
+    await incrementOpenAiUsage(prisma, {
+      orgId: documentVersion.document.orgId,
+      shopId: documentVersion.document.shopId,
+      inputTokens: usage.inputTokens,
+      outputTokens: usage.outputTokens,
     });
 
     await queue.add(
@@ -177,7 +245,9 @@ export async function processNormalizeInvoiceJob(
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    const errorCode = message.includes('schema') ? 'NORMALIZATION_SCHEMA_INVALID' : 'NORMALIZATION_REPAIR_FAILED';
+    const errorCode = message.includes('schema')
+      ? 'NORMALIZATION_SCHEMA_INVALID'
+      : 'NORMALIZATION_REPAIR_FAILED';
     await markNormalizationFailure(documentVersion.id, errorCode, message, logger);
     throw error;
   }

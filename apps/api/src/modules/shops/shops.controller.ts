@@ -3,10 +3,14 @@ import { Controller, Get, Inject, NotFoundException, Param } from '@nestjs/commo
 import { AuthContext } from '../auth/auth.decorators';
 import type { RequestAuthContext } from '../auth/auth.types';
 import { TenantPrismaService } from '../auth/tenant-prisma.service';
+import { ReportsService } from '../reports/reports.service';
 
 @Controller('shops')
 export class ShopsController {
-  constructor(@Inject(TenantPrismaService) private readonly tenantPrisma: TenantPrismaService) {}
+  constructor(
+    @Inject(TenantPrismaService) private readonly tenantPrisma: TenantPrismaService,
+    @Inject(ReportsService) private readonly reportsService: ReportsService,
+  ) {}
 
   @Get()
   list(@AuthContext() auth: RequestAuthContext) {
@@ -25,5 +29,10 @@ export class ShopsController {
   @Get(':shopId/findings')
   listFindings(@AuthContext() auth: RequestAuthContext, @Param('shopId') shopId: string) {
     return this.tenantPrisma.listFindings(auth.orgId, shopId);
+  }
+
+  @Get(':shopId/summary')
+  summary(@AuthContext() auth: RequestAuthContext, @Param('shopId') shopId: string) {
+    return this.reportsService.getSummary(auth.orgId, shopId);
   }
 }

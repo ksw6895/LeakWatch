@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Inject,
   Injectable,
   NotFoundException,
@@ -8,7 +9,9 @@ import {
 } from '@nestjs/common';
 import { DocStatus } from '@prisma/client';
 
+import { RateLimiterService } from '../../common/rate-limiter.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { BillingService } from '../billing/billing.service';
 import {
   ALLOWED_UPLOAD_MIME_TYPES,
   MAX_UPLOAD_BYTES,
@@ -41,6 +44,8 @@ export class DocumentsService {
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(StorageClient) private readonly storageClient: StorageClient,
     @Inject(QueueService) private readonly queueService: QueueService,
+    @Inject(BillingService) private readonly billingService: BillingService,
+    @Inject(RateLimiterService) private readonly rateLimiter: RateLimiterService,
   ) {}
 
   async listDocuments(orgId: string, shopId: string) {
@@ -63,11 +68,25 @@ export class DocumentsService {
   }
 
   async createDocumentUpload(params: CreateUploadParams) {
+    const uploadRate = this.rateLimiter.consume(`upload:${params.orgId}`, 30, 60);
+    if (!uploadRate.allowed) {
+      throw new ForbiddenException('RATE_LIMIT_EXCEEDED_UPLOAD');
+    }
+
+    const entitlement = await this.billingService.canUpload(params.orgId, params.shopId);
+    if (!entitlement.allowed) {
+      throw new ForbiddenException('UPLOAD_LIMIT_EXCEEDED');
+    }
+
     if (params.byteSize > MAX_UPLOAD_BYTES) {
       throw new PayloadTooLargeException('FILE_TOO_LARGE');
     }
 
-    if (!ALLOWED_UPLOAD_MIME_TYPES.includes(params.mimeType as (typeof ALLOWED_UPLOAD_MIME_TYPES)[number])) {
+    if (
+      !ALLOWED_UPLOAD_MIME_TYPES.includes(
+        params.mimeType as (typeof ALLOWED_UPLOAD_MIME_TYPES)[number],
+      )
+    ) {
       throw new UnsupportedMediaTypeException('UNSUPPORTED_MIME_TYPE');
     }
 
@@ -118,6 +137,8 @@ export class DocumentsService {
       byteSize: params.byteSize,
       expiresSec: PRESIGNED_URL_EXPIRES_SECONDS,
     });
+
+    await this.billingService.incrementUsage(params.orgId, params.shopId, 'uploads_created', 1);
 
     return {
       documentId: created.document.id,

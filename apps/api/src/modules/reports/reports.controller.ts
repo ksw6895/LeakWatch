@@ -1,15 +1,36 @@
-import { Controller, Get, Inject, Query } from '@nestjs/common';
+import { Controller, Get, Inject, NotFoundException, Param, Post, Query } from '@nestjs/common';
+import { ReportPeriod } from '@prisma/client';
 
 import { AuthContext } from '../auth/auth.decorators';
 import type { RequestAuthContext } from '../auth/auth.types';
-import { TenantPrismaService } from '../auth/tenant-prisma.service';
+import { ReportsService } from './reports.service';
 
 @Controller('reports')
 export class ReportsController {
-  constructor(@Inject(TenantPrismaService) private readonly tenantPrisma: TenantPrismaService) {}
+  constructor(@Inject(ReportsService) private readonly reportsService: ReportsService) {}
 
   @Get()
   list(@AuthContext() auth: RequestAuthContext, @Query('shopId') shopId?: string) {
-    return this.tenantPrisma.listReports(auth.orgId, shopId ?? auth.shopId);
+    return this.reportsService.listReports(auth.orgId, shopId ?? auth.shopId);
+  }
+
+  @Get(':id')
+  async get(@AuthContext() auth: RequestAuthContext, @Param('id') id: string) {
+    const report = await this.reportsService.getReport(auth.orgId, id);
+    if (!report) {
+      throw new NotFoundException('Report not found');
+    }
+    return report;
+  }
+
+  @Post('generate')
+  generate(
+    @AuthContext() auth: RequestAuthContext,
+    @Query('shopId') shopId?: string,
+    @Query('period') period?: string,
+  ) {
+    const targetPeriod =
+      period?.toUpperCase() === 'WEEKLY' ? ReportPeriod.WEEKLY : ReportPeriod.MONTHLY;
+    return this.reportsService.enqueueGenerate(auth.orgId, shopId ?? auth.shopId, targetPeriod);
   }
 }

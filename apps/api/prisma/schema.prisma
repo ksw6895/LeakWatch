@@ -142,6 +142,7 @@ model Organization {
   reports       Report[]
   auditLogs     AuditLog[]
   usageCounters UsageCounter[]
+  connectCodes  ConnectCode[]
 }
 
 model User {
@@ -157,6 +158,23 @@ model User {
   createdActions ActionRequest[] @relation("ActionRequestCreatedBy")
   approvedActions ActionRequest[] @relation("ActionRequestApprovedBy")
   auditLogs      AuditLog[]
+  createdConnectCodes ConnectCode[]
+}
+
+model ConnectCode {
+  id              String    @id @default(cuid())
+  code            String    @unique
+  orgId           String
+  createdByUserId String?
+  expiresAt       DateTime
+  usedAt          DateTime?
+  usedByShopId    String?
+  createdAt       DateTime  @default(now())
+
+  org             Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  createdBy       User?        @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@index([orgId, expiresAt])
 }
 
 model Membership {
@@ -488,4 +506,17 @@ model UsageCounter {
   shop      Shop?        @relation(fields: [shopId], references: [id], onDelete: SetNull)
 
   @@unique([orgId, shopId, day, metric])
+}
+
+model LlmCache {
+  id          String   @id @default(cuid())
+  cacheKey    String   @unique
+  model       String
+  promptVer   String
+  valueJson   Json
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([expiresAt])
 }

@@ -1,7 +1,7 @@
 # LeakWatch
 
 LeakWatch는 Shopify 스토어의 구독/앱 비용 누수를 탐지하기 위한 SaaS입니다.
-현재 저장소는 monorepo(`web`/`api`/`worker`) 구조로 되어 있고, Step 0-8(Shopify OAuth + Embedded + 업로드 + 정규화 파이프라인 + 탐지 엔진 v1 + 증빙팩 + 액션 발송 추적)까지 구현되어 있습니다.
+현재 저장소는 monorepo(`web`/`api`/`worker`) 구조로 되어 있고, Step 0-12(Shopify OAuth + Embedded + 업로드 + 정규화 파이프라인 + 탐지 엔진 v1 + 증빙팩 + 액션 발송 추적 + 대시보드/리포트 + agency multi-store + billing/plans + hardening)까지 구현되어 있습니다.
 
 ## Quick Start (로컬)
 
@@ -79,6 +79,10 @@ https://<ngrok-domain>/v1/shopify/auth/start?shop=<your-shop>.myshopify.com
 - Step 06: Detection Engine v1(5 leak types) + findings 저장/evidence 연결 + findings API + leaks UI
 - Step 07: Evidence pack zip 생성 + R2 저장 + 다운로드 presigned URL
 - Step 08: Action center(드래프트/수정/승인) + SEND_EMAIL worker + Mailgun webhook 추적 + actions UI
+- Step 09: Dashboard summary + reports 생성/목록/상세 + REPORT_GENERATE worker + 주간/월간 스케줄 등록
+- Step 10: Org-level summary/shops + connect code shop linking + store switcher + agency dashboard
+- Step 11: Billing current/subscribe/webhook + entitlement enforcement + billing settings UI
+- Step 12: Request ID/latency logging + rate limiting + LLM cache + CSP headers + Dependabot
 
 ## 문서
 
@@ -90,4 +94,4 @@ https://<ngrok-domain>/v1/shopify/auth/start?shop=<your-shop>.myshopify.com
 
 1. OpenAI 실키 설정(`OPENAI_API_KEY`) + 샘플 문서로 `/app/uploads` E2E 확인(create -> PUT -> complete -> EXTRACTED/NORMALIZED)
 2. 운영용 정확도 검증(샘플 10건 기준 normalize 성공률/누락률 측정)
-3. Step 09 대시보드/리포트(주간/월간) 구현
+3. 실운영 키 설정 후 E2E smoke 및 운영 튜닝

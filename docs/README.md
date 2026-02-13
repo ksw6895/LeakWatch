@@ -100,7 +100,7 @@ ngrok 유료 플랜 권장:
 
 ## 개발 순서
 
-- /docs/steps/step-00 → step-12 순으로 구현한다(현재 step-08까지 코드 반영됨).
+- /docs/steps/step-00 → step-12 순으로 구현한다(현재 step-12까지 코드 반영됨).
 - API 변경은 반드시 /docs/api/OPENAPI.yaml 업데이트 후 서버/클라이언트 코드 생성(또는 타입 업데이트)한다.
 
 ## 용어

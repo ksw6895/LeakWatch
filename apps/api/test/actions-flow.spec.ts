@@ -7,6 +7,7 @@ import {
   FindingStatus,
   LeakType,
   OrgRole,
+  Plan,
 } from '@prisma/client';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -30,7 +31,9 @@ describe.sequential('Actions flow + Mailgun webhook', () => {
   });
 
   it('creates draft, updates, approves, and enqueues action run', async () => {
-    const org = await prisma.organization.create({ data: { name: 'Org Actions' } });
+    const org = await prisma.organization.create({
+      data: { name: 'Org Actions', plan: Plan.STARTER },
+    });
     const shop = await prisma.shop.create({
       data: {
         orgId: org.id,

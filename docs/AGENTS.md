@@ -51,3 +51,4 @@ pnpm db:deploy
 
 - `docs/README.md` is the navigation source for the documentation set; update it when adding/removing major docs.
 - Step and runbook documents should reference each other when they describe the same implementation phase.
+- Current implementation baseline is step-12; keep `docs/README.md` and root `README.md` in sync when step status changes.

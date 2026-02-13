@@ -12,4 +12,5 @@ export type RequestAuthContext = {
 export type RequestWithAuth = Request & {
   auth?: RequestAuthContext;
   rawBody?: Buffer;
+  requestId?: string;
 };

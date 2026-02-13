@@ -13,6 +13,7 @@ import { OrgRole } from '@prisma/client';
 import { QueueService } from '../documents/queue.service';
 import { AuthContext, RequireRoles } from '../auth/auth.decorators';
 import type { RequestAuthContext } from '../auth/auth.types';
+import { BillingService } from '../billing/billing.service';
 import { TenantPrismaService } from '../auth/tenant-prisma.service';
 import { CreateActionRequestDto } from './create-action-request.dto';
 
@@ -21,11 +22,20 @@ export class FindingsController {
   constructor(
     @Inject(TenantPrismaService) private readonly tenantPrisma: TenantPrismaService,
     @Inject(QueueService) private readonly queueService: QueueService,
+    @Inject(BillingService) private readonly billingService: BillingService,
   ) {}
 
   @Get()
-  list(@AuthContext() auth: RequestAuthContext, @Query('shopId') shopId?: string) {
-    return this.tenantPrisma.listFindings(auth.orgId, shopId ?? auth.shopId);
+  async list(@AuthContext() auth: RequestAuthContext, @Query('shopId') shopId?: string) {
+    const targetShopId = shopId ?? auth.shopId;
+    const findings = await this.tenantPrisma.listFindings(auth.orgId, targetShopId);
+    const current = await this.billingService.getCurrent(auth.orgId, targetShopId);
+
+    if (current.plan === 'FREE' && findings.length > 3) {
+      return findings.slice(0, 3);
+    }
+
+    return findings;
   }
 
   @Get(':id')

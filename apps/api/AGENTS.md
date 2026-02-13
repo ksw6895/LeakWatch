@@ -6,18 +6,22 @@ NestJS API service for auth, documents, findings, actions, reports, and Shopify 
 
 ## WHERE TO LOOK
 
-| Task                     | Location                                        | Notes                                            |
-| ------------------------ | ----------------------------------------------- | ------------------------------------------------ |
-| Bootstrap + global pipe  | `src/main.ts`                                   | `v1` prefix, `ValidationPipe`, env load          |
-| Module wiring            | `src/app.module.ts`                             | global guards + audit interceptor                |
-| Auth + tenant boundaries | `src/modules/auth/`                             | Shopify session guard, tenant guard, roles guard |
-| Prisma lifecycle         | `src/common/prisma/`                            | shared DB client module/service                  |
-| Upload + queue enqueue   | `src/modules/documents/`                        | presign/upload complete path                     |
-| Evidence download API    | `src/modules/evidence/`                         | action attachment presigned download endpoint    |
-| Actions APIs             | `src/modules/actions/`, `src/modules/findings/` | draft/update/approve action flow                 |
-| Mailgun webhook          | `src/modules/mailgun/`                          | signature verify + delivery event tracking       |
-| DB schema + seed         | `prisma/schema.prisma`, `prisma/seed.ts`        | single schema for API/worker                     |
-| Test setup               | `test/setup.ts`, `test/helpers.ts`              | test app bootstrap + DB reset                    |
+| Task                     | Location                                                | Notes                                            |
+| ------------------------ | ------------------------------------------------------- | ------------------------------------------------ |
+| Bootstrap + global pipe  | `src/main.ts`                                           | `v1` prefix, `ValidationPipe`, env load          |
+| Module wiring            | `src/app.module.ts`                                     | global guards + audit interceptor                |
+| Auth + tenant boundaries | `src/modules/auth/`                                     | Shopify session guard, tenant guard, roles guard |
+| Prisma lifecycle         | `src/common/prisma/`                                    | shared DB client module/service                  |
+| Upload + queue enqueue   | `src/modules/documents/`                                | presign/upload complete path                     |
+| Evidence download API    | `src/modules/evidence/`                                 | action attachment presigned download endpoint    |
+| Actions APIs             | `src/modules/actions/`, `src/modules/findings/`         | draft/update/approve action flow                 |
+| Reports APIs             | `src/modules/reports/`, `src/modules/shops/`            | dashboard summary + report list/detail/generate  |
+| Agency APIs              | `src/modules/agency/`                                   | org shops/summary + connect code shop linking    |
+| Billing APIs             | `src/modules/billing/`                                  | plan status + entitlement + subscribe/webhooks   |
+| Mailgun webhook          | `src/modules/mailgun/`                                  | signature verify + delivery event tracking       |
+| API hardening            | `src/common/rate-limiter.service.ts`, `src/middleware/` | request id + rate limiting guardrails            |
+| DB schema + seed         | `prisma/schema.prisma`, `prisma/seed.ts`                | single schema for API/worker                     |
+| Test setup               | `test/setup.ts`, `test/helpers.ts`                      | test app bootstrap + DB reset                    |
 
 ## CONVENTIONS
 

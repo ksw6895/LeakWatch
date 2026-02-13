@@ -7,11 +7,13 @@ import {
   INGEST_DOCUMENT_JOB_NAME,
   INGESTION_QUEUE_NAME,
   NORMALIZE_INVOICE_JOB_NAME,
+  REPORT_GENERATE_JOB_NAME,
   RUN_DETECTION_JOB_NAME,
   SEND_EMAIL_JOB_NAME,
   type GenerateEvidencePackJobPayload,
   type IngestDocumentJobPayload,
   type NormalizeInvoiceJobPayload,
+  type ReportGenerateJobPayload,
   type RunDetectionJobPayload,
   type SendEmailJobPayload,
 } from '@leakwatch/shared';
@@ -21,6 +23,7 @@ import { processRunDetectionJob } from './jobs/detection';
 import { processGenerateEvidencePackJob } from './jobs/evidence-pack';
 import { processIngestDocumentJob } from './jobs/ingest';
 import { processNormalizeInvoiceJob } from './jobs/normalize';
+import { processReportGenerateJob } from './jobs/report-generate';
 import { processSendEmailJob } from './jobs/send-email';
 
 const env = getWorkerEnv();
@@ -59,6 +62,10 @@ export const ingestionWorker = new Worker(
 
     if (job.name === SEND_EMAIL_JOB_NAME) {
       return processSendEmailJob(job.data as SendEmailJobPayload, logger);
+    }
+
+    if (job.name === REPORT_GENERATE_JOB_NAME) {
+      return processReportGenerateJob(job.data as ReportGenerateJobPayload, logger);
     }
 
     logger.warn({ jobId: job.id, name: job.name }, 'Unknown ingestion job');
