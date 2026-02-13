@@ -8,6 +8,7 @@ import {
   Button,
   Card,
   Layout,
+  Modal,
   Page,
   Text,
   TextField,
@@ -72,6 +73,7 @@ function ActionDetailContent() {
   const [ccEmails, setCcEmails] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [approveModalOpen, setApproveModalOpen] = useState(false);
   const [roles, setRoles] = useState<string[]>([]);
   const canWrite = canApproveSend(roles);
   const blockedReason = writeAccessReason(roles);
@@ -122,17 +124,31 @@ function ActionDetailContent() {
     if (!host || !actionRequest) {
       return;
     }
+
+    const recipient = toEmail.trim();
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailPattern.test(recipient)) {
+      setError('Enter a valid recipient email before saving.');
+      return;
+    }
+
+    const ccList = ccEmails
+      .split(',')
+      .map((value) => value.trim())
+      .filter((value) => value.length > 0);
+    if (ccList.some((value) => !emailPattern.test(value))) {
+      setError('Each CC email must use a valid format.');
+      return;
+    }
+
     setBusy(true);
     try {
       const response = await apiFetch(`/v1/action-requests/${actionRequest.id}`, {
         host,
         method: 'PATCH',
         body: JSON.stringify({
-          toEmail,
-          ccEmails: ccEmails
-            .split(',')
-            .map((value) => value.trim())
-            .filter((value) => value.length > 0),
+          toEmail: recipient,
+          ccEmails: ccList,
           subject,
           bodyMarkdown,
         }),
@@ -153,6 +169,23 @@ function ActionDetailContent() {
     if (!host || !actionRequest) {
       return;
     }
+
+    const recipient = toEmail.trim();
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailPattern.test(recipient)) {
+      setError('Enter a valid recipient email before approve and send.');
+      return;
+    }
+
+    const ccList = ccEmails
+      .split(',')
+      .map((value) => value.trim())
+      .filter((value) => value.length > 0);
+    if (ccList.some((value) => !emailPattern.test(value))) {
+      setError('Each CC email must use a valid format before approve and send.');
+      return;
+    }
+
     setBusy(true);
     try {
       const response = await apiFetch(`/v1/action-requests/${actionRequest.id}/approve`, {
@@ -165,6 +198,7 @@ function ActionDetailContent() {
       }
       await load();
       setError(null);
+      setApproveModalOpen(false);
     } catch (unknownError) {
       setError(unknownError instanceof Error ? unknownError.message : 'Unknown error');
     } finally {
@@ -298,7 +332,9 @@ function ActionDetailContent() {
                               </Button>
                               <Button
                                 variant="primary"
-                                onClick={approve}
+                                onClick={() => {
+                                  setApproveModalOpen(true);
+                                }}
                                 disabled={busy || actionRequest.status !== 'DRAFT' || !canWrite}
                               >
                                 Approve and send
@@ -379,6 +415,37 @@ function ActionDetailContent() {
                             )}
                           </Box>
                         </div>
+
+                        <Modal
+                          open={approveModalOpen}
+                          title="Approve and send"
+                          onClose={() => {
+                            setApproveModalOpen(false);
+                          }}
+                          primaryAction={{
+                            content: 'Approve and send',
+                            destructive: true,
+                            loading: busy,
+                            onAction: () => {
+                              void approve();
+                            },
+                          }}
+                          secondaryActions={[
+                            {
+                              content: 'Cancel',
+                              onAction: () => {
+                                setApproveModalOpen(false);
+                              },
+                            },
+                          ]}
+                        >
+                          <Modal.Section>
+                            <Text as="p" variant="bodyMd">
+                              This action will queue an outbound vendor email and usage metering.
+                              Confirm recipient fields before continuing.
+                            </Text>
+                          </Modal.Section>
+                        </Modal>
                       </div>
                     )}
                   </Box>

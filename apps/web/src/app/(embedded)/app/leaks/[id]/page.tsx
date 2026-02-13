@@ -8,6 +8,7 @@ import {
   Card,
   InlineError,
   Layout,
+  Modal,
   Page,
   Select,
   Text,
@@ -58,8 +59,9 @@ function LeaksDetailContent() {
   const [busy, setBusy] = useState<boolean>(false);
   const [roles, setRoles] = useState<string[]>([]);
   const [actionType, setActionType] = useState<ActionType>('CLARIFICATION');
-  const [toEmail, setToEmail] = useState<string>('finance@example.com');
+  const [toEmail, setToEmail] = useState<string>('');
   const [draftError, setDraftError] = useState<string | null>(null);
+  const [dismissModalOpen, setDismissModalOpen] = useState(false);
   const canMutate = canUpload(roles);
   const blockedReason = writeAccessReason(roles);
 
@@ -230,7 +232,9 @@ function LeaksDetailContent() {
                             <Button
                               variant="primary"
                               disabled={busy || finding.status === 'DISMISSED' || !canMutate}
-                              onClick={dismiss}
+                              onClick={() => {
+                                setDismissModalOpen(true);
+                              }}
                             >
                               Dismiss finding
                             </Button>
@@ -282,6 +286,38 @@ function LeaksDetailContent() {
                             )}
                           </Box>
                         </div>
+
+                        <Modal
+                          open={dismissModalOpen}
+                          title="Dismiss finding"
+                          onClose={() => {
+                            setDismissModalOpen(false);
+                          }}
+                          primaryAction={{
+                            content: 'Dismiss now',
+                            destructive: true,
+                            loading: busy,
+                            onAction: () => {
+                              setDismissModalOpen(false);
+                              void dismiss();
+                            },
+                          }}
+                          secondaryActions={[
+                            {
+                              content: 'Cancel',
+                              onAction: () => {
+                                setDismissModalOpen(false);
+                              },
+                            },
+                          ]}
+                        >
+                          <Modal.Section>
+                            <Text as="p" variant="bodyMd">
+                              This removes the finding from active leak triage. You can reopen it
+                              later if the same pattern is detected again.
+                            </Text>
+                          </Modal.Section>
+                        </Modal>
                       </div>
                     )}
                   </Box>

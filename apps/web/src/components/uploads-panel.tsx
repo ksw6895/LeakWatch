@@ -10,8 +10,9 @@ import {
   Page,
   ProgressBar,
   Text,
+  TextField,
 } from '@shopify/polaris';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { apiFetch } from '../lib/api/fetcher';
 import { canUpload, writeAccessReason } from '../lib/auth/roles';
@@ -32,6 +33,8 @@ type DocumentVersion = {
   mimeType: string;
   byteSize: number;
   status: string;
+  errorCode?: string | null;
+  errorMessage?: string | null;
   createdAt: string;
 };
 
@@ -59,6 +62,27 @@ function statusTone(status: string): 'info' | 'success' | 'attention' | 'critica
     return 'attention';
   }
   return 'info';
+}
+
+function mapErrorCodeToHint(errorCode: string | null | undefined): string {
+  if (!errorCode) {
+    return 'Unknown failure. Please retry upload with the latest invoice file.';
+  }
+
+  if (errorCode.includes('FILE_TOO_LARGE')) {
+    return 'File size exceeded your current limit. Reduce file size or upgrade your plan.';
+  }
+  if (errorCode.includes('MIME') || errorCode.includes('UNSUPPORTED')) {
+    return 'Unsupported file format. Upload PDF, CSV, PNG, or JPG.';
+  }
+  if (errorCode.includes('NORMALIZATION')) {
+    return 'Normalization failed. Add vendor hint and retry with a cleaner source file.';
+  }
+  if (errorCode.includes('DETECTION')) {
+    return 'Detection step failed. Retry upload or check extracted document quality.';
+  }
+
+  return 'Processing failed. Retry upload and contact support if this continues.';
 }
 
 async function buildApiError(response: Response, fallback: string): Promise<string> {
@@ -92,9 +116,11 @@ export function UploadsPanel({ host }: { host: string | null }) {
   const [auth, setAuth] = useState<AuthMe | null>(null);
   const [documents, setDocuments] = useState<DocumentRow[]>([]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [vendorHint, setVendorHint] = useState('');
   const [dragOver, setDragOver] = useState(false);
   const [uploadState, setUploadState] = useState<UploadState>({ step: 'idle', progress: 0 });
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const canStartUpload = useMemo(
     () =>
@@ -160,6 +186,20 @@ export function UploadsPanel({ host }: { host: string | null }) {
     });
   }, [loadAuthAndDocuments]);
 
+  useEffect(() => {
+    if (!host || runningCount === 0) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      void loadAuthAndDocuments().catch(() => undefined);
+    }, 5000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [host, loadAuthAndDocuments, runningCount]);
+
   const onUpload = async () => {
     if (!selectedFile || !auth?.shopId || !host) {
       return;
@@ -179,6 +219,7 @@ export function UploadsPanel({ host }: { host: string | null }) {
           mimeType: selectedFile.type || 'application/octet-stream',
           byteSize: selectedFile.size,
           sha256: checksum,
+          vendorHint: vendorHint.trim() || undefined,
         }),
       });
 
@@ -225,6 +266,7 @@ export function UploadsPanel({ host }: { host: string | null }) {
 
       setUploadState({ step: 'done', progress: 100, message: 'Upload complete' });
       setSelectedFile(null);
+      setVendorHint('');
       await loadAuthAndDocuments();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Upload failed';
@@ -328,8 +370,24 @@ export function UploadsPanel({ host }: { host: string | null }) {
                         quota.
                       </Text>
                     </Box>
+                    <Box paddingBlockStart="100">
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        Privacy: uploaded invoices are stored in private object storage and accessed
+                        through short-lived signed URLs only.
+                      </Text>
+                    </Box>
+                    <Box paddingBlockStart="100">
+                      <TextField
+                        label="Vendor hint (optional but recommended)"
+                        value={vendorHint}
+                        onChange={setVendorHint}
+                        autoComplete="off"
+                        placeholder="e.g. Klaviyo, Mailgun, Shopify app name"
+                      />
+                    </Box>
                     <Box paddingBlockStart="200">
                       <input
+                        ref={fileInputRef}
                         type="file"
                         accept="application/pdf,text/csv,image/png,image/jpeg"
                         onChange={(event) => {
@@ -417,6 +475,7 @@ export function UploadsPanel({ host }: { host: string | null }) {
                           <th>File</th>
                           <th>Status</th>
                           <th>Created</th>
+                          <th>Recovery</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -440,6 +499,33 @@ export function UploadsPanel({ host }: { host: string | null }) {
                                 </Badge>
                               </td>
                               <td>{new Date(document.createdAt).toLocaleString()}</td>
+                              <td>
+                                {latest?.status.endsWith('FAILED') ? (
+                                  <div className="lw-page-stack">
+                                    <Text as="p" variant="bodySm" tone="critical">
+                                      {latest.errorCode ?? 'PROCESSING_FAILED'}
+                                    </Text>
+                                    <Text as="p" variant="bodySm" tone="subdued">
+                                      {latest.errorMessage ??
+                                        mapErrorCodeToHint(latest.errorCode ?? null)}
+                                    </Text>
+                                    <Button
+                                      onClick={() => {
+                                        setErrorMessage(
+                                          mapErrorCodeToHint(latest.errorCode ?? null),
+                                        );
+                                        fileInputRef.current?.focus();
+                                      }}
+                                    >
+                                      Re-upload now
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  <Text as="p" variant="bodySm" tone="subdued">
+                                    n/a
+                                  </Text>
+                                )}
+                              </td>
                             </tr>
                           );
                         })}
