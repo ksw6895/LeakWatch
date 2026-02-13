@@ -1,13 +1,4 @@
-import {
-  Controller,
-  Get,
-  Headers,
-  Inject,
-  Post,
-  Query,
-  Req,
-  Res,
-} from '@nestjs/common';
+import { Controller, Get, Headers, Inject, Post, Query, Req, Res } from '@nestjs/common';
 import type { Response } from 'express';
 
 import { Public } from '../auth/auth.decorators';
@@ -51,6 +42,19 @@ export class ShopifyController {
     @Headers('x-shopify-shop-domain') shopDomain: string | undefined,
   ) {
     return this.shopifyWebhookService.handleUninstall({
+      signature,
+      shopDomain,
+      rawBody: req.rawBody ?? Buffer.from(JSON.stringify(req.body ?? {}), 'utf8'),
+    });
+  }
+
+  @Post('webhooks/shop-update')
+  async shopUpdate(
+    @Req() req: RequestWithAuth,
+    @Headers('x-shopify-hmac-sha256') signature: string | undefined,
+    @Headers('x-shopify-shop-domain') shopDomain: string | undefined,
+  ) {
+    return this.shopifyWebhookService.handleShopUpdate({
       signature,
       shopDomain,
       rawBody: req.rawBody ?? Buffer.from(JSON.stringify(req.body ?? {}), 'utf8'),

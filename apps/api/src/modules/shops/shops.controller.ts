@@ -1,10 +1,20 @@
-import { Body, Controller, Get, Inject, NotFoundException, Param, Patch } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Inject,
+  NotFoundException,
+  Param,
+  Patch,
+  Post,
+} from '@nestjs/common';
 import { OrgRole } from '@prisma/client';
 
 import { AuthContext, RequireRoles } from '../auth/auth.decorators';
 import type { RequestAuthContext } from '../auth/auth.types';
 import { TenantPrismaService } from '../auth/tenant-prisma.service';
 import { ReportsService } from '../reports/reports.service';
+import { InstalledAppsSyncDto } from './installed-apps-sync.dto';
 import { UpdateShopSettingsDto } from './update-shop-settings.dto';
 
 @Controller('shops')
@@ -64,5 +74,25 @@ export class ShopsController {
       throw new NotFoundException('Shop not found');
     }
     return updated;
+  }
+
+  @Post(':shopId/installed-apps/sync')
+  @RequireRoles(OrgRole.OWNER, OrgRole.MEMBER, OrgRole.AGENCY_ADMIN)
+  async syncInstalledApps(
+    @AuthContext() auth: RequestAuthContext,
+    @Param('shopId') shopId: string,
+    @Body() body: InstalledAppsSyncDto,
+  ) {
+    const synced = await this.tenantPrisma.syncInstalledAppsSnapshot({
+      orgId: auth.orgId,
+      shopId,
+      userId: auth.userId,
+      installedApps: body.installedApps,
+      ...(body.source ? { source: body.source } : {}),
+    });
+    if (!synced) {
+      throw new NotFoundException('Shop not found');
+    }
+    return synced;
   }
 }

@@ -1,7 +1,7 @@
 import { Controller, Get, Inject, NotFoundException, Param, Post, Query } from '@nestjs/common';
 import { ReportPeriod } from '@prisma/client';
 
-import { AuthContext } from '../auth/auth.decorators';
+import { AuthContext, Public } from '../auth/auth.decorators';
 import type { RequestAuthContext } from '../auth/auth.types';
 import { ReportsService } from './reports.service';
 
@@ -41,6 +41,24 @@ export class ReportsController {
   ) {
     const targetFormat = format?.toLowerCase() === 'json' ? 'json' : 'csv';
     return this.reportsService.exportReport(auth.orgId, id, targetFormat);
+  }
+
+  @Post(':id/share-link')
+  createShareLink(@AuthContext() auth: RequestAuthContext, @Param('id') id: string) {
+    return this.reportsService.createShareLink(auth.orgId, id);
+  }
+
+  @Public()
+  @Get('shared/:token')
+  getShared(@Param('token') token: string) {
+    return this.reportsService.getSharedReport(token);
+  }
+
+  @Public()
+  @Get('shared/:token/export')
+  exportShared(@Param('token') token: string, @Query('format') format?: string) {
+    const targetFormat = format?.toLowerCase() === 'json' ? 'json' : 'csv';
+    return this.reportsService.exportSharedReport(token, targetFormat);
   }
 
   @Post('generate')

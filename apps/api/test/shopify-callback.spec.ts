@@ -1,3 +1,5 @@
+import { createHmac } from 'node:crypto';
+
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
@@ -48,5 +50,38 @@ describe.sequential('Shopify OAuth callback guards', () => {
     });
 
     expect(response.status).toBe(401);
+  });
+
+  it('accepts shop-update webhook and syncs shop metadata', async () => {
+    const org = await prisma.organization.create({ data: { name: 'Org Shop Update' } });
+    const shop = await prisma.shop.create({
+      data: {
+        orgId: org.id,
+        shopifyDomain: 'shop-update.myshopify.com',
+        installedAt: new Date(),
+      },
+    });
+
+    const rawPayload = JSON.stringify({
+      name: 'Shop Update Name',
+      currency: 'EUR',
+      iana_timezone: 'Europe/Berlin',
+    });
+    const secret = process.env.SHOPIFY_API_SECRET ?? 'test_secret';
+    const signature = createHmac('sha256', secret).update(rawPayload).digest('base64');
+
+    const response = await request(app.getHttpServer())
+      .post('/v1/shopify/webhooks/shop-update')
+      .set('content-type', 'application/json')
+      .set('x-shopify-hmac-sha256', signature)
+      .set('x-shopify-shop-domain', shop.shopifyDomain)
+      .send(rawPayload);
+
+    expect(response.status).toBe(201);
+
+    const updated = await prisma.shop.findUnique({ where: { id: shop.id } });
+    expect(updated?.displayName).toBe('Shop Update Name');
+    expect(updated?.currency).toBe('EUR');
+    expect(updated?.timezone).toBe('Europe/Berlin');
   });
 });

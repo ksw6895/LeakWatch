@@ -76,4 +76,80 @@ describe.sequential('Shop settings API', () => {
     expect(updated.body.currency).toBe('EUR');
     expect(updated.body.contactEmail).toBe('finance@example.com');
   });
+
+  it('syncs installed app snapshot and marks unmatched vendors as suspected unused', async () => {
+    const org = await prisma.organization.create({ data: { name: 'Org App Sync' } });
+    const shop = await prisma.shop.create({
+      data: {
+        orgId: org.id,
+        shopifyDomain: 'appsync.myshopify.com',
+        installedAt: new Date(),
+      },
+    });
+    const user = await prisma.user.create({
+      data: {
+        shopifyUserId: 'appsync-owner',
+      },
+    });
+    await prisma.membership.create({
+      data: {
+        orgId: org.id,
+        userId: user.id,
+        role: OrgRole.OWNER,
+      },
+    });
+
+    const activeVendor = await prisma.vendor.create({
+      data: {
+        canonicalName: 'Klaviyo',
+        aliases: ['Klaviyo Email'],
+      },
+    });
+    const staleVendor = await prisma.vendor.create({
+      data: {
+        canonicalName: 'Dormant Analytics',
+        aliases: [],
+      },
+    });
+    await prisma.vendorOnShop.createMany({
+      data: [
+        {
+          shopId: shop.id,
+          vendorId: activeVendor.id,
+        },
+        {
+          shopId: shop.id,
+          vendorId: staleVendor.id,
+        },
+      ],
+    });
+
+    const token = await createSessionToken({
+      sub: 'appsync-owner',
+      shopDomain: shop.shopifyDomain,
+    });
+
+    const response = await request(app.getHttpServer())
+      .post(`/v1/shops/${shop.id}/installed-apps/sync`)
+      .set('authorization', `Bearer ${token}`)
+      .send({
+        installedApps: ['Klaviyo'],
+        source: 'manual',
+      });
+
+    expect(response.status).toBe(201);
+    expect(response.body.activeCount).toBe(1);
+    expect(response.body.suspectedCount).toBe(1);
+
+    const relations = await prisma.vendorOnShop.findMany({
+      where: {
+        shopId: shop.id,
+      },
+      orderBy: {
+        vendorId: 'asc',
+      },
+    });
+    const statuses = relations.map((relation) => relation.status).sort();
+    expect(statuses).toEqual(['ACTIVE', 'SUSPECTED_UNUSED']);
+  });
 });

@@ -164,4 +164,63 @@ describe.sequential('Reports API', () => {
     expect(exportResponse.body.contentType).toBe('text/csv; charset=utf-8');
     expect(String(exportResponse.body.content)).toContain('key,value');
   });
+
+  it('creates public share link and fetches shared report', async () => {
+    const org = await prisma.organization.create({ data: { name: 'Org Report Share' } });
+    const shop = await prisma.shop.create({
+      data: {
+        orgId: org.id,
+        shopifyDomain: 'report-share.myshopify.com',
+        installedAt: new Date(),
+      },
+    });
+    const user = await prisma.user.create({ data: { shopifyUserId: 'report-share-owner' } });
+    await prisma.membership.create({
+      data: {
+        orgId: org.id,
+        userId: user.id,
+        role: OrgRole.OWNER,
+      },
+    });
+    const report = await prisma.report.create({
+      data: {
+        orgId: org.id,
+        shopId: shop.id,
+        period: ReportPeriod.WEEKLY,
+        periodStart: new Date('2026-02-02T00:00:00.000Z'),
+        periodEnd: new Date('2026-02-08T23:59:59.999Z'),
+        summaryJson: {
+          totalSpend: '77',
+        },
+      },
+    });
+
+    const token = await createSessionToken({
+      sub: 'report-share-owner',
+      shopDomain: shop.shopifyDomain,
+    });
+
+    const shareResponse = await request(app.getHttpServer())
+      .post(`/v1/reports/${report.id}/share-link`)
+      .set('authorization', `Bearer ${token}`)
+      .send({});
+    expect(shareResponse.status).toBe(201);
+    expect(typeof shareResponse.body.shareUrl).toBe('string');
+
+    const shareUrl = new URL(String(shareResponse.body.shareUrl));
+    const shareToken = decodeURIComponent(shareUrl.pathname.split('/').pop() ?? '');
+    expect(shareToken.length).toBeGreaterThan(10);
+
+    const sharedResponse = await request(app.getHttpServer()).get(
+      `/v1/reports/shared/${shareToken}`,
+    );
+    expect(sharedResponse.status).toBe(200);
+    expect(sharedResponse.body.id).toBe(report.id);
+
+    const sharedExportResponse = await request(app.getHttpServer()).get(
+      `/v1/reports/shared/${shareToken}/export?format=json`,
+    );
+    expect(sharedExportResponse.status).toBe(200);
+    expect(sharedExportResponse.body.contentType).toBe('application/json; charset=utf-8');
+  });
 });

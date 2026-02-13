@@ -287,4 +287,72 @@ describe.sequential('Actions flow + Mailgun webhook', () => {
     });
     expect(latestRun?.status).toBe(ActionRunStatus.RESOLVED);
   });
+
+  it('marks action as resolved from inbound mailgun reply parse webhook', async () => {
+    const org = await prisma.organization.create({ data: { name: 'Org Inbound Reply' } });
+    const shop = await prisma.shop.create({
+      data: {
+        orgId: org.id,
+        shopifyDomain: 'inbound-reply.myshopify.com',
+        installedAt: new Date(),
+      },
+    });
+    const finding = await prisma.leakFinding.create({
+      data: {
+        orgId: org.id,
+        shopId: shop.id,
+        type: LeakType.DUPLICATE_CHARGE,
+        status: FindingStatus.OPEN,
+        title: 'Inbound reply finding',
+        summary: 'Need inbound reply parse',
+        confidence: 84,
+        estimatedSavingsAmount: '42',
+        currency: 'USD',
+      },
+    });
+    const actionRequest = await prisma.actionRequest.create({
+      data: {
+        orgId: org.id,
+        shopId: shop.id,
+        findingId: finding.id,
+        type: ActionType.CLARIFICATION,
+        status: ActionRequestStatus.APPROVED,
+        toEmail: 'support@example.com',
+        ccEmails: [],
+        subject: 'Need clarification',
+        bodyMarkdown: 'Body',
+      },
+    });
+    const run = await prisma.actionRun.create({
+      data: {
+        actionRequestId: actionRequest.id,
+        status: ActionRunStatus.DELIVERED,
+        mailgunMessageId: '<thread-id@example.com>',
+      },
+    });
+
+    const timestamp = String(Math.floor(Date.now() / 1000));
+    const token = 'inbound-token';
+    const signingKey = process.env.MAILGUN_WEBHOOK_SIGNING_KEY ?? 'test_mailgun_signing_key';
+    const signature = createHmac('sha256', signingKey).update(`${timestamp}${token}`).digest('hex');
+
+    const response = await request(app.getHttpServer()).post('/v1/mailgun/webhooks/inbound').send({
+      signature: {
+        timestamp,
+        token,
+        signature,
+      },
+      sender: 'support@example.com',
+      subject: 'Re: Need clarification',
+      'body-plain': 'Issue fixed and refund completed.',
+      'In-Reply-To': '<thread-id@example.com>',
+    });
+
+    expect(response.status).toBe(201);
+    expect(response.body.matchedActionRunId).toBe(run.id);
+    expect(response.body.resolvedByKeyword).toBe(true);
+
+    const updatedRun = await prisma.actionRun.findUnique({ where: { id: run.id } });
+    expect(updatedRun?.status).toBe(ActionRunStatus.RESOLVED);
+  });
 });
