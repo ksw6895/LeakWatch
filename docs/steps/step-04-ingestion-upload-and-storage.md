@@ -81,7 +81,7 @@
   - 잘못된 mimeType 차단
 - UI:
   - 업로드 성공 시 테이블에 row 생성
-- pnpm test:api, pnpm test:e2e(간단)
+- pnpm test:api, pnpm --filter @leakwatch/web test
 
 ## Definition of Done(정량 기준)
 

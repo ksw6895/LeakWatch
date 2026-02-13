@@ -39,6 +39,7 @@ Next.js 14 App Router frontend for embedded Shopify workflows, especially auth b
 
 ```bash
 pnpm --filter @leakwatch/web dev
+pnpm --filter @leakwatch/web start
 pnpm --filter @leakwatch/web lint
 pnpm --filter @leakwatch/web typecheck
 pnpm --filter @leakwatch/web test

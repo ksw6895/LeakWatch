@@ -11,8 +11,8 @@ LeakWatch는 Shopify 스토어의 앱/SaaS 구독 비용을 **문서 업로드/�
 - File Storage: **Cloudflare R2(S3 호환) + Presigned URL**
 - Email (발송/추적): **Mailgun(Outbound + Webhook)**
 - LLM: **OpenAI API**
-  - 기본: 구조화 추출/분류 = `gpt-4o-mini` (ASSUMPTION: 저비용/충분한 품질)
-  - 고품질 생성(이메일/요약) = `gpt-4o` (ASSUMPTION)
+  - 기본 모델(`OPENAI_MODEL_NORMALIZE`, `OPENAI_MODEL_VISION`, `OPENAI_MODEL_EMAIL_DRAFT`) = `gpt-4o-mini`
+  - 필요 시 업무별로 고품질 모델로 오버라이드
   - 임베딩(옵션/RAG) = `text-embedding-3-small` (ASSUMPTION)
   - 검증 방법: 실제 30개 인보이스로 정규화 정확도(필수 필드 누락률<2%) 측정 후 모델 교체
 - Hosting:
@@ -52,7 +52,7 @@ ASSUMPTION: 모노레포(pnpm + turborepo), docker compose로 로컬 Postgres/Re
 
 - 루트 `.env`를 `.env.example` 기준으로 작성한다.
 - step-04 업로드 기능까지 쓰려면 R2 관련 값(`R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`)이 필수다.
-- step-08 액션 발송/추적까지 검증하려면 Mailgun 값(`MAILGUN_API_KEY`, `MAILGUN_DOMAIN`, `MAILGUN_WEBHOOK_SIGNING_KEY`)이 필요하다.
+- Mailgun 값(`MAILGUN_API_KEY`, `MAILGUN_DOMAIN`, `MAILGUN_WEBHOOK_SIGNING_KEY`)은 선택이다. 비어 있으면 SEND_EMAIL 잡은 `MAILGUN_NOT_CONFIGURED`로 실패 기록된다.
 - Shopify Embedded 검증(ngrok 1개 사용) 시 아래 2개는 같은 HTTPS 주소로 맞춘다:
   - `SHOPIFY_APP_URL`
   - `API_BASE_URL`
@@ -89,10 +89,11 @@ ngrok 유료 플랜 권장:
 
 8. 스모크 테스트
 
+- pnpm db:deploy
 - pnpm lint
 - pnpm typecheck
-- DATABASE_URL=postgresql://leakwatch:leakwatch@localhost:5433/leakwatch?schema=public pnpm test
-- DATABASE_URL=postgresql://leakwatch:leakwatch@localhost:5433/leakwatch?schema=public pnpm build
+- pnpm test
+- pnpm build
 
 실전 상세 가이드는 아래 문서를 사용한다.
 

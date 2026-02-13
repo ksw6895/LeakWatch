@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx watch src/main.ts",
     "build": "tsc -p tsconfig.build.json",
-    "start": "node dist/main.js",
+    "start": "tsx src/main.ts",
     "lint": "eslint src test --ext .ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",

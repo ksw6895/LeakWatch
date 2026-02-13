@@ -38,6 +38,7 @@ Documentation domain for product requirements, architecture decisions, implement
 pnpm lint
 pnpm typecheck
 pnpm test
+pnpm build
 
 # run infra needed by many runbooks
 docker compose up -d postgres redis
@@ -52,3 +53,4 @@ pnpm db:deploy
 - `docs/README.md` is the navigation source for the documentation set; update it when adding/removing major docs.
 - Step and runbook documents should reference each other when they describe the same implementation phase.
 - Current implementation baseline is step-12; keep `docs/README.md` and root `README.md` in sync when step status changes.
+- Root `pnpm db:*` scripts auto-load `.env`; prefer those commands in docs to reduce environment drift.

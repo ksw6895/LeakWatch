@@ -71,6 +71,9 @@ pnpm db:deploy
 pnpm db:seed
 
 # per-package examples
+pnpm --filter @leakwatch/api start
+pnpm --filter @leakwatch/worker start
+pnpm --filter @leakwatch/web start
 pnpm --filter @leakwatch/api test -- test/documents-upload.spec.ts
 pnpm --filter @leakwatch/web test -- src/test/fetcher.test.ts
 pnpm --filter @leakwatch/worker test -- test/queue.test.ts
@@ -79,5 +82,6 @@ pnpm --filter @leakwatch/worker test -- test/queue.test.ts
 ## NOTES
 
 - Local docker postgres maps `5433:5432` (`docker-compose.yml`), CI service postgres exposes `5432`.
+- Root `pnpm db:*` scripts auto-load `.env` before Prisma commands.
 - LSP may be unavailable unless `typescript-language-server` is installed; use grep/ast-grep fallback when needed.
 - Keep root AGENTS concise; package-specific rules belong in nearest subtree AGENTS.

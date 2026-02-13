@@ -11,9 +11,9 @@
     "test": "turbo run test",
     "test:api": "pnpm --filter @leakwatch/api test",
     "test:worker": "pnpm --filter @leakwatch/worker test",
-    "db:migrate": "pnpm --filter @leakwatch/api prisma migrate dev",
-    "db:seed": "pnpm --filter @leakwatch/api db:seed",
-    "db:deploy": "pnpm --filter @leakwatch/api prisma migrate deploy",
+    "db:migrate": "node scripts/with-root-env.mjs pnpm --filter @leakwatch/api prisma migrate dev",
+    "db:seed": "node scripts/with-root-env.mjs pnpm --filter @leakwatch/api db:seed",
+    "db:deploy": "node scripts/with-root-env.mjs pnpm --filter @leakwatch/api prisma migrate deploy",
     "prepare": "husky"
   },
   "lint-staged": {

@@ -25,7 +25,8 @@ docker compose up -d postgres redis
 cp .env.example .env
 ```
 
-- `.env`에서 `SHOPIFY_*`, `NEXT_PUBLIC_SHOPIFY_API_KEY`, `R2_*`, `LW_ENCRYPTION_KEY_32B`, `OPENAI_*`, `MAILGUN_*`를 실제 값으로 교체합니다.
+- `.env`에서 `SHOPIFY_*`, `NEXT_PUBLIC_SHOPIFY_API_KEY`, `R2_*`, `LW_ENCRYPTION_KEY_32B`, `OPENAI_*`를 실제 값으로 교체합니다.
+- `MAILGUN_*`는 선택값입니다. 비어 있으면 이메일 발송 잡은 `MAILGUN_NOT_CONFIGURED` 상태로 실패 처리됩니다.
 - ngrok 단일 도메인 모드에서는 `SHOPIFY_APP_URL`/`API_BASE_URL`을 같은 HTTPS 도메인으로 설정합니다.
 - `NEXT_PUBLIC_API_URL`은 비워도 동작(같은 origin 자동 사용)하지만, 명시하려면 같은 도메인 값으로 설정하면 됩니다.
 
@@ -34,6 +35,7 @@ cp .env.example .env
 ```bash
 pnpm install
 pnpm db:migrate -- --name init
+pnpm db:deploy
 ```
 
 5. 실행

@@ -39,6 +39,7 @@ BullMQ worker service that runs document ingestion, normalization, and detection
 
 ```bash
 pnpm --filter @leakwatch/worker dev
+pnpm --filter @leakwatch/worker start
 pnpm --filter @leakwatch/worker lint
 pnpm --filter @leakwatch/worker typecheck
 pnpm --filter @leakwatch/worker test

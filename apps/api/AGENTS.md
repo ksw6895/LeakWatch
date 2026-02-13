@@ -42,6 +42,7 @@ NestJS API service for auth, documents, findings, actions, reports, and Shopify 
 
 ```bash
 pnpm --filter @leakwatch/api dev
+pnpm --filter @leakwatch/api start
 pnpm --filter @leakwatch/api lint
 pnpm --filter @leakwatch/api typecheck
 pnpm --filter @leakwatch/api test
