@@ -16,6 +16,19 @@ type ReportItem = {
   periodStart: string;
   periodEnd: string;
   createdAt: string;
+  summaryJson: {
+    totalSpend?: string;
+    deltaVsPrev?: number;
+  };
+};
+
+type BillingCurrent = {
+  limits: {
+    reports: number;
+  };
+  usage: {
+    reports: number;
+  };
 };
 
 function formatUtcDate(value: string): string {
@@ -36,6 +49,8 @@ function ReportsPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [periodTab, setPeriodTab] = useState<'ALL' | 'WEEKLY' | 'MONTHLY'>('ALL');
+  const [billing, setBilling] = useState<BillingCurrent | null>(null);
   const monthlyCount = useMemo(
     () => items.filter((item) => item.period === 'MONTHLY').length,
     [items],
@@ -57,6 +72,29 @@ function ReportsPageContent() {
     [items],
   );
 
+  const filteredItems = useMemo(
+    () => (periodTab === 'ALL' ? items : items.filter((item) => item.period === periodTab)),
+    [items, periodTab],
+  );
+  const periodSpend = useMemo(
+    () =>
+      filteredItems.reduce((sum, item) => {
+        const value = Number.parseFloat(item.summaryJson?.totalSpend ?? '0');
+        return Number.isFinite(value) ? sum + value : sum;
+      }, 0),
+    [filteredItems],
+  );
+  const positiveDeltaCount = useMemo(
+    () => filteredItems.filter((item) => Number(item.summaryJson?.deltaVsPrev ?? 0) > 0).length,
+    [filteredItems],
+  );
+  const reportQuotaReached = useMemo(() => {
+    if (!billing) {
+      return false;
+    }
+    return billing.usage.reports >= billing.limits.reports;
+  }, [billing]);
+
   const load = useCallback(async () => {
     if (!host) {
       setLoading(false);
@@ -69,20 +107,34 @@ function ReportsPageContent() {
         throw new Error(`Auth failed (${meResponse.status})`);
       }
       const me = (await meResponse.json()) as { shopId: string };
-      const response = await apiFetch(`/v1/reports?shopId=${encodeURIComponent(me.shopId)}`, {
-        host,
-      });
+      const periodQuery = periodTab === 'ALL' ? '' : `&period=${periodTab}`;
+      const response = await apiFetch(
+        `/v1/reports?shopId=${encodeURIComponent(me.shopId)}${periodQuery}`,
+        {
+          host,
+        },
+      );
       if (!response.ok) {
         throw new Error(`Reports fetch failed (${response.status})`);
       }
+      const billingResponse = await apiFetch(
+        `/v1/billing/current?shopId=${encodeURIComponent(me.shopId)}`,
+        {
+          host,
+        },
+      );
+      if (!billingResponse.ok) {
+        throw new Error(`Billing fetch failed (${billingResponse.status})`);
+      }
       setItems((await response.json()) as ReportItem[]);
+      setBilling((await billingResponse.json()) as BillingCurrent);
       setError(null);
     } catch (unknownError) {
       setError(unknownError instanceof Error ? unknownError.message : 'Unknown error');
     } finally {
       setLoading(false);
     }
-  }, [host]);
+  }, [host, periodTab]);
 
   useEffect(() => {
     void load();
@@ -117,6 +169,11 @@ function ReportsPageContent() {
         },
       );
       if (!generateResponse.ok) {
+        if (generateResponse.status === 403) {
+          setError('Report quota reached. Upgrade plan to generate additional reports.');
+        } else {
+          setError(`Generate failed (${generateResponse.status})`);
+        }
         return;
       }
       await load();
@@ -135,6 +192,7 @@ function ReportsPageContent() {
         content: 'Generate Monthly',
         onAction: () => void generateMonthly(),
         loading: generating,
+        disabled: reportQuotaReached,
       }}
     >
       <Layout>
@@ -170,6 +228,15 @@ function ReportsPageContent() {
                     <div className="lw-metric-value">{weeklyCount}</div>
                   </div>
                   <div className="lw-metric lw-metric--compact">
+                    <div className="lw-metric-label">Filtered spend</div>
+                    <div className="lw-metric-value">{periodSpend.toFixed(0)}</div>
+                    <div className="lw-metric-hint">{periodTab} window</div>
+                  </div>
+                  <div className="lw-metric lw-metric--compact">
+                    <div className="lw-metric-label">Rising periods</div>
+                    <div className="lw-metric-value">{positiveDeltaCount}</div>
+                  </div>
+                  <div className="lw-metric lw-metric--compact">
                     <div className="lw-metric-label">Last generated</div>
                     <div className="lw-metric-value">
                       {latestGeneratedAt ? formatUtcDate(latestGeneratedAt) : 'n/a'}
@@ -177,17 +244,43 @@ function ReportsPageContent() {
                   </div>
                 </div>
 
+                <div className="lw-content-box">
+                  <div className="lw-actions-row">
+                    {(['ALL', 'WEEKLY', 'MONTHLY'] as const).map((period) => (
+                      <Button
+                        key={period}
+                        variant={periodTab === period ? 'primary' : 'tertiary'}
+                        onClick={() => {
+                          setPeriodTab(period);
+                        }}
+                      >
+                        {period}
+                      </Button>
+                    ))}
+                  </div>
+                  {billing ? (
+                    <Box paddingBlockStart="150">
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        Report quota: {billing.usage.reports}/{billing.limits.reports}
+                      </Text>
+                    </Box>
+                  ) : null}
+                </div>
+
                 {loading ? (
                   <StatePanel kind="loading" message="Loading weekly and monthly reports." />
                 ) : error ? (
                   <StatePanel kind="error" message={error} />
-                ) : items.length === 0 ? (
+                ) : filteredItems.length === 0 ? (
                   <StatePanel
                     kind="empty"
-                    message="No reports yet. Generate monthly report to start benchmarking."
+                    message="No reports in this period. Switch filter or generate monthly report."
                   />
                 ) : (
                   <div className="lw-table-wrap">
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      Swipe horizontally on smaller screens to inspect full report columns.
+                    </Text>
                     <table className="lw-table">
                       <thead>
                         <tr>
@@ -198,7 +291,7 @@ function ReportsPageContent() {
                         </tr>
                       </thead>
                       <tbody>
-                        {items.map((item) => (
+                        {filteredItems.map((item) => (
                           <tr key={item.id}>
                             <td>
                               <span className="lw-inline-chip">{item.period}</span>

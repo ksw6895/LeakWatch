@@ -61,6 +61,16 @@ type ActionRequestDetail = {
 
 type AuthMe = {
   roles: string[];
+  shopId: string;
+};
+
+type BillingCurrent = {
+  limits: {
+    emails: number;
+  };
+  usage: {
+    emails: number;
+  };
 };
 
 function ActionDetailContent() {
@@ -78,8 +88,12 @@ function ActionDetailContent() {
   const [error, setError] = useState<string | null>(null);
   const [approveModalOpen, setApproveModalOpen] = useState(false);
   const [roles, setRoles] = useState<string[]>([]);
+  const [billing, setBilling] = useState<BillingCurrent | null>(null);
   const canWrite = canApproveSend(roles);
   const blockedReason = writeAccessReason(roles);
+  const displayStatus = actionRequest?.displayStatus ?? actionRequest?.status ?? 'UNKNOWN';
+  const emailQuotaReached =
+    billing !== null ? billing.usage.emails >= billing.limits.emails : false;
 
   const load = useCallback(async () => {
     if (!host || !params.id) {
@@ -97,6 +111,15 @@ function ActionDetailContent() {
     if (meResponse.ok) {
       const me = (await meResponse.json()) as AuthMe;
       setRoles(me.roles ?? []);
+      const billingResponse = await apiFetch(
+        `/v1/billing/current?shopId=${encodeURIComponent(me.shopId)}`,
+        {
+          host,
+        },
+      );
+      if (billingResponse.ok) {
+        setBilling((await billingResponse.json()) as BillingCurrent);
+      }
     }
     setSubject(json.subject);
     setBodyMarkdown(json.bodyMarkdown);
@@ -373,7 +396,12 @@ function ActionDetailContent() {
                                 onClick={() => {
                                   setApproveModalOpen(true);
                                 }}
-                                disabled={busy || actionRequest.status !== 'DRAFT' || !canWrite}
+                                disabled={
+                                  busy ||
+                                  actionRequest.status !== 'DRAFT' ||
+                                  !canWrite ||
+                                  emailQuotaReached
+                                }
                               >
                                 Approve and send
                               </Button>
@@ -387,7 +415,12 @@ function ActionDetailContent() {
                                 onClick={() => {
                                   void updateManualStatus('WAITING_REPLY');
                                 }}
-                                disabled={busy || actionRequest.status !== 'APPROVED' || !canWrite}
+                                disabled={
+                                  busy ||
+                                  (displayStatus !== 'APPROVED' &&
+                                    displayStatus !== 'WAITING_REPLY') ||
+                                  !canWrite
+                                }
                               >
                                 Mark waiting reply
                               </Button>
@@ -395,7 +428,12 @@ function ActionDetailContent() {
                                 onClick={() => {
                                   void updateManualStatus('RESOLVED');
                                 }}
-                                disabled={busy || actionRequest.status !== 'APPROVED' || !canWrite}
+                                disabled={
+                                  busy ||
+                                  (displayStatus !== 'APPROVED' &&
+                                    displayStatus !== 'WAITING_REPLY') ||
+                                  !canWrite
+                                }
                               >
                                 Mark resolved
                               </Button>
@@ -411,6 +449,15 @@ function ActionDetailContent() {
                               <Box paddingBlockStart="150">
                                 <Text as="p" variant="bodySm" tone="subdued">
                                   {blockedReason}
+                                </Text>
+                              </Box>
+                            ) : null}
+                            {emailQuotaReached ? (
+                              <Box paddingBlockStart="150">
+                                <Text as="p" variant="bodySm" tone="subdued">
+                                  Email quota reached ({billing?.usage.emails}/
+                                  {billing?.limits.emails}
+                                  ). Upgrade plan to continue sending.
                                 </Text>
                               </Box>
                             ) : null}

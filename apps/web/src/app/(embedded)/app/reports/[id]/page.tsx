@@ -36,6 +36,7 @@ function ReportDetailPageContent() {
   const apiKey = process.env.NEXT_PUBLIC_SHOPIFY_API_KEY;
   const [report, setReport] = useState<ReportDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showRaw, setShowRaw] = useState(false);
 
   useEffect(() => {
     if (!host || !params.id) {
@@ -95,6 +96,37 @@ function ReportDetailPageContent() {
                   </div>
 
                   <div className="lw-content-box">
+                    <div className="lw-summary-grid">
+                      <div className="lw-metric lw-metric--compact">
+                        <div className="lw-metric-label">Total spend</div>
+                        <div className="lw-metric-value">
+                          {String(report.summaryJson.totalSpend ?? 'n/a')}
+                        </div>
+                      </div>
+                      <div className="lw-metric lw-metric--compact">
+                        <div className="lw-metric-label">Previous spend</div>
+                        <div className="lw-metric-value">
+                          {String(report.summaryJson.prevTotalSpend ?? 'n/a')}
+                        </div>
+                      </div>
+                      <div className="lw-metric lw-metric--compact">
+                        <div className="lw-metric-label">Delta vs previous</div>
+                        <div className="lw-metric-value">
+                          {String(report.summaryJson.deltaVsPrev ?? 'n/a')}
+                        </div>
+                      </div>
+                      <div className="lw-metric lw-metric--compact">
+                        <div className="lw-metric-label">Top findings</div>
+                        <div className="lw-metric-value">
+                          {Array.isArray(report.summaryJson.topFindings)
+                            ? report.summaryJson.topFindings.length
+                            : 0}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="lw-content-box">
                     <Text as="h3" variant="headingSm">
                       Summary fields
                     </Text>
@@ -117,12 +149,65 @@ function ReportDetailPageContent() {
                   </div>
 
                   <div className="lw-content-box">
-                    <Text as="h3" variant="headingSm">
-                      Raw JSON
-                    </Text>
-                    <Box paddingBlockStart="200">
-                      <pre className="lw-pre">{JSON.stringify(report.summaryJson, null, 2)}</pre>
-                    </Box>
+                    <div className="lw-actions-row">
+                      <Button
+                        onClick={() => {
+                          setShowRaw((prev) => !prev);
+                        }}
+                      >
+                        {showRaw ? 'Hide advanced JSON' : 'Show advanced JSON'}
+                      </Button>
+                      <Button
+                        onClick={async () => {
+                          if (!host || !report) {
+                            return;
+                          }
+                          try {
+                            const response = await apiFetch(
+                              `/v1/reports/${report.id}/export?format=csv`,
+                              { host },
+                            );
+                            if (!response.ok) {
+                              throw new Error(`Export failed (${response.status})`);
+                            }
+                            const payload = (await response.json()) as {
+                              fileName: string;
+                              contentType: string;
+                              content: string;
+                            };
+                            const blob = new Blob([payload.content], {
+                              type: payload.contentType,
+                            });
+                            const url = URL.createObjectURL(blob);
+                            const link = document.createElement('a');
+                            link.href = url;
+                            link.download = payload.fileName;
+                            link.click();
+                            URL.revokeObjectURL(url);
+                          } catch (unknownError) {
+                            setError(
+                              unknownError instanceof Error
+                                ? unknownError.message
+                                : 'Export failed',
+                            );
+                          }
+                        }}
+                      >
+                        Export CSV
+                      </Button>
+                    </div>
+                    {showRaw ? (
+                      <>
+                        <Text as="h3" variant="headingSm">
+                          Raw JSON
+                        </Text>
+                        <Box paddingBlockStart="200">
+                          <pre className="lw-pre">
+                            {JSON.stringify(report.summaryJson, null, 2)}
+                          </pre>
+                        </Box>
+                      </>
+                    ) : null}
                     <Box paddingBlockStart="200">
                       <Button
                         onClick={() => {

@@ -53,6 +53,10 @@ function tone(status: string): 'info' | 'success' | 'attention' | 'critical' {
   return 'success';
 }
 
+function normalizedStatus(item: Pick<ActionRequestListItem, 'status' | 'displayStatus'>): string {
+  return item.displayStatus ?? item.status;
+}
+
 function ActionsPageContent() {
   const searchParams = useSearchParams();
   const host = searchParams.get('host');
@@ -65,23 +69,21 @@ function ActionsPageContent() {
     'ALL' | 'DRAFT' | 'APPROVED' | 'WAITING_REPLY' | 'FAILED' | 'RESOLVED' | 'CANCELED'
   >('ALL');
   const draftsCount = useMemo(
-    () => items.filter((item) => item.status === 'DRAFT').length,
+    () => items.filter((item) => normalizedStatus(item) === 'DRAFT').length,
     [items],
   );
   const approvedCount = useMemo(
-    () => items.filter((item) => item.status === 'APPROVED').length,
+    () => items.filter((item) => normalizedStatus(item) === 'APPROVED').length,
     [items],
   );
   const canceledCount = useMemo(
-    () => items.filter((item) => item.status === 'CANCELED').length,
+    () => items.filter((item) => normalizedStatus(item) === 'CANCELED').length,
     [items],
   );
   const activeRecipients = useMemo(() => new Set(items.map((item) => item.toEmail)).size, [items]);
   const filteredItems = useMemo(
     () =>
-      statusTab === 'ALL'
-        ? items
-        : items.filter((item) => (item.displayStatus ?? item.status) === statusTab),
+      statusTab === 'ALL' ? items : items.filter((item) => normalizedStatus(item) === statusTab),
     [items, statusTab],
   );
 
@@ -238,7 +240,9 @@ function ActionsPageContent() {
                                   }}
                                 >
                                   <td>
-                                    <Badge tone={tone(item.status)}>{item.status}</Badge>
+                                    <Badge tone={tone(normalizedStatus(item))}>
+                                      {normalizedStatus(item)}
+                                    </Badge>
                                     <div className="lw-metric-hint">
                                       display: {item.displayStatus ?? item.status}
                                     </div>

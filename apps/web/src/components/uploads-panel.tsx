@@ -51,6 +51,15 @@ type UploadState = {
   message?: string;
 };
 
+type BillingCurrent = {
+  limits: {
+    uploads: number;
+  };
+  usage: {
+    uploads: number;
+  };
+};
+
 function statusTone(status: string): 'info' | 'success' | 'attention' | 'critical' {
   if (status.endsWith('FAILED')) {
     return 'critical';
@@ -120,6 +129,7 @@ export function UploadsPanel({ host }: { host: string | null }) {
   const [dragOver, setDragOver] = useState(false);
   const [uploadState, setUploadState] = useState<UploadState>({ step: 'idle', progress: 0 });
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [billing, setBilling] = useState<BillingCurrent | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const canStartUpload = useMemo(
@@ -133,6 +143,12 @@ export function UploadsPanel({ host }: { host: string | null }) {
       ),
     [host, auth?.roles, auth?.shopId, selectedFile, uploadState.step],
   );
+  const uploadQuotaReached = useMemo(() => {
+    if (!billing) {
+      return false;
+    }
+    return billing.usage.uploads >= billing.limits.uploads;
+  }, [billing]);
   const uploadBlockedReason = writeAccessReason(auth?.roles ?? []);
   const latestStatuses = useMemo(
     () => documents.map((document) => document.versions?.[0]?.status ?? 'UNKNOWN'),
@@ -177,6 +193,11 @@ export function UploadsPanel({ host }: { host: string | null }) {
 
     const docsJson = (await docsResponse.json()) as DocumentRow[];
     setDocuments(docsJson);
+
+    const billingResponse = await apiFetch(`/v1/billing/current?shopId=${meJson.shopId}`, { host });
+    if (billingResponse.ok) {
+      setBilling((await billingResponse.json()) as BillingCurrent);
+    }
   }, [host]);
 
   useEffect(() => {
@@ -347,6 +368,9 @@ export function UploadsPanel({ host }: { host: string | null }) {
                 <div className="lw-content-box">
                   <div
                     className={`lw-upload-dropzone${dragOver ? ' lw-upload-dropzone--active' : ''}`}
+                    role="button"
+                    tabIndex={0}
+                    aria-label="Drop invoice files or press Enter to choose file"
                     onDragOver={(event) => {
                       event.preventDefault();
                       setDragOver(true);
@@ -358,6 +382,12 @@ export function UploadsPanel({ host }: { host: string | null }) {
                       const file = event.dataTransfer.files.item(0);
                       if (file) {
                         setSelectedFile(file);
+                      }
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        fileInputRef.current?.click();
                       }
                     }}
                   >
@@ -435,13 +465,25 @@ export function UploadsPanel({ host }: { host: string | null }) {
                   )}
 
                   <Box paddingBlockStart="300">
-                    <Button variant="primary" onClick={onUpload} disabled={!canStartUpload}>
+                    <Button
+                      variant="primary"
+                      onClick={onUpload}
+                      disabled={!canStartUpload || uploadQuotaReached}
+                    >
                       Upload file
                     </Button>
                     {!canUpload(auth?.roles ?? []) ? (
                       <Box paddingBlockStart="100">
                         <Text as="p" variant="bodySm" tone="subdued">
                           {uploadBlockedReason}
+                        </Text>
+                      </Box>
+                    ) : null}
+                    {uploadQuotaReached ? (
+                      <Box paddingBlockStart="100">
+                        <Text as="p" variant="bodySm" tone="subdued">
+                          Upload quota reached for current plan ({billing?.usage.uploads}/
+                          {billing?.limits.uploads}).
                         </Text>
                       </Box>
                     ) : null}

@@ -22,10 +22,12 @@ type BillingCurrent = {
     uploads: number;
     emails: number;
     findings: number;
+    reports: number;
   };
   usage: {
     uploads: number;
     emails: number;
+    reports: number;
   };
 };
 
@@ -80,6 +82,12 @@ function BillingPageContent() {
       return 0;
     }
     return Math.min(100, Math.round((current.usage.emails / current.limits.emails) * 100));
+  }, [current]);
+  const reportsUsagePercent = useMemo(() => {
+    if (!current || current.limits.reports === 0) {
+      return 0;
+    }
+    return Math.min(100, Math.round((current.usage.reports / current.limits.reports) * 100));
   }, [current]);
 
   const upgradeTo = async (plan: 'STARTER' | 'PRO') => {
@@ -164,6 +172,13 @@ function BillingPageContent() {
                         {current.usage.emails}/{current.limits.emails}
                       </div>
                       <div className="lw-metric-hint">{emailsUsagePercent}% of quota</div>
+                    </div>
+                    <div className="lw-metric lw-metric--compact">
+                      <div className="lw-metric-label">Report usage</div>
+                      <div className="lw-metric-value">
+                        {current.usage.reports}/{current.limits.reports}
+                      </div>
+                      <div className="lw-metric-hint">{reportsUsagePercent}% of quota</div>
                     </div>
                     <div className="lw-metric lw-metric--compact">
                       <div className="lw-metric-label">Findings cap</div>
