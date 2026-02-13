@@ -108,6 +108,52 @@ paths:
         '404':
           description: Shop not found
 
+  /v1/shops/{shopId}/settings:
+    get:
+      summary: Get shop settings (currency/timezone/contactEmail)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: shopId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Shop settings
+        '404':
+          description: Shop not found
+    patch:
+      summary: Update shop settings
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: shopId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                currency:
+                  type: string
+                timezone:
+                  type: string
+                contactEmail:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          description: Updated shop settings
+        '404':
+          description: Shop not found
+
   /v1/shops/{shopId}/findings:
     get:
       summary: List findings for a shop
@@ -122,6 +168,85 @@ paths:
       responses:
         '200':
           description: Finding list
+
+  /v1/orgs/{orgId}/shops:
+    get:
+      summary: List shops inside agency org workspace
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: orgId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Agency org shop list
+        '401':
+          description: Cross-org access denied
+
+  /v1/orgs/{orgId}/summary:
+    get:
+      summary: Get organization-level agency summary
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: orgId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Agency org summary
+        '401':
+          description: Cross-org access denied
+
+  /v1/orgs/{orgId}/connect-codes:
+    post:
+      summary: Create agency connect code
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: orgId
+          required: true
+          schema:
+            type: string
+      responses:
+        '201':
+          description: Connect code created
+        '401':
+          description: Cross-org access denied
+
+  /v1/shops/{shopId}/connect-code:
+    post:
+      summary: Attach shop with connect code
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: shopId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - code
+              properties:
+                code:
+                  type: string
+      responses:
+        '201':
+          description: Shop attached to target org
+        '401':
+          description: Attach denied
 
   /v1/shops/{shopId}/installed-apps/sync:
     post:
@@ -242,6 +367,28 @@ paths:
       responses:
         '201':
           description: Upload completion accepted
+        '404':
+          description: Document version not found
+
+  /v1/documents/{documentId}/versions/{versionId}/download:
+    get:
+      summary: Get presigned download URL for a specific original document version
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: documentId
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: versionId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Presigned document download URL
         '404':
           description: Document version not found
 
@@ -487,7 +634,7 @@ paths:
 
   /v1/reports/{id}/export:
     get:
-      summary: Export report summary as csv or json payload
+      summary: Export report summary as csv, json, or pdf payload
       security:
         - bearerAuth: []
       parameters:
@@ -504,6 +651,7 @@ paths:
             enum:
               - csv
               - json
+              - pdf
       responses:
         '200':
           description: Export payload generated
@@ -524,6 +672,23 @@ paths:
       responses:
         '201':
           description: Share link generated
+        '404':
+          description: Report not found
+
+  /v1/reports/{id}/share-link/revoke:
+    post:
+      summary: Revoke latest share link token for report
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '201':
+          description: Share link revoked
         '404':
           description: Report not found
 
@@ -563,6 +728,7 @@ paths:
             enum:
               - csv
               - json
+              - pdf
       responses:
         '200':
           description: Shared export payload generated
