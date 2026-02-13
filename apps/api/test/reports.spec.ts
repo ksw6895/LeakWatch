@@ -163,9 +163,16 @@ describe.sequential('Reports API', () => {
     expect(exportResponse.status).toBe(200);
     expect(exportResponse.body.contentType).toBe('text/csv; charset=utf-8');
     expect(String(exportResponse.body.content)).toContain('key,value');
+
+    const exportPdfResponse = await request(app.getHttpServer())
+      .get(`/v1/reports/${weekly.id}/export?format=pdf`)
+      .set('authorization', `Bearer ${token}`);
+    expect(exportPdfResponse.status).toBe(200);
+    expect(exportPdfResponse.body.contentType).toBe('application/pdf');
+    expect(String(exportPdfResponse.body.content)).toContain('%PDF-1.4');
   });
 
-  it('creates public share link and fetches shared report', async () => {
+  it('creates, revokes, and reissues public share links', async () => {
     const org = await prisma.organization.create({ data: { name: 'Org Report Share' } });
     const shop = await prisma.shop.create({
       data: {
@@ -222,5 +229,39 @@ describe.sequential('Reports API', () => {
     );
     expect(sharedExportResponse.status).toBe(200);
     expect(sharedExportResponse.body.contentType).toBe('application/json; charset=utf-8');
+
+    const sharedPdfResponse = await request(app.getHttpServer()).get(
+      `/v1/reports/shared/${shareToken}/export?format=pdf`,
+    );
+    expect(sharedPdfResponse.status).toBe(200);
+    expect(sharedPdfResponse.body.contentType).toBe('application/pdf');
+
+    const revokeResponse = await request(app.getHttpServer())
+      .post(`/v1/reports/${report.id}/share-link/revoke`)
+      .set('authorization', `Bearer ${token}`)
+      .send({});
+    expect(revokeResponse.status).toBe(201);
+
+    const revokedRead = await request(app.getHttpServer()).get(`/v1/reports/shared/${shareToken}`);
+    expect(revokedRead.status).toBe(403);
+
+    const reissueResponse = await request(app.getHttpServer())
+      .post(`/v1/reports/${report.id}/share-link`)
+      .set('authorization', `Bearer ${token}`)
+      .send({});
+    expect(reissueResponse.status).toBe(201);
+    const reissueUrl = new URL(String(reissueResponse.body.shareUrl));
+    const reissueToken = decodeURIComponent(reissueUrl.pathname.split('/').pop() ?? '');
+    expect(reissueToken.length).toBeGreaterThan(10);
+
+    const reissuedRead = await request(app.getHttpServer()).get(
+      `/v1/reports/shared/${reissueToken}`,
+    );
+    expect(reissuedRead.status).toBe(200);
+
+    const oldTokenAfterReissue = await request(app.getHttpServer()).get(
+      `/v1/reports/shared/${shareToken}`,
+    );
+    expect(oldTokenAfterReissue.status).toBe(403);
   });
 });

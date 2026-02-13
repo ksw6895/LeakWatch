@@ -39,13 +39,19 @@ export class ReportsController {
     @Param('id') id: string,
     @Query('format') format?: string,
   ) {
-    const targetFormat = format?.toLowerCase() === 'json' ? 'json' : 'csv';
+    const targetFormat =
+      format?.toLowerCase() === 'json' ? 'json' : format?.toLowerCase() === 'pdf' ? 'pdf' : 'csv';
     return this.reportsService.exportReport(auth.orgId, id, targetFormat);
   }
 
   @Post(':id/share-link')
   createShareLink(@AuthContext() auth: RequestAuthContext, @Param('id') id: string) {
-    return this.reportsService.createShareLink(auth.orgId, id);
+    return this.reportsService.createShareLink(auth.orgId, id, auth.userId);
+  }
+
+  @Post(':id/share-link/revoke')
+  revokeShareLink(@AuthContext() auth: RequestAuthContext, @Param('id') id: string) {
+    return this.reportsService.revokeShareLink(auth.orgId, id, auth.userId);
   }
 
   @Public()
@@ -57,7 +63,8 @@ export class ReportsController {
   @Public()
   @Get('shared/:token/export')
   exportShared(@Param('token') token: string, @Query('format') format?: string) {
-    const targetFormat = format?.toLowerCase() === 'json' ? 'json' : 'csv';
+    const targetFormat =
+      format?.toLowerCase() === 'json' ? 'json' : format?.toLowerCase() === 'pdf' ? 'pdf' : 'csv';
     return this.reportsService.exportSharedReport(token, targetFormat);
   }
 
