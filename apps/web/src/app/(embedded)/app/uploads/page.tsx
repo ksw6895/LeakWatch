@@ -11,6 +11,7 @@ import { UploadsPanel } from '../../../../components/uploads-panel';
 function UploadsPageContent() {
   const params = useSearchParams();
   const host = params.get('host');
+  const shop = params.get('shop');
   const apiKey = process.env.NEXT_PUBLIC_SHOPIFY_API_KEY;
 
   const appBridgeConfig =
@@ -26,10 +27,10 @@ function UploadsPageContent() {
     <AppProvider i18n={enTranslations}>
       {appBridgeConfig ? (
         <AppBridgeProvider config={appBridgeConfig}>
-          <UploadsPanel host={host} />
+          <UploadsPanel host={host} shop={shop} />
         </AppBridgeProvider>
       ) : (
-        <UploadsPanel host={host} />
+        <UploadsPanel host={host} shop={shop} />
       )}
     </AppProvider>
   );

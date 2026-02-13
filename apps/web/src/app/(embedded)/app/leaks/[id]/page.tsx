@@ -29,6 +29,9 @@ type EvidenceRef = {
   kind: string;
   excerpt: string;
   pointerJson: Record<string, unknown>;
+  documentVersionId?: string | null;
+  documentId?: string | null;
+  documentVersionNumber?: number | null;
 };
 
 type FindingDetail = {
@@ -295,6 +298,26 @@ function LeaksDetailContent() {
                                       {evidence.kind}
                                     </Text>
                                     <div className="lw-metric-hint">{evidence.excerpt}</div>
+                                    {evidence.documentId ? (
+                                      <Box paddingBlockStart="100">
+                                        <Button
+                                          onClick={() => {
+                                            const versionQuery = evidence.documentVersionId
+                                              ? `?versionId=${encodeURIComponent(evidence.documentVersionId)}`
+                                              : '';
+                                            navigateEmbedded(
+                                              `/app/documents/${evidence.documentId}${versionQuery}`,
+                                              { host, shop },
+                                            );
+                                          }}
+                                        >
+                                          View document
+                                          {typeof evidence.documentVersionNumber === 'number'
+                                            ? ` v${evidence.documentVersionNumber}`
+                                            : ''}
+                                        </Button>
+                                      </Box>
+                                    ) : null}
                                     <pre className="lw-pre">
                                       {JSON.stringify(evidence.pointerJson, null, 2)}
                                     </pre>

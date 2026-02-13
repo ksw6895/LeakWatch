@@ -16,6 +16,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { apiFetch } from '../lib/api/fetcher';
 import { canUpload, writeAccessReason } from '../lib/auth/roles';
+import { navigateEmbedded } from '../lib/navigation/embedded';
 import { StatePanel } from './common/StatePanel';
 
 type AuthMe = {
@@ -121,7 +122,7 @@ async function sha256Hex(file: File): Promise<string> {
     .join('');
 }
 
-export function UploadsPanel({ host }: { host: string | null }) {
+export function UploadsPanel({ host, shop }: { host: string | null; shop: string | null }) {
   const [auth, setAuth] = useState<AuthMe | null>(null);
   const [documents, setDocuments] = useState<DocumentRow[]>([]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -534,6 +535,24 @@ export function UploadsPanel({ host }: { host: string | null }) {
                                     vendor: {document.vendorHint}
                                   </div>
                                 ) : null}
+                                <Box paddingBlockStart="100">
+                                  <Button
+                                    onClick={() => {
+                                      const versionQuery = latest?.id
+                                        ? `?versionId=${encodeURIComponent(latest.id)}`
+                                        : '';
+                                      navigateEmbedded(
+                                        `/app/documents/${document.id}${versionQuery}`,
+                                        {
+                                          host,
+                                          shop,
+                                        },
+                                      );
+                                    }}
+                                  >
+                                    Open detail
+                                  </Button>
+                                </Box>
                               </td>
                               <td>
                                 <Badge tone={latest ? statusTone(latest.status) : 'info'}>
