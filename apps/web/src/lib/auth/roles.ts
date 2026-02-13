@@ -4,6 +4,10 @@ function hasWriteRole(roles: readonly UserRole[]): boolean {
   return roles.includes('OWNER') || roles.includes('MEMBER');
 }
 
+function isOwner(roles: readonly UserRole[]): boolean {
+  return roles.includes('OWNER');
+}
+
 export function canUpload(roles: readonly UserRole[]): boolean {
   return hasWriteRole(roles);
 }
@@ -13,7 +17,7 @@ export function canApproveSend(roles: readonly UserRole[]): boolean {
 }
 
 export function canManageBilling(roles: readonly UserRole[]): boolean {
-  return hasWriteRole(roles);
+  return isOwner(roles);
 }
 
 export function writeAccessReason(roles: readonly UserRole[]): string {
@@ -21,4 +25,11 @@ export function writeAccessReason(roles: readonly UserRole[]): string {
     return '';
   }
   return 'Requires OWNER or MEMBER role';
+}
+
+export function billingAccessReason(roles: readonly UserRole[]): string {
+  if (isOwner(roles)) {
+    return '';
+  }
+  return 'Billing settings require OWNER role.';
 }

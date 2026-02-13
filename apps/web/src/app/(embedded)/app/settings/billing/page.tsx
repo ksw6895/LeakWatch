@@ -8,7 +8,11 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { apiFetch } from '../../../../../lib/api/fetcher';
 import { StatePanel } from '../../../../../components/common/StatePanel';
-import { canManageBilling, writeAccessReason } from '../../../../../lib/auth/roles';
+import {
+  billingAccessReason,
+  canManageBilling,
+  writeAccessReason,
+} from '../../../../../lib/auth/roles';
 
 type BillingCurrent = {
   plan: string;
@@ -36,8 +40,9 @@ function BillingPageContent() {
   const [current, setCurrent] = useState<BillingCurrent | null>(null);
   const [upgradingPlan, setUpgradingPlan] = useState<'STARTER' | 'PRO' | null>(null);
   const [roles, setRoles] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const billingAllowed = canManageBilling(roles);
-  const blockedReason = writeAccessReason(roles);
+  const blockedReason = billingAccessReason(roles) || writeAccessReason(roles);
 
   const refresh = useCallback(async () => {
     if (!host) {
@@ -81,12 +86,22 @@ function BillingPageContent() {
     }
     setUpgradingPlan(plan);
     try {
-      await apiFetch(`/v1/billing/subscribe?plan=${plan}`, {
+      const response = await apiFetch(`/v1/billing/subscribe?plan=${plan}`, {
         host,
         method: 'POST',
         body: JSON.stringify({}),
       });
+      if (!response.ok) {
+        setError(`Upgrade failed (${response.status})`);
+        return;
+      }
+      const json = (await response.json()) as { confirmationUrl?: string };
+      if (json.confirmationUrl) {
+        window.location.assign(json.confirmationUrl);
+        return;
+      }
       await refresh();
+      setError(null);
     } finally {
       setUpgradingPlan(null);
     }
@@ -152,6 +167,11 @@ function BillingPageContent() {
                   </div>
 
                   <div className="lw-content-box">
+                    {error ? (
+                      <Box paddingBlockEnd="200">
+                        <StatePanel kind="error" message={error} />
+                      </Box>
+                    ) : null}
                     <Text as="p" variant="bodySm" tone="subdued">
                       Upgrades apply immediately and refresh current quota limits.
                     </Text>
