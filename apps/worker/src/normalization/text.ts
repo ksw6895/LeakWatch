@@ -32,10 +32,20 @@ export function numberLinesByPage(rawText: string): string {
   return chunks.join('\n');
 }
 
+function looksLikeDateToken(value: string): boolean {
+  const token = value.trim();
+  return (
+    /^\d{4}[-/.]\d{1,2}[-/.]\d{1,2}$/.test(token) ||
+    /^\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}$/.test(token)
+  );
+}
+
 export function maskPii(text: string): string {
   return text
     .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[EMAIL]')
-    .replace(/\+?\d[\d\s().-]{7,}\d/g, '[PHONE]')
+    .replace(/\+?\d[\d\s().-]{7,}\d/g, (match) =>
+      looksLikeDateToken(match) ? match : '[PHONE]',
+    )
     .replace(/\b(?:\d[ -]*?){13,19}\b/g, '[CARD]')
     .replace(/\b\d{1,5}\s+[A-Za-z0-9.\s]{3,}\s(?:Street|St|Road|Rd|Avenue|Ave|Lane|Ln|Boulevard|Blvd)\b/gi, '[ADDR]');
 }
@@ -59,4 +69,3 @@ export function trimForPrompt(numberedText: string): { text: string; reduced: bo
     reduced: true,
   };
 }
-

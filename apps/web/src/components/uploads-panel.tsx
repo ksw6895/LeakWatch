@@ -49,6 +49,25 @@ function statusTone(status: string): 'info' | 'success' | 'attention' | 'critica
   return 'info';
 }
 
+async function buildApiError(response: Response, fallback: string): Promise<string> {
+  try {
+    const body = (await response.json()) as {
+      message?: string | string[];
+      error?: string;
+    };
+    const message = Array.isArray(body.message) ? body.message.join(', ') : body.message;
+    if (typeof message === 'string' && message.length > 0) {
+      return `${fallback}: ${message}`;
+    }
+    if (typeof body.error === 'string' && body.error.length > 0) {
+      return `${fallback}: ${body.error}`;
+    }
+  } catch {
+    // ignore parse errors and fall back to status-only message
+  }
+  return fallback;
+}
+
 async function sha256Hex(file: File): Promise<string> {
   const buffer = await file.arrayBuffer();
   const digest = await crypto.subtle.digest('SHA-256', buffer);
@@ -124,7 +143,12 @@ export function UploadsPanel({ host }: { host: string | null }) {
       });
 
       if (!createResponse.ok) {
-        throw new Error(`Create upload failed (${createResponse.status})`);
+        throw new Error(
+          await buildApiError(
+            createResponse,
+            `Create upload failed (${createResponse.status})`,
+          ),
+        );
       }
 
       const createJson = (await createResponse.json()) as {

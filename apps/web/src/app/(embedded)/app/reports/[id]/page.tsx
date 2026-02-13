@@ -8,6 +8,15 @@ import { Suspense, useEffect, useState } from 'react';
 
 import { apiFetch } from '../../../../../lib/api/fetcher';
 
+function formatUtcDate(value: string): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    timeZone: 'UTC',
+  }).format(new Date(value));
+}
+
 function ReportDetailPageContent() {
   const params = useParams<{ id: string }>();
   const searchParams = useSearchParams();
@@ -67,8 +76,8 @@ function ReportDetailPageContent() {
               ) : (
                 <>
                   <Text as="p" variant="bodyMd">
-                    {report.period} / {new Date(report.periodStart).toLocaleDateString()} -{' '}
-                    {new Date(report.periodEnd).toLocaleDateString()}
+                    {report.period} / {formatUtcDate(report.periodStart)} -{' '}
+                    {formatUtcDate(report.periodEnd)}
                   </Text>
                   <Box paddingBlockStart="300">
                     <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>

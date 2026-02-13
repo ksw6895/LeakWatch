@@ -16,6 +16,15 @@ type ReportItem = {
   createdAt: string;
 };
 
+function formatUtcDate(value: string): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    timeZone: 'UTC',
+  }).format(new Date(value));
+}
+
 function ReportsPageContent() {
   const searchParams = useSearchParams();
   const host = searchParams.get('host');
@@ -80,15 +89,21 @@ function ReportsPageContent() {
               return;
             }
             const me = (await meResponse.json()) as { shopId: string };
-            await apiFetch(
-              `/v1/reports/generate?shopId=${encodeURIComponent(me.shopId)}&period=MONTHLY`,
+            const generateResponse = await apiFetch(
+              `/v1/reports/generate?shopId=${encodeURIComponent(me.shopId)}&period=MONTHLY&force=true`,
               {
                 host,
                 method: 'POST',
                 body: JSON.stringify({}),
               },
             );
+            if (!generateResponse.ok) {
+              return;
+            }
             await load();
+            window.setTimeout(() => {
+              void load();
+            }, 1200);
           })();
         },
       }}
@@ -115,7 +130,7 @@ function ReportsPageContent() {
                     <tr>
                       <th style={{ textAlign: 'left', padding: '8px 0' }}>Period</th>
                       <th style={{ textAlign: 'left', padding: '8px 0' }}>Range</th>
-                      <th style={{ textAlign: 'left', padding: '8px 0' }}>Created</th>
+                      <th style={{ textAlign: 'left', padding: '8px 0' }}>Generated</th>
                       <th style={{ textAlign: 'left', padding: '8px 0' }}>Action</th>
                     </tr>
                   </thead>
@@ -124,8 +139,7 @@ function ReportsPageContent() {
                       <tr key={item.id}>
                         <td style={{ padding: '8px 0' }}>{item.period}</td>
                         <td style={{ padding: '8px 0' }}>
-                          {new Date(item.periodStart).toLocaleDateString()} -{' '}
-                          {new Date(item.periodEnd).toLocaleDateString()}
+                          {formatUtcDate(item.periodStart)} - {formatUtcDate(item.periodEnd)}
                         </td>
                         <td style={{ padding: '8px 0' }}>
                           {new Date(item.createdAt).toLocaleString()}

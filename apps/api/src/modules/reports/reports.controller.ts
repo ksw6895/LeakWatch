@@ -28,9 +28,13 @@ export class ReportsController {
     @AuthContext() auth: RequestAuthContext,
     @Query('shopId') shopId?: string,
     @Query('period') period?: string,
+    @Query('force') force?: string,
   ) {
     const targetPeriod =
       period?.toUpperCase() === 'WEEKLY' ? ReportPeriod.WEEKLY : ReportPeriod.MONTHLY;
-    return this.reportsService.enqueueGenerate(auth.orgId, shopId ?? auth.shopId, targetPeriod);
+    const forceReplace = force === '1' || force?.toLowerCase() === 'true';
+    return this.reportsService.enqueueGenerate(auth.orgId, shopId ?? auth.shopId, targetPeriod, {
+      force: forceReplace,
+    });
   }
 }

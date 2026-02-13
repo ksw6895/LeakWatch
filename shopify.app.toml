@@ -1,0 +1,21 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "960fb5658f90de2a3abae83c740eaf93"
+name = "LeakWatch Dev"
+application_url = "https://nonconfirmative-mistie-princely.ngrok-free.dev"
+embedded = true
+
+[webhooks]
+api_version = "2026-01"
+
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "read_products"
+optional_scopes = [ ]
+use_legacy_install_flow = true
+
+[auth]
+redirect_urls = [
+  "https://nonconfirmative-mistie-princely.ngrok-free.dev/v1/shopify/auth/callback"
+]

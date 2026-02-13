@@ -120,13 +120,32 @@ export class ReportsService {
     };
   }
 
-  async enqueueGenerate(orgId: string, shopId: string, period: ReportPeriod) {
+  async enqueueGenerate(
+    orgId: string,
+    shopId: string,
+    period: ReportPeriod,
+    options?: { force?: boolean },
+  ) {
     const shop = await this.prisma.shop.findFirst({ where: { id: shopId, orgId } });
     if (!shop) {
       throw new NotFoundException('Shop not found');
     }
 
     const { start, end } = getPeriodRange(period, new Date());
+    let replacedExisting = false;
+    if (options?.force) {
+      const deleted = await this.prisma.report.deleteMany({
+        where: {
+          orgId,
+          shopId,
+          period,
+          periodStart: start,
+          periodEnd: end,
+        },
+      });
+      replacedExisting = deleted.count > 0;
+    }
+
     const jobId = await this.queueService.enqueueReportGenerate({
       shopId,
       period,
@@ -139,6 +158,7 @@ export class ReportsService {
       periodStart: start,
       periodEnd: end,
       shopId,
+      replacedExisting,
     };
   }
 }
