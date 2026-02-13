@@ -8,22 +8,24 @@ import { Suspense, useEffect, useState } from 'react';
 
 import { apiFetch } from '../../../../lib/api/fetcher';
 
+type AgencySummary = {
+  shopsCount: number;
+  totalSpend: string;
+  potentialSavings: string;
+  topFindingsAcrossShops: Array<{
+    id: string;
+    shopId: string;
+    title: string;
+    estimatedSavingsAmount: string;
+    currency: string;
+  }>;
+};
+
 function AgencyPageContent() {
   const searchParams = useSearchParams();
   const host = searchParams.get('host');
   const apiKey = process.env.NEXT_PUBLIC_SHOPIFY_API_KEY;
-  const [summary, setSummary] = useState<{
-    shopsCount: number;
-    totalSpend: string;
-    potentialSavings: string;
-    topFindingsAcrossShops: Array<{
-      id: string;
-      shopId: string;
-      title: string;
-      estimatedSavingsAmount: string;
-      currency: string;
-    }>;
-  } | null>(null);
+  const [summary, setSummary] = useState<AgencySummary | null>(null);
 
   useEffect(() => {
     if (!host) {
@@ -39,7 +41,7 @@ function AgencyPageContent() {
       if (!response.ok) {
         return;
       }
-      setSummary((await response.json()) as typeof summary);
+      setSummary((await response.json()) as AgencySummary);
     })();
   }, [host]);
 
@@ -63,20 +65,58 @@ function AgencyPageContent() {
                   Loading...
                 </Text>
               ) : (
-                <>
-                  <Text as="p" variant="bodyMd">
-                    Shops: {summary.shopsCount} / Total spend: {summary.totalSpend} / Potential
-                    savings: {summary.potentialSavings}
-                  </Text>
-                  <Box paddingBlockStart="300">
-                    {summary.topFindingsAcrossShops.map((finding) => (
-                      <Text key={finding.id} as="p" variant="bodySm">
-                        [{finding.shopId}] {finding.title} ({finding.estimatedSavingsAmount}{' '}
-                        {finding.currency})
+                <div className="lw-page-stack lw-animate-in">
+                  <div className="lw-hero">
+                    <span className="lw-eyebrow">Agency View</span>
+                    <div className="lw-title">
+                      <Text as="h2" variant="headingMd">
+                        Multi-store leakage and savings overview
                       </Text>
-                    ))}
-                  </Box>
-                </>
+                    </div>
+                    <div className="lw-subtitle">
+                      <Text as="p" variant="bodySm">
+                        Rollup across connected shops with prioritized cross-account findings.
+                      </Text>
+                    </div>
+                  </div>
+
+                  <div className="lw-summary-grid">
+                    <div className="lw-metric lw-metric--compact">
+                      <div className="lw-metric-label">Connected shops</div>
+                      <div className="lw-metric-value">{summary.shopsCount}</div>
+                    </div>
+                    <div className="lw-metric lw-metric--compact">
+                      <div className="lw-metric-label">Total spend</div>
+                      <div className="lw-metric-value">{summary.totalSpend}</div>
+                    </div>
+                    <div className="lw-metric lw-metric--compact">
+                      <div className="lw-metric-label">Potential savings</div>
+                      <div className="lw-metric-value">{summary.potentialSavings}</div>
+                    </div>
+                  </div>
+
+                  <div className="lw-content-box">
+                    <div className="lw-title">
+                      <Text as="h3" variant="headingSm">
+                        Top findings across shops
+                      </Text>
+                    </div>
+                    <Box paddingBlockStart="200">
+                      <div className="lw-list">
+                        {summary.topFindingsAcrossShops.map((finding) => (
+                          <div key={finding.id} className="lw-list-item">
+                            <Text as="p" variant="bodySm">
+                              [{finding.shopId}] {finding.title}
+                            </Text>
+                            <div className="lw-metric-hint">
+                              {finding.estimatedSavingsAmount} {finding.currency}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </Box>
+                  </div>
+                </div>
               )}
             </Box>
           </Card>

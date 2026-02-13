@@ -4,7 +4,7 @@ import { Provider as AppBridgeProvider } from '@shopify/app-bridge-react';
 import { AppProvider, Box, Button, Card, Layout, Page, Text } from '@shopify/polaris';
 import enTranslations from '@shopify/polaris/locales/en.json';
 import { useSearchParams } from 'next/navigation';
-import { Suspense, useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { apiFetch } from '../../../../lib/api/fetcher';
 
@@ -33,6 +33,22 @@ function ReportsPageContent() {
   const [items, setItems] = useState<ReportItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
+  const monthlyCount = useMemo(
+    () => items.filter((item) => item.period === 'MONTHLY').length,
+    [items],
+  );
+  const weeklyCount = useMemo(() => items.filter((item) => item.period === 'WEEKLY').length, [items]);
+  const latestGeneratedAt = useMemo(
+    () =>
+      items.reduce<string | null>((latest, item) => {
+        if (!latest) {
+          return item.createdAt;
+        }
+        return new Date(item.createdAt).getTime() > new Date(latest).getTime() ? item.createdAt : latest;
+      }, null),
+    [items],
+  );
 
   const load = useCallback(async () => {
     if (!host) {
@@ -74,100 +90,142 @@ function ReportsPageContent() {
         }
       : null;
 
+  const generateMonthly = useCallback(async () => {
+    if (!host) {
+      return;
+    }
+    setGenerating(true);
+    try {
+      const meResponse = await apiFetch('/v1/auth/me', { host });
+      if (!meResponse.ok) {
+        return;
+      }
+      const me = (await meResponse.json()) as { shopId: string };
+      const generateResponse = await apiFetch(
+        `/v1/reports/generate?shopId=${encodeURIComponent(me.shopId)}&period=MONTHLY&force=true`,
+        {
+          host,
+          method: 'POST',
+          body: JSON.stringify({}),
+        },
+      );
+      if (!generateResponse.ok) {
+        return;
+      }
+      await load();
+      window.setTimeout(() => {
+        void load();
+      }, 1200);
+    } finally {
+      setGenerating(false);
+    }
+  }, [host, load]);
+
   const content = (
     <Page
       title="Reports"
       primaryAction={{
         content: 'Generate Monthly',
-        onAction: () => {
-          if (!host) {
-            return;
-          }
-          void (async () => {
-            const meResponse = await apiFetch('/v1/auth/me', { host });
-            if (!meResponse.ok) {
-              return;
-            }
-            const me = (await meResponse.json()) as { shopId: string };
-            const generateResponse = await apiFetch(
-              `/v1/reports/generate?shopId=${encodeURIComponent(me.shopId)}&period=MONTHLY&force=true`,
-              {
-                host,
-                method: 'POST',
-                body: JSON.stringify({}),
-              },
-            );
-            if (!generateResponse.ok) {
-              return;
-            }
-            await load();
-            window.setTimeout(() => {
-              void load();
-            }, 1200);
-          })();
-        },
+        onAction: () => void generateMonthly(),
+        loading: generating,
       }}
     >
       <Layout>
         <Layout.Section>
           <Card>
             <Box padding="400">
-              {loading ? (
-                <Text as="p" variant="bodyMd">
-                  Loading...
-                </Text>
-              ) : error ? (
-                <Text as="p" variant="bodyMd" tone="critical">
-                  {error}
-                </Text>
-              ) : items.length === 0 ? (
-                <Text as="p" variant="bodyMd">
-                  No reports yet.
-                </Text>
-              ) : (
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr>
-                      <th style={{ textAlign: 'left', padding: '8px 0' }}>Period</th>
-                      <th style={{ textAlign: 'left', padding: '8px 0' }}>Range</th>
-                      <th style={{ textAlign: 'left', padding: '8px 0' }}>Generated</th>
-                      <th style={{ textAlign: 'left', padding: '8px 0' }}>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {items.map((item) => (
-                      <tr key={item.id}>
-                        <td style={{ padding: '8px 0' }}>{item.period}</td>
-                        <td style={{ padding: '8px 0' }}>
-                          {formatUtcDate(item.periodStart)} - {formatUtcDate(item.periodEnd)}
-                        </td>
-                        <td style={{ padding: '8px 0' }}>
-                          {new Date(item.createdAt).toLocaleString()}
-                        </td>
-                        <td style={{ padding: '8px 0' }}>
-                          <Button
-                            onClick={() => {
-                              const next = new URL(
-                                `/app/reports/${item.id}`,
-                                window.location.origin,
-                              );
-                              if (host) {
-                                next.searchParams.set('host', host);
-                              }
-                              if (shop) {
-                                next.searchParams.set('shop', shop);
-                              }
-                              window.location.assign(next.toString());
-                            }}
-                          >
-                            View
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
+              <div className="lw-page-stack lw-animate-in">
+                <div className="lw-hero">
+                  <span className="lw-eyebrow">Report Hub</span>
+                  <div className="lw-title">
+                    <Text as="h2" variant="headingMd">
+                      Generated intelligence for billing and leakage trends
+                    </Text>
+                  </div>
+                  <div className="lw-subtitle">
+                    <Text as="p" variant="bodySm">
+                      Trigger monthly snapshots and drill into period-level summaries.
+                    </Text>
+                  </div>
+                </div>
+
+                <div className="lw-summary-grid">
+                  <div className="lw-metric lw-metric--compact">
+                    <div className="lw-metric-label">Total reports</div>
+                    <div className="lw-metric-value">{items.length}</div>
+                  </div>
+                  <div className="lw-metric lw-metric--compact">
+                    <div className="lw-metric-label">Monthly</div>
+                    <div className="lw-metric-value">{monthlyCount}</div>
+                  </div>
+                  <div className="lw-metric lw-metric--compact">
+                    <div className="lw-metric-label">Weekly</div>
+                    <div className="lw-metric-value">{weeklyCount}</div>
+                  </div>
+                  <div className="lw-metric lw-metric--compact">
+                    <div className="lw-metric-label">Last generated</div>
+                    <div className="lw-metric-value">
+                      {latestGeneratedAt ? formatUtcDate(latestGeneratedAt) : 'n/a'}
+                    </div>
+                  </div>
+                </div>
+
+                {loading ? (
+                  <Text as="p" variant="bodyMd">
+                    Loading...
+                  </Text>
+                ) : error ? (
+                  <Text as="p" variant="bodyMd" tone="critical">
+                    {error}
+                  </Text>
+                ) : items.length === 0 ? (
+                  <Text as="p" variant="bodyMd">
+                    No reports yet.
+                  </Text>
+                ) : (
+                  <div className="lw-table-wrap">
+                    <table className="lw-table">
+                      <thead>
+                        <tr>
+                          <th>Period</th>
+                          <th>Range</th>
+                          <th>Generated</th>
+                          <th>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {items.map((item) => (
+                          <tr key={item.id}>
+                            <td>
+                              <span className="lw-inline-chip">{item.period}</span>
+                            </td>
+                            <td>
+                              {formatUtcDate(item.periodStart)} - {formatUtcDate(item.periodEnd)}
+                            </td>
+                            <td>{new Date(item.createdAt).toLocaleString()}</td>
+                            <td>
+                              <Button
+                                onClick={() => {
+                                  const next = new URL(`/app/reports/${item.id}`, window.location.origin);
+                                  if (host) {
+                                    next.searchParams.set('host', host);
+                                  }
+                                  if (shop) {
+                                    next.searchParams.set('shop', shop);
+                                  }
+                                  window.location.assign(next.toString());
+                                }}
+                              >
+                                View
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
             </Box>
           </Card>
         </Layout.Section>

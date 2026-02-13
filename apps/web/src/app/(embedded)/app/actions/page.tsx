@@ -4,7 +4,7 @@ import { Provider as AppBridgeProvider } from '@shopify/app-bridge-react';
 import { AppProvider, Badge, Box, Button, Card, Layout, Page, Text } from '@shopify/polaris';
 import enTranslations from '@shopify/polaris/locales/en.json';
 import { useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 
 import { apiFetch } from '../../../../lib/api/fetcher';
 
@@ -48,6 +48,19 @@ function ActionsPageContent() {
   const [items, setItems] = useState<ActionRequestListItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const draftsCount = useMemo(
+    () => items.filter((item) => item.status === 'DRAFT').length,
+    [items],
+  );
+  const approvedCount = useMemo(
+    () => items.filter((item) => item.status === 'APPROVED').length,
+    [items],
+  );
+  const canceledCount = useMemo(
+    () => items.filter((item) => item.status === 'CANCELED').length,
+    [items],
+  );
+  const activeRecipients = useMemo(() => new Set(items.map((item) => item.toEmail)).size, [items]);
 
   useEffect(() => {
     if (!host) {
@@ -100,10 +113,41 @@ function ActionsPageContent() {
               <Layout.Section>
                 <Card>
                   <Box padding="400">
-                    <Text as="p" variant="bodySm" tone="subdued">
-                      Draft, approval, and delivery status of outbound vendor actions
-                    </Text>
-                    <Box paddingBlockStart="300">
+                    <div className="lw-page-stack lw-animate-in">
+                      <div className="lw-hero">
+                        <span className="lw-eyebrow">Action Queue</span>
+                        <div className="lw-title">
+                          <Text as="h2" variant="headingMd">
+                            Vendor outreach lifecycle: draft, approve, deliver
+                          </Text>
+                        </div>
+                        <div className="lw-subtitle">
+                          <Text as="p" variant="bodySm">
+                            Track outbound requests linked to leak findings and evidence packs.
+                          </Text>
+                        </div>
+                      </div>
+
+                      <div className="lw-summary-grid">
+                        <div className="lw-metric lw-metric--compact">
+                          <div className="lw-metric-label">Total actions</div>
+                          <div className="lw-metric-value">{items.length}</div>
+                        </div>
+                        <div className="lw-metric lw-metric--compact">
+                          <div className="lw-metric-label">Drafts</div>
+                          <div className="lw-metric-value">{draftsCount}</div>
+                        </div>
+                        <div className="lw-metric lw-metric--compact">
+                          <div className="lw-metric-label">Approved</div>
+                          <div className="lw-metric-value">{approvedCount}</div>
+                        </div>
+                        <div className="lw-metric lw-metric--compact">
+                          <div className="lw-metric-label">Recipients</div>
+                          <div className="lw-metric-value">{activeRecipients}</div>
+                          <div className="lw-metric-hint">canceled: {canceledCount}</div>
+                        </div>
+                      </div>
+
                       {loading ? (
                         <Text as="p" variant="bodyMd">
                           Loading...
@@ -117,53 +161,61 @@ function ActionsPageContent() {
                           No action requests yet
                         </Text>
                       ) : (
-                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                          <thead>
-                            <tr>
-                              <th style={{ textAlign: 'left', padding: '8px 0' }}>Status</th>
-                              <th style={{ textAlign: 'left', padding: '8px 0' }}>Type</th>
-                              <th style={{ textAlign: 'left', padding: '8px 0' }}>Finding</th>
-                              <th style={{ textAlign: 'left', padding: '8px 0' }}>Recipient</th>
-                              <th style={{ textAlign: 'left', padding: '8px 0' }}>Action</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {items.map((item) => (
-                              <tr key={item.id}>
-                                <td style={{ padding: '8px 0' }}>
-                                  <Badge tone={tone(item.status)}>{item.status}</Badge>
-                                </td>
-                                <td style={{ padding: '8px 0' }}>{item.type}</td>
-                                <td style={{ padding: '8px 0' }}>
-                                  {item.finding.title} ({item.finding.estimatedSavingsAmount}{' '}
-                                  {item.finding.currency})
-                                </td>
-                                <td style={{ padding: '8px 0' }}>{item.toEmail}</td>
-                                <td style={{ padding: '8px 0' }}>
-                                  <Button
-                                    onClick={() => {
-                                      const target = new URL(
-                                        `/app/actions/${item.id}`,
-                                        window.location.origin,
-                                      );
-                                      if (host) {
-                                        target.searchParams.set('host', host);
-                                      }
-                                      if (shop) {
-                                        target.searchParams.set('shop', shop);
-                                      }
-                                      window.location.assign(target.toString());
-                                    }}
-                                  >
-                                    View
-                                  </Button>
-                                </td>
+                        <div className="lw-table-wrap">
+                          <table className="lw-table">
+                            <thead>
+                              <tr>
+                                <th>Status</th>
+                                <th>Type</th>
+                                <th>Finding</th>
+                                <th>Recipient</th>
+                                <th>Action</th>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                            </thead>
+                            <tbody>
+                              {items.map((item) => (
+                                <tr key={item.id}>
+                                  <td>
+                                    <Badge tone={tone(item.status)}>{item.status}</Badge>
+                                  </td>
+                                  <td>
+                                    <span className="lw-inline-chip">{item.type}</span>
+                                  </td>
+                                  <td>
+                                    <Text as="p" variant="bodySm">
+                                      {item.finding.title}
+                                    </Text>
+                                    <div className="lw-metric-hint">
+                                      {item.finding.estimatedSavingsAmount} {item.finding.currency}
+                                    </div>
+                                  </td>
+                                  <td>{item.toEmail}</td>
+                                  <td>
+                                    <Button
+                                      onClick={() => {
+                                        const target = new URL(
+                                          `/app/actions/${item.id}`,
+                                          window.location.origin,
+                                        );
+                                        if (host) {
+                                          target.searchParams.set('host', host);
+                                        }
+                                        if (shop) {
+                                          target.searchParams.set('shop', shop);
+                                        }
+                                        window.location.assign(target.toString());
+                                      }}
+                                    >
+                                      View
+                                    </Button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
                       )}
-                    </Box>
+                    </div>
                   </Box>
                 </Card>
               </Layout.Section>

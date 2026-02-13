@@ -4,7 +4,7 @@ import { Provider as AppBridgeProvider } from '@shopify/app-bridge-react';
 import { AppProvider, Box, Button, Card, Layout, Page, Text } from '@shopify/polaris';
 import enTranslations from '@shopify/polaris/locales/en.json';
 import { useSearchParams } from 'next/navigation';
-import { Suspense, useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { apiFetch } from '../../../../../lib/api/fetcher';
 
@@ -27,6 +27,7 @@ function BillingPageContent() {
   const host = searchParams.get('host');
   const apiKey = process.env.NEXT_PUBLIC_SHOPIFY_API_KEY;
   const [current, setCurrent] = useState<BillingCurrent | null>(null);
+  const [upgradingPlan, setUpgradingPlan] = useState<'STARTER' | 'PRO' | null>(null);
 
   const refresh = useCallback(async () => {
     if (!host) {
@@ -50,6 +51,36 @@ function BillingPageContent() {
     void refresh();
   }, [refresh]);
 
+  const uploadsUsagePercent = useMemo(() => {
+    if (!current || current.limits.uploads === 0) {
+      return 0;
+    }
+    return Math.min(100, Math.round((current.usage.uploads / current.limits.uploads) * 100));
+  }, [current]);
+  const emailsUsagePercent = useMemo(() => {
+    if (!current || current.limits.emails === 0) {
+      return 0;
+    }
+    return Math.min(100, Math.round((current.usage.emails / current.limits.emails) * 100));
+  }, [current]);
+
+  const upgradeTo = async (plan: 'STARTER' | 'PRO') => {
+    if (!host) {
+      return;
+    }
+    setUpgradingPlan(plan);
+    try {
+      await apiFetch(`/v1/billing/subscribe?plan=${plan}`, {
+        host,
+        method: 'POST',
+        body: JSON.stringify({}),
+      });
+      await refresh();
+    } finally {
+      setUpgradingPlan(null);
+    }
+  };
+
   const appBridgeConfig =
     host && apiKey
       ? {
@@ -70,54 +101,74 @@ function BillingPageContent() {
                   Loading...
                 </Text>
               ) : (
-                <>
-                  <Text as="p" variant="bodyMd">
-                    Plan: {current.plan} ({current.planStatus})
-                  </Text>
-                  <Text as="p" variant="bodySm" tone="subdued">
-                    Uploads {current.usage.uploads}/{current.limits.uploads}, Emails{' '}
-                    {current.usage.emails}/{current.limits.emails}
-                  </Text>
-                  <Box paddingBlockStart="300">
-                    <Button
-                      variant="primary"
-                      onClick={() => {
-                        if (!host) {
-                          return;
-                        }
-                        void (async () => {
-                          await apiFetch('/v1/billing/subscribe?plan=STARTER', {
-                            host,
-                            method: 'POST',
-                            body: JSON.stringify({}),
-                          });
-                          await refresh();
-                        })();
-                      }}
-                    >
-                      Upgrade to STARTER
-                    </Button>
-                  </Box>
-                  <Box paddingBlockStart="200">
-                    <Button
-                      onClick={() => {
-                        if (!host) {
-                          return;
-                        }
-                        void (async () => {
-                          await apiFetch('/v1/billing/subscribe?plan=PRO', {
-                            host,
-                            method: 'POST',
-                            body: JSON.stringify({}),
-                          });
-                          await refresh();
-                        })();
-                      }}
-                    >
-                      Upgrade to PRO
-                    </Button>
-                  </Box>
-                </>
+                <div className="lw-page-stack lw-animate-in">
+                  <div className="lw-hero">
+                    <span className="lw-eyebrow">Billing Control</span>
+                    <div className="lw-title">
+                      <Text as="h2" variant="headingMd">
+                        Plan and usage overview
+                      </Text>
+                    </div>
+                    <div className="lw-subtitle">
+                      <Text as="p" variant="bodySm">
+                        Monitor utilization and move plans before caps block operations.
+                      </Text>
+                    </div>
+                  </div>
+
+                  <div className="lw-summary-grid">
+                    <div className="lw-metric lw-metric--compact">
+                      <div className="lw-metric-label">Current plan</div>
+                      <div className="lw-metric-value">{current.plan}</div>
+                      <div className="lw-metric-hint">status: {current.planStatus}</div>
+                    </div>
+                    <div className="lw-metric lw-metric--compact">
+                      <div className="lw-metric-label">Uploads usage</div>
+                      <div className="lw-metric-value">
+                        {current.usage.uploads}/{current.limits.uploads}
+                      </div>
+                      <div className="lw-metric-hint">{uploadsUsagePercent}% of quota</div>
+                    </div>
+                    <div className="lw-metric lw-metric--compact">
+                      <div className="lw-metric-label">Email usage</div>
+                      <div className="lw-metric-value">
+                        {current.usage.emails}/{current.limits.emails}
+                      </div>
+                      <div className="lw-metric-hint">{emailsUsagePercent}% of quota</div>
+                    </div>
+                    <div className="lw-metric lw-metric--compact">
+                      <div className="lw-metric-label">Findings cap</div>
+                      <div className="lw-metric-value">{current.limits.findings}</div>
+                    </div>
+                  </div>
+
+                  <div className="lw-content-box">
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      Upgrades apply immediately and refresh current quota limits.
+                    </Text>
+                    <Box paddingBlockStart="300">
+                      <div className="lw-actions-row">
+                        <Button
+                          variant="primary"
+                          loading={upgradingPlan === 'STARTER'}
+                          onClick={() => {
+                            void upgradeTo('STARTER');
+                          }}
+                        >
+                          Upgrade to STARTER
+                        </Button>
+                        <Button
+                          loading={upgradingPlan === 'PRO'}
+                          onClick={() => {
+                            void upgradeTo('PRO');
+                          }}
+                        >
+                          Upgrade to PRO
+                        </Button>
+                      </div>
+                    </Box>
+                  </div>
+                </div>
               )}
             </Box>
           </Card>

@@ -1,7 +1,7 @@
 'use client';
 
 import { Provider as AppBridgeProvider } from '@shopify/app-bridge-react';
-import { AppProvider, Badge, Box, Button, Card, Layout, Page, Text } from '@shopify/polaris';
+import { AppProvider, Box, Button, Card, Layout, Page, Text } from '@shopify/polaris';
 import enTranslations from '@shopify/polaris/locales/en.json';
 import { useParams, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
@@ -140,40 +140,43 @@ function LeaksDetailContent() {
                         Loading...
                       </Text>
                     ) : (
-                      <>
-                        <Text as="h2" variant="headingMd">
-                          {finding.title}
-                        </Text>
-                        <Box paddingBlockStart="200">
-                          <Badge>{finding.type}</Badge>
-                          <Box paddingBlockStart="100">
-                            <Text as="p" variant="bodySm" tone="subdued">
-                              Status: {finding.status} / Confidence: {finding.confidence}
+                      <div className="lw-page-stack lw-animate-in">
+                        <div className="lw-hero">
+                          <span className="lw-eyebrow">Leak Detail</span>
+                          <div className="lw-title">
+                            <Text as="h2" variant="headingMd">
+                              {finding.title}
+                            </Text>
+                          </div>
+                          <Box paddingBlockStart="200">
+                            <span className="lw-inline-chip">{finding.type}</span>{' '}
+                            <span className="lw-inline-chip">status: {finding.status}</span>{' '}
+                            <span className="lw-inline-chip">confidence: {finding.confidence}%</span>
+                          </Box>
+                          <Box paddingBlockStart="200">
+                            <Text as="p" variant="bodySm">
+                              {finding.summary}
                             </Text>
                           </Box>
-                        </Box>
-                        <Box paddingBlockStart="300">
-                          <Text as="p" variant="bodyMd">
-                            {finding.summary}
-                          </Text>
-                          <Text as="p" variant="bodyMd">
-                            Savings estimate: {finding.estimatedSavingsAmount} {finding.currency}
-                          </Text>
-                        </Box>
-                        <Box paddingBlockStart="300">
-                          <Button
-                            variant="primary"
-                            disabled={busy || finding.status === 'DISMISSED'}
-                            onClick={dismiss}
-                          >
-                            Dismiss finding
-                          </Button>
-                          <Box paddingBlockStart="200">
+                          <Box paddingBlockStart="100">
+                            <Text as="p" variant="bodySm" tone="subdued">
+                              Savings estimate: {finding.estimatedSavingsAmount} {finding.currency}
+                            </Text>
+                          </Box>
+                        </div>
+
+                        <div className="lw-content-box">
+                          <div className="lw-actions-row">
+                            <Button
+                              variant="primary"
+                              disabled={busy || finding.status === 'DISMISSED'}
+                              onClick={dismiss}
+                            >
+                              Dismiss finding
+                            </Button>
                             <Button onClick={createActionDraft} disabled={busy}>
                               Create action draft
                             </Button>
-                          </Box>
-                          <Box paddingBlockStart="200">
                             <Button
                               onClick={() => {
                                 const target = new URL('/app/leaks', window.location.origin);
@@ -188,35 +191,38 @@ function LeaksDetailContent() {
                             >
                               Back to list
                             </Button>
-                          </Box>
-                        </Box>
-                        <Box paddingBlockStart="400">
-                          <Text as="h3" variant="headingSm">
-                            Evidence
-                          </Text>
+                          </div>
+                        </div>
+
+                        <div className="lw-content-box">
+                          <div className="lw-title">
+                            <Text as="h3" variant="headingSm">
+                              Evidence
+                            </Text>
+                          </div>
                           <Box paddingBlockStart="200">
                             {finding.evidence.length === 0 ? (
                               <Text as="p" variant="bodySm" tone="subdued">
                                 No evidence attached
                               </Text>
                             ) : (
-                              finding.evidence.map((evidence) => (
-                                <Box key={evidence.id} paddingBlockEnd="300">
-                                  <Text as="p" variant="bodySm">
-                                    {evidence.kind}
-                                  </Text>
-                                  <Text as="p" variant="bodySm" tone="subdued">
-                                    {evidence.excerpt}
-                                  </Text>
-                                  <Text as="p" variant="bodySm" tone="subdued">
-                                    {JSON.stringify(evidence.pointerJson)}
-                                  </Text>
-                                </Box>
-                              ))
+                              <div className="lw-list">
+                                {finding.evidence.map((evidence) => (
+                                  <div key={evidence.id} className="lw-list-item">
+                                    <Text as="p" variant="bodySm">
+                                      {evidence.kind}
+                                    </Text>
+                                    <div className="lw-metric-hint">{evidence.excerpt}</div>
+                                    <pre className="lw-pre">
+                                      {JSON.stringify(evidence.pointerJson, null, 2)}
+                                    </pre>
+                                  </div>
+                                ))}
+                              </div>
                             )}
                           </Box>
-                        </Box>
-                      </>
+                        </div>
+                      </div>
                     )}
                   </Box>
                 </Card>

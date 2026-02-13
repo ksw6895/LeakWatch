@@ -194,20 +194,30 @@ function ActionDetailContent() {
                         Loading...
                       </Text>
                     ) : (
-                      <>
-                        <Text as="h2" variant="headingMd">
-                          {actionRequest.finding.title}
-                        </Text>
-                        <Box paddingBlockStart="200">
-                          <Badge>{actionRequest.type}</Badge>
-                          <Box paddingBlockStart="100">
+                      <div className="lw-page-stack lw-animate-in">
+                        <div className="lw-hero">
+                          <span className="lw-eyebrow">Action Detail</span>
+                          <div className="lw-title">
+                            <Text as="h2" variant="headingMd">
+                              {actionRequest.finding.title}
+                            </Text>
+                          </div>
+                          <Box paddingBlockStart="200">
+                            <Badge>{actionRequest.type}</Badge>{' '}
+                            <span className="lw-inline-chip">status: {actionRequest.status}</span>{' '}
+                            <span className="lw-inline-chip">
+                              savings: {actionRequest.finding.estimatedSavingsAmount}{' '}
+                              {actionRequest.finding.currency}
+                            </span>
+                          </Box>
+                          <Box paddingBlockStart="200">
                             <Text as="p" variant="bodySm" tone="subdued">
-                              Status: {actionRequest.status}
+                              {actionRequest.finding.summary}
                             </Text>
                           </Box>
-                        </Box>
+                        </div>
 
-                        <Box paddingBlockStart="300">
+                        <div className="lw-content-box">
                           <TextField
                             label="To"
                             value={toEmail}
@@ -239,16 +249,16 @@ function ActionDetailContent() {
                               autoComplete="off"
                             />
                           </Box>
-                        </Box>
+                        </div>
 
-                        <Box paddingBlockStart="300">
-                          <Button
-                            onClick={saveDraft}
-                            disabled={busy || actionRequest.status !== 'DRAFT'}
-                          >
-                            Save draft
-                          </Button>
-                          <Box paddingBlockStart="200">
+                        <div className="lw-content-box">
+                          <div className="lw-actions-row">
+                            <Button
+                              onClick={saveDraft}
+                              disabled={busy || actionRequest.status !== 'DRAFT'}
+                            >
+                              Save draft
+                            </Button>
                             <Button
                               variant="primary"
                               onClick={approve}
@@ -256,16 +266,9 @@ function ActionDetailContent() {
                             >
                               Approve and send
                             </Button>
-                          </Box>
-                          <Box paddingBlockStart="200">
-                            <Button
-                              onClick={downloadEvidence}
-                              disabled={busy || !actionRequest.attachmentKey}
-                            >
+                            <Button onClick={downloadEvidence} disabled={busy || !actionRequest.attachmentKey}>
                               Download evidence pack
                             </Button>
-                          </Box>
-                          <Box paddingBlockStart="200">
                             <Button
                               onClick={() => {
                                 const target = new URL('/app/actions', window.location.origin);
@@ -280,46 +283,53 @@ function ActionDetailContent() {
                             >
                               Back to actions
                             </Button>
-                          </Box>
-                        </Box>
+                          </div>
+                        </div>
 
-                        <Box paddingBlockStart="400">
-                          <Text as="h3" variant="headingSm">
-                            Status timeline
-                          </Text>
+                        <div className="lw-content-box">
+                          <div className="lw-title">
+                            <Text as="h3" variant="headingSm">
+                              Status timeline
+                            </Text>
+                          </div>
                           <Box paddingBlockStart="200">
                             {actionRequest.runs.length === 0 ? (
                               <Text as="p" variant="bodySm" tone="subdued">
                                 No send runs yet
                               </Text>
                             ) : (
-                              actionRequest.runs.map((run) => (
-                                <Box key={run.id} paddingBlockEnd="300">
-                                  <Text as="p" variant="bodySm">
-                                    {run.status} at {new Date(run.createdAt).toLocaleString()}
-                                  </Text>
-                                  {run.mailgunMessageId ? (
-                                    <Text as="p" variant="bodySm" tone="subdued">
-                                      message-id: {run.mailgunMessageId}
+                              <div className="lw-list">
+                                {actionRequest.runs.map((run) => (
+                                  <div key={run.id} className="lw-list-item">
+                                    <Text as="p" variant="bodySm">
+                                      {run.status} at {new Date(run.createdAt).toLocaleString()}
                                     </Text>
-                                  ) : null}
-                                  {run.lastError ? (
-                                    <Text as="p" variant="bodySm" tone="critical">
-                                      error: {run.lastError}
-                                    </Text>
-                                  ) : null}
-                                  {run.mailEvents.map((event) => (
-                                    <Text key={event.id} as="p" variant="bodySm" tone="subdued">
-                                      - {event.event} ({new Date(event.occurredAt).toLocaleString()}
-                                      )
-                                    </Text>
-                                  ))}
-                                </Box>
-                              ))
+                                    {run.mailgunMessageId ? (
+                                      <div className="lw-metric-hint">
+                                        message-id: {run.mailgunMessageId}
+                                      </div>
+                                    ) : null}
+                                    {run.lastError ? (
+                                      <Text as="p" variant="bodySm" tone="critical">
+                                        error: {run.lastError}
+                                      </Text>
+                                    ) : null}
+                                    {run.mailEvents.length > 0 ? (
+                                      <Box paddingBlockStart="100">
+                                        {run.mailEvents.map((event) => (
+                                          <Text key={event.id} as="p" variant="bodySm" tone="subdued">
+                                            - {event.event} ({new Date(event.occurredAt).toLocaleString()})
+                                          </Text>
+                                        ))}
+                                      </Box>
+                                    ) : null}
+                                  </div>
+                                ))}
+                              </div>
                             )}
                           </Box>
-                        </Box>
-                      </>
+                        </div>
+                      </div>
                     )}
                   </Box>
                 </Card>
