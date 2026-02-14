@@ -2,9 +2,7 @@
 
 import { Redirect } from '@shopify/app-bridge/actions';
 import createApp from '@shopify/app-bridge';
-import { Provider as AppBridgeProvider } from '@shopify/app-bridge-react';
-import { AppProvider, Badge, Box, Card, Layout, Page, Text } from '@shopify/polaris';
-import enTranslations from '@shopify/polaris/locales/en.json';
+import { Badge, Box, Card, Layout, Page, Text } from '@shopify/polaris';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
@@ -265,28 +263,5 @@ function Content() {
 }
 
 export function EmbeddedShell() {
-  const searchParams = useSearchParams();
-  const host = searchParams.get('host');
-  const apiKey = process.env.NEXT_PUBLIC_SHOPIFY_API_KEY;
-
-  const appBridgeConfig =
-    host && apiKey
-      ? {
-          apiKey,
-          host,
-          forceRedirect: true,
-        }
-      : null;
-
-  return (
-    <AppProvider i18n={enTranslations}>
-      {appBridgeConfig ? (
-        <AppBridgeProvider config={appBridgeConfig}>
-          <Content />
-        </AppBridgeProvider>
-      ) : (
-        <Content />
-      )}
-    </AppProvider>
-  );
+  return <Content />;
 }

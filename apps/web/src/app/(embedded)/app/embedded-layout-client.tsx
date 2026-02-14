@@ -32,6 +32,14 @@ function withContext(pathname: string, host: string | null, shop: string | null)
   return query.length > 0 ? `${pathname}?${query}` : pathname;
 }
 
+function isActivePath(currentPath: string, navPath: string): boolean {
+  if (navPath === '/app') {
+    return currentPath === '/app';
+  }
+
+  return currentPath === navPath || currentPath.startsWith(`${navPath}/`);
+}
+
 export function EmbeddedLayoutClient({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -44,18 +52,31 @@ export function EmbeddedLayoutClient({ children }: { children: React.ReactNode }
         <nav className="lw-embedded-nav" aria-label="Primary">
           {NAV_ITEMS.map((item) => {
             const target = withContext(item.href, host, shop);
-            const isActive = pathname === item.href;
+            const isActive = isActivePath(pathname, item.href);
             return (
               <Link
                 key={item.href}
                 href={target}
                 className={`lw-embedded-nav-link${isActive ? ' lw-embedded-nav-link--active' : ''}`}
+                aria-current={isActive ? 'page' : undefined}
               >
                 {item.label}
               </Link>
             );
           })}
         </nav>
+        <div className="lw-embedded-context" role="status" aria-live="polite">
+          <span
+            className={`lw-inline-chip lw-inline-chip--context${shop ? '' : ' lw-inline-chip--alert'}`}
+          >
+            shop: {shop ?? 'missing'}
+          </span>
+          <span
+            className={`lw-inline-chip lw-inline-chip--context${host ? '' : ' lw-inline-chip--alert'}`}
+          >
+            host: {host ? 'connected' : 'missing'}
+          </span>
+        </div>
       </header>
 
       {!host ? (
