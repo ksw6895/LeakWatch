@@ -2,7 +2,7 @@
 
 client_id = "960fb5658f90de2a3abae83c740eaf93"
 name = "LeakWatch Dev"
-application_url = "https://nonconfirmative-mistie-princely.ngrok-free.dev"
+application_url = "https://leak-watch-web.vercel.app"
 embedded = true
 
 [webhooks]
@@ -17,5 +17,6 @@ use_legacy_install_flow = true
 
 [auth]
 redirect_urls = [
-  "https://nonconfirmative-mistie-princely.ngrok-free.dev/v1/shopify/auth/callback"
+  "https://leakwatch-api.onrender.com/v1/shopify/auth/callback",
+  "https://leak-watch-web.vercel.app/v1/shopify/auth/callback"
 ]
