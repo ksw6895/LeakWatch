@@ -81,8 +81,8 @@ importers:
         specifier: ^0.14.1
         version: 0.14.3
       ioredis:
-        specifier: ^5.8.2
-        version: 5.9.2
+        specifier: ^5.9.3
+        version: 5.9.3
       jose:
         specifier: ^5.9.6
         version: 5.10.0
@@ -185,8 +185,8 @@ importers:
         specifier: ^5.5.6
         version: 5.6.0
       ioredis:
-        specifier: ^5.4.2
-        version: 5.9.2
+        specifier: ^5.9.3
+        version: 5.9.3
       jszip:
         specifier: ^3.10.1
         version: 3.10.1
@@ -2654,6 +2654,10 @@ packages:
 
   ioredis@5.9.2:
     resolution: {integrity: sha512-tAAg/72/VxOUW7RQSX1pIxJVucYKcjFjfvj60L57jrZpYCHC3XN0WCQ3sNYL4Gmvv+7GPvTAjc+KSdeNuE8oWQ==}
+    engines: {node: '>=12.22.0'}
+
+  ioredis@5.9.3:
+    resolution: {integrity: sha512-VI5tMCdeoxZWU5vjHWsiE/Su76JGhBvWF1MJnV9ZtGltHk9BmD48oDq8Tj8haZ85aceXZMxLNDQZRVo5QKNgXA==}
     engines: {node: '>=12.22.0'}
 
   ipaddr.js@1.9.1:
@@ -7074,6 +7078,20 @@ snapshots:
       side-channel: 1.1.0
 
   ioredis@5.9.2:
+    dependencies:
+      '@ioredis/commands': 1.5.0
+      cluster-key-slot: 1.1.2
+      debug: 4.4.3
+      denque: 2.1.0
+      lodash.defaults: 4.2.0
+      lodash.isarguments: 3.1.0
+      redis-errors: 1.2.0
+      redis-parser: 3.0.0
+      standard-as-callback: 2.1.0
+    transitivePeerDependencies:
+      - supports-color
+
+  ioredis@5.9.3:
     dependencies:
       '@ioredis/commands': 1.5.0
       cluster-key-slot: 1.1.2
