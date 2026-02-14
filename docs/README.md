@@ -7,6 +7,7 @@
 - `docs/product/PRD.md` - 제품 요구사항/사용자 스토리/수용 기준
 - `docs/product/ROADMAP.md` - MVP -> V1 로드맵
 - `docs/product/PRICING_AND_UNIT_ECONOMICS.md` - 가격/단위경제성
+- `docs/product/UX_IMPROVEMENT_SHORTLIST_2026-02-15.ko.md` - 코드 기반 UX 갈증 선별안 + 실행 백로그
 
 ## 2) 시스템 설계
 
@@ -23,6 +24,7 @@
 - `docs/engineering/FRONTEND_REVAMP_HYPER_VISOR.md` - 프론트 리뱀프 가이드
 - `docs/engineering/TESTING_QA.md` - 테스트/QA 기준
 - `docs/engineering/ANALYTICS_METRICS.md` - 이벤트/지표 설계
+- `docs/engineering/SHOPIFY_EMBEDDED_FINANCIAL_UX_RESEARCH_2026-02-15.md` - Shopify embedded financial/reconciliation UX research backlog
 
 ## 4) 운영/보안/연동
 
