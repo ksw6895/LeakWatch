@@ -10,8 +10,8 @@
   - body: { currency, timezone, contactEmail }
   - response: 동일
 - RBAC:
-  - read: OWNER/MEMBER/VIEWER/AGENCY_VIEWER (정책 확정)
-  - write: OWNER/MEMBER (현재 구현 기준, billing write는 OWNER-only 유지)
+  - read: OWNER/MEMBER/AGENCY_ADMIN/AGENCY_VIEWER (현재 role enum 기준)
+  - write: OWNER/MEMBER (현재 구현 기준)
 - 이벤트:
   - `settings.updated { shopId, fieldsChanged[] }`
 

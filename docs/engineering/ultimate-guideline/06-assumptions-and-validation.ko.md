@@ -18,7 +18,8 @@
 3. ASSUMPTION: AGENCY_ADMIN write 권한 범위(특히 approve/send)
 
 - 상태: 검증 완료
-- 정책: AGENCY_ADMIN은 tenant 내부 액션/파인딩/agency connect-code write 허용, billing write는 OWNER-only 유지
+- 정책: AGENCY_ADMIN은 tenant 내부 액션/파인딩/agency connect-code write 허용
+- 참고: billing subscribe API는 현재 role decorator 없이 tenant/auth guard 기준으로 동작하고, billing 화면 액션은 UI에서 OWNER-only로 제한
 - 코드 근거: `apps/api/src/modules/actions/actions.controller.ts`, `apps/api/src/modules/findings/findings.controller.ts`, `apps/api/src/modules/agency/agency.controller.ts`, `apps/api/src/modules/shops/shops.controller.ts`
 - 테스트 근거: `apps/api/test/actions-flow.spec.ts` (AGENCY_ADMIN approve 허용)
 

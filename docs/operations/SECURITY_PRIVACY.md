@@ -13,21 +13,26 @@
 ### 1.1 인증 방식 2종
 
 - Embedded(Shopify): Shopify session token(JWT) 검증
-- Agency Portal: Magic link(email) → LW JWT 발급
+- Agency Portal(/agency/\*): 현재도 Shopify embedded session context(host/shop + session token) 기반 인증
+- 별도 Magic link(email) 인증은 현재 구현 범위 아님
 
 ### 1.2 RBAC
 
 OrgRole:
 
 - OWNER: 모든 권한(결제/설정/발송)
-- MEMBER: 업로드/탐지/액션 발송 가능(결제 변경 불가)
-- AGENCY_ADMIN: 여러 Shop 읽기+리포트 생성, (옵션) 발송 가능
+- MEMBER: 업로드/탐지/액션/설정 write 가능(현재 billing UI 액션은 제한)
+- AGENCY_ADMIN: 여러 Shop 읽기 + finding/action/agency connect-code write 허용 범위 존재
 - AGENCY_VIEWER: 읽기만
 
 권한 체크는 API guard에서 강제:
 
-- 모든 write endpoint는 최소 MEMBER
-- billing/settings는 OWNER
+- 공통: non-public endpoint는 bearer token + tenant scope guard를 통과해야 한다.
+- 민감 write endpoint는 `@RequireRoles`가 지정된 경우에 한해 role 강제가 적용된다.
+- 현재 구현 기준 예시:
+  - settings PATCH: OWNER/MEMBER
+  - finding dismiss/action 생성, action approve/status, agency connect-code write: OWNER/MEMBER/AGENCY_ADMIN
+  - billing subscribe 및 일부 documents write endpoint는 role decorator 없이 tenant/auth guard 기준으로 동작
 
 ## 2) Shopify OAuth 토큰 저장(암호화)
 

@@ -127,32 +127,24 @@ VALIDATION
 
 ---
 
-### P0-04) `/app/settings` 및 `/app/documents/[documentId]` 등 문서/PRD 상 핵심 라우트가 실제로는 미구현(404) → 제품 신뢰 하락
+### P0-04) `/app/settings` 및 `/app/documents/[documentId]`는 구현되었고, 현재는 정보 구조/연결성 개선이 핵심
 
 - 관찰:
-  - `docs/engineering/UI_UX.md`에 `/app/documents/[documentId]`, `/app/settings`가 정의
-  - 그러나 실제 파일이 없음(404 확인):
-    - `apps/web/src/app/(embedded)/app/settings/page.tsx` → 404
-    - `apps/web/src/app/(embedded)/app/documents/[documentId]/page.tsx` 류 → 404
-  - 또한 `docs/steps/step-13-non-step-gap-closure.md`에서도 settings/agency 라우트 확장을 “갭”으로 명시
+  - `docs/engineering/UI_UX.md`에 정의된 `/app/settings`, `/app/documents/[documentId]` 라우트는 현재 코드에 구현되어 있다.
+  - 관련 구현 파일:
+    - `apps/web/src/app/(embedded)/app/settings/page.tsx`
+    - `apps/web/src/app/(embedded)/app/documents/[documentId]/page.tsx`
+  - step-13 기준으로 라우트 부재 갭은 해소되었고, 남은 과제는 UX 완성도다.
 - 왜 문제인가:
-  - 업로드 실패/정규화 결과를 “문서 단위”로 디버깅/검증할 경로가 없어 신뢰/설명가능성(Explainability)이 떨어짐
-  - 설정(통화/타임존/contactEmail) 미구현은 리포트/메일 품질과 직결
+  - 라우트가 생겼더라도 정보 구조가 복잡하면 “원인 파악→다음 행동”까지 시간이 길어질 수 있다.
+  - settings와 actions/reports 연결 카피가 약하면 운영자가 설정값의 실제 영향을 이해하기 어렵다.
 - 영향도: High / 빈도: High / 리스크: High(심사/유료전환/신뢰)
 - 최소 개선안:
-  - 라우트가 당장 구현이 어렵다면:
-    - 네비/Quick action에서 해당 링크를 제거하거나 “Coming soon(why)” 페이지를 제공(404 방지)
-  - 업로드 페이지(`/app/uploads`)에서 최소한의 “문서 상세 Drawer/Modal” 제공:
-    - status, errorCode, errorMessage, documentVersionId, createdAt
+  - App Shell과 quick action에서 settings/documents 진입 경로를 일관되게 노출한다.
+  - 업로드/누수/액션 화면에서 문서 상세로 연결되는 CTA를 명시하고, 실패 문서의 재진입 동선을 통일한다.
 - 이상적 개선안(2~6주):
-  - `/app/documents/[documentId]` 구현:
-    - 최신 version + 이전 versions 리스트
-    - status 타임라인(Extract/Normalize/Detect)
-    - rawJson(정규화) / lineItems 테이블
-    - 오류 시 errorCode 기반 재시도/재업로드 가이드
-    - 원본 다운로드(권한 체크 + presigned GET)
-  - `/app/settings` 구현:
-    - currency/timezone/contactEmail 편집 + 저장
+  - `/app/documents/[documentId]`에서 요약/타임라인/rawJson/다운로드 영역의 정보 밀도를 단계적으로 재구성한다.
+  - `/app/settings`에서 currency/timezone/contactEmail 변경이 리포트/액션 화면에 어떻게 반영되는지 즉시 피드백을 제공한다.
 - 검증 방법:
   - 업로드 실패 시 “원인 파악→재업로드” 성공률(실패 반복률 감소)
   - CS 문의 감소(“왜 실패했나요?”)
@@ -416,9 +408,8 @@ VALIDATION
 
 - 관찰:
   - `apps/web/src/app/(embedded)/app/actions/[id]/page.tsx`: Approve & Send 실행
-  - 권한 체크는 프론트에서 `canApproveSend`로 추정(`apps/web/src/lib/auth/roles.ts`), 그러나:
-    - billing/settings는 OWNER만이어야 하는데 현재 `canManageBilling`도 OWNER/MEMBER로 처리(문서 불일치)
-    - 플랜/쿼터 기반 차단은 UI에 없음(빌링 정보는 `/app/settings/billing`에서만 조회)
+  - 권한 체크는 프론트 `canApproveSend`(`apps/web/src/lib/auth/roles.ts`) 기준으로 OWNER/MEMBER write를 허용한다.
+  - billing/settings는 현재 OWNER-only로 정렬되었고(`canManageBilling`), actions detail은 `/v1/billing/current` 조회로 이메일 quota 차단도 반영한다.
 - 왜 문제인가:
   - 잘못된 메일 발송은 “돌이킬 수 없는 행동”이며, 신뢰·법적·스팸 리스크가 있다
   - 권한 부족/쿼터 초과로 서버에서 막히면 UX는 “왜 안 되지?”가 됨
@@ -492,18 +483,18 @@ VALIDATION
 
 ---
 
-### P1-19) “Reply-To = contactEmail” 정책(문서)과 UI/설정 미구현으로 커뮤니케이션 회신 경로가 불명확
+### P1-19) “Reply-To = contactEmail” 정책과 실제 발송 헤더 적용 간 불일치로 회신 경로가 불명확
 
 - 관찰:
   - `docs/architecture/ACTIONS_AUTOMATION.md`: Reply-To는 사용자 contactEmail 권장, 현재 코드 미구현이라고 명시
-  - settings에서 contactEmail 관리 기능도 미구현(현재 `/app/settings` 404)
+  - settings에서 contactEmail 관리 기능은 현재 구현되어 있다(`GET/PATCH /v1/shops/:shopId/settings`).
 - 왜 문제인가:
   - 벤더가 답장하면 어디로 가는지(누가 처리하는지)가 운영상 매우 중요
 - 영향도: Med / 빈도: Med / 리스크: Med
 - 최소 개선안:
   - action detail 화면에 “Reply handling 안내” 텍스트 + 권장 contactEmail 설정 CTA(설정이 없으면 billing/settings로라도 유도)
 - 이상적 개선안:
-  - `/app/settings` 구현 + backend에서 reply-to 적용
+  - backend에서 settings.contactEmail을 Reply-To 헤더로 적용하고, action detail에서 현재 Reply-To 값을 명시한다.
 - 검증 방법:
   - 사용자 인터뷰: “회신이 어디로 오나요?” 질문 감소
 
@@ -519,9 +510,9 @@ VALIDATION
 - 영향도: Med~High / 빈도: Med / 리스크: Med
 - 최소 개선안:
   - action detail에 “Mark as WaitingReply / Mark as Resolved” 버튼(권한 필요)
-  - 단, 백엔드 미구현이면 버튼을 숨기지 말고 disabled + “Coming soon + 이유”로 노출(신뢰 유지)
+  - 현재는 `POST /v1/action-requests/:id/status`가 구현되어 있으므로, 버튼 노출/피드백 일관성(로딩/에러/완료 카피) 중심으로 다듬는다.
 - 이상적 개선안:
-  - `POST /v1/action-requests/:id/status`(또는 동등) 구현 + 감사로그
+  - 상태 변경 이력 타임라인과 운영 메모(옵션)를 함께 제공해 추적 컨텍스트를 강화한다.
 - 검증 방법:
   - 액션의 최종 “Resolved” 전환율(운영 성과) 추적
 
@@ -530,8 +521,8 @@ VALIDATION
 ### P0-22) Billing: 권한 정책(OWNER-only)과 UI 유틸 불일치 → 잘못된 노출/실패 경험
 
 - 관찰:
-  - `docs/operations/SECURITY_PRIVACY.md`: billing/settings는 OWNER
-  - 프론트 `apps/web/src/lib/auth/roles.ts`: `canManageBilling`이 OWNER/MEMBER 모두 true
+  - 현재 제품 정책/화면 기준으로 billing settings 액션은 OWNER 중심으로 제한된다.
+  - 프론트 `apps/web/src/lib/auth/roles.ts`: `canManageBilling`은 OWNER-only로 정렬됨
   - billing 페이지(`apps/web/src/app/(embedded)/app/settings/billing/page.tsx`)는 canManageBilling로 gating
 - 왜 문제인가:
   - MEMBER가 업그레이드 버튼을 보고 클릭 → 403 실패(서버가 막으면) = 불필요한 마찰
@@ -555,7 +546,7 @@ VALIDATION
 ### P0-23) Billing 업그레이드 플로우: Shopify confirmation(결제 승인) UX가 명시되지 않으면 “안 되는 것처럼” 보임
 
 - 관찰:
-  - billing 페이지는 `/v1/billing/subscribe?plan=...` 호출 후 refresh만 수행(코드 상 response 처리 최소)
+  - billing 페이지는 `/v1/billing/subscribe?plan=...` 호출 후 `confirmationUrl`이 있으면 즉시 redirect한다.
   - `docs/operations/INTEGRATIONS_SHOPIFY.md`는 “Shopify confirmation URL 반환 → 프론트 redirect”를 명시
 - 왜 문제인가:
   - Shopify billing은 사용자 승인이 필요한 UX가 일반적. 승인 화면으로 넘어가지 않으면 사용자는 업그레이드가 실패했다고 인식
@@ -619,22 +610,23 @@ VALIDATION
 - 관찰:
   - 데이터모델 OrgRole: OWNER, MEMBER, AGENCY_ADMIN, AGENCY_VIEWER (근거: `docs/architecture/DATA_MODEL.md`)
   - 보안 문서도 동일(근거: `docs/operations/SECURITY_PRIVACY.md`)
-  - 프론트 roles util: `apps/web/src/lib/auth/roles.ts`는 OWNER/MEMBER만 write로 처리, billing도 write로 처리(OWNER-only 아님)
+  - 프론트 roles util: `apps/web/src/lib/auth/roles.ts`는 OWNER/MEMBER만 write로 처리하고 billing은 OWNER-only로 제한한다.
+  - API는 일부 endpoint에서 AGENCY_ADMIN write를 허용하므로 UI/API 권한 체감이 완전히 일치하지 않을 수 있다.
 - 왜 문제인가:
   - UI는 “가능/불가”를 정확히 보여야 한다. 불일치면 클릭 실패/업무 혼란
 - 영향도: High / 빈도: High / 리스크: High
 - 최소 개선안:
-  - 역할 타입 확장: `UserRole = 'OWNER' | 'MEMBER' | 'AGENCY_ADMIN' | 'AGENCY_VIEWER' | 'VIEWER' | string`
+  - 역할 타입 확장: `UserRole = 'OWNER' | 'MEMBER' | 'AGENCY_ADMIN' | 'AGENCY_VIEWER' | string`
   - 권한 함수 재정의(문서 기준):
     - canUpload: OWNER | MEMBER
-    - canApproveSend: OWNER | MEMBER | (ASSUMPTION: AGENCY_ADMIN 포함 여부는 보안 정책 확정 필요 → 아래 “확인 방법” 제공)
-    - canManageBilling: OWNER only
+  - canApproveSend: OWNER | MEMBER | (ASSUMPTION: AGENCY_ADMIN 포함 여부는 보안 정책 확정 필요 → 아래 “확인 방법” 제공)
+  - canManageBilling: OWNER only
   - 액션별 blockedReason 제공(문구 차별화)
 - 이상적 개선안:
   - 백엔드 `/v1/auth/me` 응답에 `permissions: { upload: boolean, send: boolean, billing: boolean }`를 포함해 프론트는 서버를 source-of-truth로 사용(권장)
 - 확인 불가(가정) 및 검증 방법:
   - ASSUMPTION A: AGENCY_ADMIN이 실제로 send 권한이 있는지
-    - 검증: API guard(예: `apps/api/src/common/guards/*`)에서 approve endpoint 권한 조건 확인
+    - 검증: `apps/api/src/modules/actions/actions.controller.ts`의 approve/status endpoint role 조건 확인
     - 대안: UI에서는 AGENCY_ADMIN을 read-only로 처리하되, 기능 요구 시 정책 문서 갱신 후 enable
 - 검증 방법:
   - 권한 부족(403) 에러율 감소
@@ -689,15 +681,14 @@ VALIDATION
 - 관찰:
   - 이벤트 설계 문서는 존재(`docs/engineering/ANALYTICS_METRICS.md`)
   - step-13에서 “핵심 이벤트 4종” 최소 도입을 요구(`docs/steps/step-13-non-step-gap-closure.md`)
-  - 프론트에는 공통 track 유틸/이벤트 전송 코드가 존재하지 않는 것으로 보임(파일 경로 제안만 존재)
+  - 현재 프론트에는 공통 track 유틸이 구현되어 있다(`apps/web/src/lib/analytics/track.ts`).
 - 왜 문제인가:
   - UX 개선은 “측정 가능한 변화”가 없으면 우선순위/ROI 판단이 불가
 - 영향도: High / 빈도: High / 리스크: Med
 - 최소 개선안(0~2주):
-  - `apps/web/src/lib/analytics/track.ts` 신설:
+  - `apps/web/src/lib/analytics/track.ts` 운영 기준화:
     - `track(name, properties)`; 실패 시 no-op(UX 방해 금지)
-    - 전송은 우선 API endpoint `/v1/events`(가정) 또는 console fallback
-      - ASSUMPTION: 이벤트 수집 endpoint가 아직 없을 수 있음 → 아래 API 요구사항에 명세
+    - 전송은 API endpoint `POST /v1/events`로 수집(구현됨), 실패 시 no-op 유지
   - 최소 이벤트 4종(문서 기준):
     - `dashboard_quick_action_clicked`
     - `finding_detail_viewed`

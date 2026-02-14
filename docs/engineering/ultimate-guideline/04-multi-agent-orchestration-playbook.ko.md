@@ -14,7 +14,7 @@
 
 - Agent 3: Uploads UX Engineer
   - Task: 폴링/실패 CTA/errorCode mapping/vendorHint 입력
-  - 주요 파일: `apps/web/src/components/uploads-panel.tsx`, `apps/web/src/lib/api/error-mapping.ts`(신규)
+  - 주요 파일: `apps/web/src/components/uploads-panel.tsx` (`mapErrorCodeToHint` 포함)
 
 - Agent 4: Leaks UX Engineer
   - Task: leaks list 필터/정렬, leak detail dismiss confirm, toEmail 기본값 제거, evidence UI 계층

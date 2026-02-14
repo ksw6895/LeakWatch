@@ -40,7 +40,7 @@ EXPECTED OUTCOME
 
 MUST DO
 - 관련 코드/문서 근거 경로를 반드시 명시한다.
-- 역할(OWNER/MEMBER/VIEWER/AGENCY)별 영향 차이를 분리해 기록한다.
+- 역할(OWNER/MEMBER/AGENCY_ADMIN/AGENCY_VIEWER)별 영향 차이를 분리해 기록한다.
 - 가정이 있으면 "ASSUMPTION"으로 태그한다.
 
 MUST NOT DO
@@ -85,13 +85,13 @@ LeakWatch는 인보이스 파일(PDF/CSV/이미지)을 업로드하면 AI가 표
 - 고통점: 스토어 컨텍스트 혼동, 권한·책임 범위 불명확(발송 권한), 리포트 출력/공유가 부족.
 - 기대 UX: 멀티샵 컨텍스트 고정, 롤업과 개별샵 Drill-down 연결, 읽기/쓰기 권한 경계가 UI에서 분명.
 
-4. **읽기 전용 Viewer(=OrgRole AGENCY_VIEWER 또는 VIEWER)**
+4. **읽기 전용 Viewer(=OrgRole AGENCY_VIEWER)**
 
 - 목표: 리포트/누수 목록을 확인하고 의사결정(승인/거절) 근거를 얻는다.
 - 고통점: 버튼이 왜 비활성인지 이해 못함, 데이터/근거 탐색이 어렵다.
 - 기대 UX: “비활성 + 이유” 표준, 읽기 중심 정보 구조.
 
-> 주의: 프론트 권한 유틸(`apps/web/src/lib/auth/roles.ts`)은 현재 `OWNER/MEMBER/VIEWER`만 적극 처리하며, 데이터모델/보안 문서의 `AGENCY_ADMIN/AGENCY_VIEWER`와 불일치 가능성이 큼(개선 항목 P0로 다룸). (근거: `docs/architecture/DATA_MODEL.md`, `docs/operations/SECURITY_PRIVACY.md`, `apps/web/src/lib/auth/roles.ts`)
+> 주의: 프론트 권한 유틸(`apps/web/src/lib/auth/roles.ts`)은 현재 OWNER/MEMBER를 write 기준으로 처리하고, 그 외 role은 주로 read-only로 취급한다. API의 endpoint별 `@RequireRoles` 정책과 화면 동작이 완전히 일치하는지 지속 점검이 필요하다. (근거: `docs/architecture/DATA_MODEL.md`, `docs/operations/SECURITY_PRIVACY.md`, `apps/web/src/lib/auth/roles.ts`)
 
 ### 1.3 핵심 사용자 여정(온보딩→연동→업로드/수집→분석→액션→리포트/알림→재방문 루프)
 
@@ -101,8 +101,8 @@ LeakWatch는 인보이스 파일(PDF/CSV/이미지)을 업로드하면 AI가 표
 
 - Shopify에서 앱 설치 → embedded 앱 오픈
 - 세션/host 컨텍스트 확보(Shopify App Bridge session token 기반) → `GET /v1/auth/me`로 org/shop/user/roles 식별
-- (가정/확인 필요) 초기 설정(통화/타임존/contactEmail) 입력 (`docs/product/PRD.md` US-03)
-  - 현재 UI에는 `/app/settings` 루트가 미구현(파일 404 확인) → “갭”으로 처리
+- 초기 설정(통화/타임존/contactEmail) 입력 (`docs/product/PRD.md` US-03)
+  - 현재 UI에는 `/app/settings` 루트가 구현되어 있고, shop settings 조회/수정 흐름이 동작한다.
 
 2. **데이터 업로드/수집**
 
@@ -124,7 +124,7 @@ LeakWatch는 인보이스 파일(PDF/CSV/이미지)을 업로드하면 AI가 표
 
 5. **리포트/알림**
 
-- `/app/reports`: 주간/월간 리포트 목록(현재 구현은 월간 버튼 중심)
+- `/app/reports`: 주간/월간 리포트 목록(ALL/WEEKLY/MONTHLY 탭 필터 + 월간 생성)
 - `/app/reports/[id]`: 리포트 상세(현재는 summary 일부 + raw JSON 출력)
 
 6. **재방문 루프**

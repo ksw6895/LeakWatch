@@ -44,7 +44,7 @@
 - 기능: 해당 페이즈의 최소 수용 기준 충족
 - 안정성: lint/typecheck/test 중 최소 관련 검증 통과
 - 문서: API/UX 변경이 있으면 관련 문서 동기화
-- 보안/권한: OWNER/MEMBER/VIEWER 정책 위반 없음
+- 보안/권한: OWNER/MEMBER/AGENCY_ADMIN/AGENCY_VIEWER 정책 위반 없음
 
 게이트 실패 시:
 

@@ -2,6 +2,8 @@
 
 문서 기준일: 2026-02-13 (KST)
 
+주의: 이 문서는 step-13 수행 시점의 스냅샷이다. 이후 추가 구현(예: inbound parsing 고도화)은 별도 문서/커밋 이력 기준으로 본다.
+
 ## 목표
 
 `docs/steps/**` 외 일반 문서(PRD/UI_UX/ARCHITECTURE/ANALYTICS/SECURITY/INTEGRATIONS) 기준으로 남아있는 구현 갭을 수습해 문서-코드 정합성을 높인다.
@@ -36,7 +38,7 @@
 
 ### 제외
 
-- 인바운드 이메일 자동 파싱(V1)
+- 인바운드 이메일 자동 파싱(V1, 당시 범위 외)
 - 완전 자동 벤더 해지 실행
 
 ## 구현 체크리스트
@@ -120,7 +122,7 @@
 ## 실행 로그 (2026-02-14)
 
 - 반영 커밋
-  - `6c6563a`: Embedded app layout/nav + billing OWNER-only guard + 404 대체 라우트
+  - `6c6563a`: Embedded app layout/nav + billing UI OWNER-only guard + 404 대체 라우트
   - `9e8ef25`: Uploads 복구 UX(vendorHint/polling/error recovery) + Leaks/Actions confirm safety
   - `e0c4d6c`: Shop settings API/UI + action manual status + finding reopened + agency routes + analytics
 - 검증 로그

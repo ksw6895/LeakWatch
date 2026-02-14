@@ -6,7 +6,7 @@
   - Embedded App UI(Shopify Admin 안)
   - Agency Portal(외부 접속)
 - API (NestJS, Fly.io)
-  - Auth(Shopify session token + LW email JWT)
+  - Auth(Shopify session token)
   - Documents/Normalization/Findings/Actions/Reports/Billing API 제공
 - Worker (Node + BullMQ, Fly.io)
   - Ingestion(텍스트 추출)
@@ -19,8 +19,7 @@
 - Redis (Upstash)
 - Object Storage (Cloudflare R2)
 - Mailgun
-  - Outbound + Webhook(Delivery events)
-  - (V1) Inbound(Reply parsing)
+  - Outbound + Webhook(Delivery events + Inbound reply parsing)
 - OpenAI API
 
 ## 2) 모듈 경계(코드 레벨)
@@ -57,7 +56,7 @@
 ### 3.1 Shopify 설치/인증
 
 1. 사용자가 Shopify App Store에서 설치 → Shopify가 OAuth 시작
-2. /shopify/auth/callback에서 HMAC 검증 후 offline access token 발급
+2. `/v1/shopify/auth/callback`에서 HMAC 검증 후 offline access token 발급
 3. DB에 Shop record 생성/갱신 + token 암호화 저장
 4. Shopify Admin에서 앱 열기(embedded) → Web이 session token(JWT) 획득
 5. Web → API 호출 시 Authorization: Bearer <session token>
@@ -97,7 +96,8 @@
 ## 4) 상태 머신(핵심 엔티티)
 
 - DocumentVersion.status:
-  - CREATED → UPLOADED → EXTRACTED → NORMALIZED → DETECTED → DONE
+  - CREATED → UPLOADED → EXTRACTION_RUNNING → EXTRACTED → NORMALIZATION_RUNNING → NORMALIZED → DETECTION_RUNNING → DETECTED
+  - DONE enum은 존재하지만 현재 worker 기본 종단 상태는 DETECTED
   - 실패 상태 예시: EXTRACTION_FAILED / NORMALIZATION_FAILED / DETECTION_FAILED
 - ActionRequest.status:
   - DRAFT → APPROVED | CANCELED

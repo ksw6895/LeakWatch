@@ -15,22 +15,22 @@
 3. App setup:
    - App URL: https://app.leakwatch.io (prod) / https://staging.leakwatch.io (staging)
    - Allowed redirection URL(s):
-     - https://app.leakwatch.io/api/v1/shopify/auth/callback
-     - https://staging.leakwatch.io/api/v1/shopify/auth/callback
-     - 로컬 개발: https://<ngrok-domain>/api/v1/shopify/auth/callback
+     - https://app.leakwatch.io/v1/shopify/auth/callback
+     - https://staging.leakwatch.io/v1/shopify/auth/callback
+     - 로컬 개발: https://<ngrok-domain>/v1/shopify/auth/callback
    - Embedded app: ON
 4. API credentials:
    - API key, API secret key 저장(비밀)
 5. Webhooks:
-   - app/uninstalled: https://app.leakwatch.io/api/v1/shopify/webhooks/app-uninstalled
-   - shop/update(선택): https://app.leakwatch.io/api/v1/shopify/webhooks/shop-update
+   - app/uninstalled: https://app.leakwatch.io/v1/shopify/webhooks/app-uninstalled
+   - shop/update(선택): https://app.leakwatch.io/v1/shopify/webhooks/shop-update
 
 ## 2) OAuth 플로우(서버)
 
 ### 2.1 엔드포인트
 
-- GET /api/v1/shopify/auth/start?shop={shop}.myshopify.com
-- GET /api/v1/shopify/auth/callback?code=...&shop=...&state=...&hmac=...
+- GET /v1/shopify/auth/start?shop={shop}.myshopify.com
+- GET /v1/shopify/auth/callback?code=...&shop=...&state=...&hmac=...
 
 ### 2.2 필수 검증
 
@@ -56,7 +56,7 @@ ASSUMPTION: LeakWatch는 “다른 앱의 결제 데이터”를 조회하지 �
 - 필수:
   - read_shopify_payments? 필요 없음 (미사용)
   - read_orders? 필요 없음 (미사용)
-  - read_products? 필요 없음 (미사용)
+  - read_products: 현재 기본 환경변수(`SHOPIFY_SCOPES`)에 포함됨
 
 현실적으로 embedded 앱에서 “shop 메타” 조회를 위해 다음 중 하나가 필요할 수 있다:
 
@@ -81,7 +81,7 @@ ASSUMPTION: LeakWatch는 “다른 앱의 결제 데이터”를 조회하지 �
   - exp 만료
   - dest(=shop domain) 기반으로 shopId lookup
 
-ASSUMPTION: JWT 검증은 @shopify/shopify-api 라이브러리의 session token 검증 유틸을 사용한다.
+현재 구현: API는 `jose` 기반 JWT 검증(`jwtVerify`)으로 Shopify session token을 확인한다.
 
 - 검증: 로컬 dev store에서 token verify 통과 확인
 - 대안: Shopify의 공개키(JWKS) 기반 직접 검증 구현(보안 위험 낮으나 구현 부담)
@@ -115,7 +115,7 @@ Webhooks 검증:
 ## 7) Shopify Billing(자사 앱 과금)
 
 - LeakWatch는 Shopify 앱 과금으로 “월 구독”을 청구한다.
-- API: /api/v1/billing/subscribe?plan=PRO → Shopify confirmation URL 반환 → 프론트에서 redirect
+- API: /v1/billing/subscribe?plan=PRO → Shopify confirmation URL 반환 → 프론트에서 redirect
 - Webhook(또는 폴링)로 subscription 활성화 확인 후 Organization.plan 업데이트
 
 ASSUMPTION: Shopify Billing API(appSubscription) 사용 가능

@@ -328,7 +328,7 @@ Out of scope: API contracts, worker jobs, DB schema, queue topology, auth semant
 ### 10.1 권한 기반 UI 정책
 
 - `OWNER`/`MEMBER`: 업로드, 액션 승인/발송, 설정 변경 가능
-- `VIEWER`: 읽기 전용(리포트/누수 조회 중심)
+- `AGENCY_VIEWER`: 읽기 전용(리포트/누수 조회 중심)
 - 권한 없는 액션 버튼은 숨기지 말고 disabled + 이유 툴팁으로 제공
 
 ## 11. 단계별 실행 계획

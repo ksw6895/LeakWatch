@@ -880,6 +880,34 @@ paths:
         '404':
           description: Report not found
 
+  /v1/events:
+    post:
+      summary: Ingest frontend analytics event into audit log
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                occurredAt:
+                  type: string
+                  format: date-time
+                properties:
+                  type: object
+                  additionalProperties: true
+      responses:
+        '201':
+          description: Event ingested
+        '401':
+          description: Unauthorized
+
   /v1/mailgun/webhooks/events:
     post:
       summary: Handle Mailgun delivery/failure webhook

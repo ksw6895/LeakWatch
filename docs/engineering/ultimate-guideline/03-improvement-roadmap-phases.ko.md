@@ -80,7 +80,7 @@ VALIDATION
     - running 상태 문서가 있으면 5초 폴링
     - running이 없어지면 폴링 중지
 - Task C3: 실패 row에 Re-upload CTA + errorCode 매핑
-  - 새 유틸: `apps/web/src/lib/api/error-mapping.ts` (신규)
+  - 구현 근거: `apps/web/src/components/uploads-panel.tsx`의 `mapErrorCodeToHint` 매핑 로직
   - 수용 기준:
     - errorCode가 존재하면 “코드 + 사람 언어 해결법”이 표기됨
     - 코드가 없으면 fallback 메시지
@@ -128,13 +128,12 @@ VALIDATION
 
 API/백엔드 요구사항(Phase 0에서 “필수”만)
 
-- (권장) 모든 에러 응답에 `errorCode`를 포함
-  - 확인 불가(가정): 현재 API가 errorCode를 반환하는지
-  - 검증: `/v1/shops/{shopId}/documents`에 의도적으로 큰 파일 업로드 시 응답 JSON 확인
+- (적용됨) 에러 응답에 `errorCode`를 포함
+  - 근거: `docs/api/ERROR_CODES.md`, `docs/engineering/ultimate-guideline/06-assumptions-and-validation.ko.md`
 - 이벤트 수집 endpoint
-  - ASSUMPTION: `/v1/events`가 아직 없을 수 있음
+  - 현재 `POST /v1/events` 구현됨 (`apps/api/src/modules/events/events.controller.ts`)
   - 대안 1: PostHog client-side만 먼저 붙이고(서버 필요 없음) 이벤트 수집
-  - 대안 2: API에 `POST /v1/events` 추가(DB events 테이블)
+  - 대안 2: 기존 `/v1/events`를 유지하면서 목적별 수집 스키마를 확장
   - 최소 스키마(문서 기반 `docs/engineering/ANALYTICS_METRICS.md`):
     - { name: string, occurredAt?: ISO, properties?: json } + auth context(orgId/shopId/userId는 서버에서 주입)
 
@@ -161,7 +160,7 @@ API/백엔드 요구사항(Phase 0에서 “필수”만)
     - timezone (기본 Asia/Seoul)
   - 수용 기준:
     - GET/PATCH 성공/실패/로딩 상태 표준(StatePanel/Banner)
-    - OWNER/MEMBER 수정 가능, VIEWER/AGENCY_VIEWER는 read-only + 이유 표시
+    - OWNER/MEMBER 수정 가능, AGENCY_ADMIN/AGENCY_VIEWER는 read-only + 이유 표시
 - API 요구:
   - `GET /v1/shops/:shopId/settings`
   - `PATCH /v1/shops/:shopId/settings` body: { contactEmail, currency, timezone }

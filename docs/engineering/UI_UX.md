@@ -25,7 +25,7 @@
 
 ### 1.2 Agency Portal (외부)
 
-- /agency/login (magic link)
+- /agency/login (embedded session context 안내/진입)
 - /agency (org-level dashboard)
 - /agency/shops/[shopId] (shop-level view)
 - /agency/reports
@@ -173,10 +173,13 @@
 
 ## 4) 권한/상태에 따른 UI 제한
 
-- OWNER/MEMBER만:
+- OWNER/MEMBER:
   - 업로드
-  - 액션 승인/발송
   - 설정 변경
-- VIEWER(에이전시)만:
+  - 액션 승인/발송(AGENCY_ADMIN도 API write 허용 범위에 포함)
+- OWNER-only(UI 기준):
+  - Billing 업그레이드 액션
+- AGENCY_VIEWER:
   - 읽기 전용(리포트/누수 목록)
-- Dismiss/Resolve는 최소 MEMBER 이상
+- Dismiss/Resolve:
+  - API는 OWNER/MEMBER/AGENCY_ADMIN write 허용
