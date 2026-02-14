@@ -197,7 +197,7 @@ Render 주의(중요):
 
 - Render에 직접 입력한 환경변수는 build 단계에도 적용된다.
 - `NODE_ENV=production` 상태에서 `pnpm install` 기본값을 쓰면 devDependencies가 생략되어 `husky: not found`, `tsc: not found`, `tsx: not found`가 날 수 있다.
-- 이 문서의 Step 7 Build Command(`pnpm install --frozen-lockfile --prod=false`)를 그대로 사용해야 한다.
+- 이 문서의 Step 7 Build Command(install + `prisma:generate` + build)를 그대로 사용해야 한다.
 
 ### 6.4 꼭 맞춰야 하는 "동일값" 규칙
 
@@ -246,10 +246,11 @@ Render 주의(중요):
    - Build Command:
 
 ```bash
-corepack enable && pnpm install --frozen-lockfile --prod=false && pnpm --filter @leakwatch/api build
+corepack enable && pnpm install --frozen-lockfile --prod=false && pnpm --filter @leakwatch/api prisma:generate && pnpm --filter @leakwatch/api build
 ```
 
 - 중요: `--prod=false`를 빼면 `NODE_ENV=production` 환경에서 빌드 중 devDependencies가 빠져 실패할 수 있다.
+- 중요: `prisma:generate`를 빼면 `@prisma/client` 타입이 비어 TS2305(예: `Plan`, `OrgRole`, `DocStatus`)가 날 수 있다.
 
 - Start Command:
 
@@ -266,6 +267,22 @@ pnpm --filter @leakwatch/api start
 
 - 이 저장소는 workspace 의존(`@leakwatch/shared`)이 있어서 루트 기준 빌드가 안전하다.
 
+## Step 7-3.5 DB 마이그레이션 적용 (필수)
+
+Worker를 올리기 전에 최소 1회 실행:
+
+1. Render Dashboard -> API 서비스 -> `Shell`
+2. 아래 명령 실행
+
+```bash
+corepack enable && pnpm install --frozen-lockfile --prod=false && pnpm --filter @leakwatch/api prisma migrate deploy
+```
+
+성공 기준:
+
+- `No pending migrations to apply` 또는 `Applied ... migration` 메시지 확인
+- 이후 Worker를 재시작했을 때 `P2021`(table does not exist) 에러가 없어야 함
+
 ## Step 7-4. Render Worker 서비스 생성
 
 1. Render Dashboard -> `New` -> `Background Worker`
@@ -277,10 +294,11 @@ pnpm --filter @leakwatch/api start
    - Build Command:
 
 ```bash
-corepack enable && pnpm install --frozen-lockfile --prod=false && pnpm --filter @leakwatch/worker build
+corepack enable && pnpm install --frozen-lockfile --prod=false && pnpm --filter @leakwatch/worker prisma:generate && pnpm --filter @leakwatch/worker build
 ```
 
 - 중요: Worker도 동일하게 `--prod=false`를 유지해야 루트 workspace 빌드 의존(devDependencies) 누락을 막을 수 있다.
+- 중요: Worker도 `prisma:generate`를 먼저 실행해 API 스키마 기준 Prisma Client를 생성해야 한다.
 
 - Start Command:
 
@@ -637,6 +655,42 @@ https://app.yourdomain.com/v1/shopify/auth/start?shop=your-store.myshopify.com
 
 - Build Command를 `pnpm install --frozen-lockfile --prod=false` 형태로 수정 후 재배포
 - 이 문서 Step 7-3/7-4 커맨드를 그대로 복사해 사용
+
+### 증상 H: Render 빌드에서 TS2305 (`@prisma/client`에 `Plan`/`OrgRole`/`DocStatus` 등이 없다고 나옴)
+
+원인:
+
+- `prisma generate`가 실행되지 않아 현재 스키마 기준 Prisma Client가 생성되지 않음
+
+대응:
+
+- API Build Command:
+
+```bash
+corepack enable && pnpm install --frozen-lockfile --prod=false && pnpm --filter @leakwatch/api prisma:generate && pnpm --filter @leakwatch/api build
+```
+
+- Worker Build Command:
+
+```bash
+corepack enable && pnpm install --frozen-lockfile --prod=false && pnpm --filter @leakwatch/worker prisma:generate && pnpm --filter @leakwatch/worker build
+```
+
+### 증상 I: Worker 시작 시 `P2021` (`The table public.Shop does not exist`)
+
+원인:
+
+- 현재 `DATABASE_URL` DB에 Prisma migration이 아직 적용되지 않음
+
+대응:
+
+- API 서비스 Shell에서 아래 실행 후 Worker 재시작
+
+```bash
+corepack enable && pnpm install --frozen-lockfile --prod=false && pnpm --filter @leakwatch/api prisma migrate deploy
+```
+
+- API/Worker의 `DATABASE_URL`이 동일한지 재확인
 
 ---
 
