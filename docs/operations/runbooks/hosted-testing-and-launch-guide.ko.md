@@ -193,6 +193,12 @@ openssl rand -base64 32
 | `MAILGUN_DOMAIN`           | 예(발송 쓰면)   | `mg.yourdomain.com`          |
 | `LOG_LEVEL`                | 아니오          | `info`                       |
 
+Render 주의(중요):
+
+- Render에 직접 입력한 환경변수는 build 단계에도 적용된다.
+- `NODE_ENV=production` 상태에서 `pnpm install` 기본값을 쓰면 devDependencies가 생략되어 `husky: not found`, `tsc: not found`, `tsx: not found`가 날 수 있다.
+- 이 문서의 Step 7 Build Command(`pnpm install --frozen-lockfile --prod=false`)를 그대로 사용해야 한다.
+
 ### 6.4 꼭 맞춰야 하는 "동일값" 규칙
 
 다르면 바로 장애나는 조합:
@@ -240,8 +246,10 @@ openssl rand -base64 32
    - Build Command:
 
 ```bash
-corepack enable && pnpm install --frozen-lockfile && pnpm --filter @leakwatch/api build
+corepack enable && pnpm install --frozen-lockfile --prod=false && pnpm --filter @leakwatch/api build
 ```
+
+- 중요: `--prod=false`를 빼면 `NODE_ENV=production` 환경에서 빌드 중 devDependencies가 빠져 실패할 수 있다.
 
 - Start Command:
 
@@ -269,8 +277,10 @@ pnpm --filter @leakwatch/api start
    - Build Command:
 
 ```bash
-corepack enable && pnpm install --frozen-lockfile && pnpm --filter @leakwatch/worker build
+corepack enable && pnpm install --frozen-lockfile --prod=false && pnpm --filter @leakwatch/worker build
 ```
+
+- 중요: Worker도 동일하게 `--prod=false`를 유지해야 루트 workspace 빌드 의존(devDependencies) 누락을 막을 수 있다.
 
 - Start Command:
 
@@ -616,6 +626,17 @@ https://app.yourdomain.com/v1/shopify/auth/start?shop=your-store.myshopify.com
 대응:
 
 - Worker env에 `SHOPIFY_APP_URL=https://app.yourdomain.com` 추가
+
+### 증상 G: Render 빌드에서 `husky: not found` / `tsc: not found` / `tsx: not found`
+
+원인:
+
+- Render env에 `NODE_ENV=production`이 들어간 상태에서 `pnpm install`을 기본값으로 실행해 devDependencies가 생략됨
+
+대응:
+
+- Build Command를 `pnpm install --frozen-lockfile --prod=false` 형태로 수정 후 재배포
+- 이 문서 Step 7-3/7-4 커맨드를 그대로 복사해 사용
 
 ---
 
