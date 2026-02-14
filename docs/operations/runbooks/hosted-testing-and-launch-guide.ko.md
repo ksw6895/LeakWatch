@@ -1,175 +1,243 @@
-# 로컬 탈출 가이드: LeakWatch 서버 배포/테스트/출시 실전 문서
+# 로컬 탈출 가이드 (초상세): Vercel + Render로 LeakWatch 운영하기
 
-이 문서는 "이제 로컬에서 `pnpm dev`, `ngrok`, `export` 반복하지 않고" LeakWatch를 **항상 켜져 있는 서버 환경**에서 편하게 테스트하고, 나중에 Shopify 앱을 실제 출시까지 이어가는 실전 가이드다.
+이 문서는 "로컬에서 `pnpm dev`, `ngrok`, `export`를 반복하지 않고" 바로 서버 환경에서 테스트/검증/출시까지 가는 **실행 매뉴얼**이다.
 
-대상:
-
-- 기술 용어가 너무 많은 문서는 힘든 사람
-- 하지만 개발자 관점의 정확한 설정도 필요한 사람
-- 비용이 과하게 나가는 구조는 피하고 싶은 사람
+중요: 이 문서는 **Vercel(Web) + Render(API/Worker/DB/Redis) + R2 + Mailgun** 조합을 기준으로 작성했다.
 
 ---
 
-## 0) 먼저 결론 (짧게)
+## 0) 이 문서대로만 하면 되는 범위
 
-### 0.1 Render vs Vercel, 뭐가 더 낫나?
-
-이 저장소 기준으로는 **"둘 중 하나만" 고르기보다 역할 분담**이 가장 현실적이다.
-
-- Web(Next.js): Vercel이 배포/미리보기/관리 편의가 좋다.
-- API + Worker(백그라운드 잡): Render가 맞다. (항상 켜진 worker 운영에 유리)
-
-즉, 권장 1순위:
-
-- **Vercel(Web) + Render(API/Worker/DB/Redis) + R2 + Mailgun**
-
-"나는 플랫폼 하나만 쓰고 싶다"면:
-
-- **Render 단일 플랫폼**으로도 가능하지만, 라우팅(`/v1`) 구성은 한 번 더 신경 써야 한다.
-
-### 0.2 지금 코드베이스 특성에서 핵심 포인트
-
-- API는 전역 prefix가 `/v1`이다 (`apps/api/src/main.ts`).
-- 프론트에서 Shopify 설치 시작 URL도 `/v1/shopify/auth/start`를 사용한다 (`apps/web/src/components/embedded-shell.tsx`).
-- 즉, 운영에서도 최종 사용자 도메인에서 **`/v1/*`가 API로 정확히 전달**되어야 한다.
-- 일부 기존 문서에 `/api/v1` 예시가 남아있지만, 현재 코드 기준 canonical 경로는 `/v1`이다.
-
-이 문서는 이 제약을 기준으로 "안 깨지게" 구성한다.
+- 로컬 임시 실행이 아니라, staging/prod 서버를 상시 운영
+- 환경변수를 "어디에" 넣어야 하는지 서비스별로 완전히 분리
+- Shopify 앱 URL/Redirect/Webhook 설정
+- Mailgun/R2 실제 연결
+- 배포 후 실패 지점까지 빠르게 찾는 검증 커맨드
 
 ---
 
-## 1) 이 문서에서 다루는 범위
+## 1) 3줄 요약 (진짜 핵심)
 
-다룸:
-
-- staging/prod 환경 설계
-- Render vs Vercel 선택 기준
-- Mailgun API 키/도메인/웹훅 설정
-- Cloudflare R2 운영 세팅(이미 했어도 재검증 가능)
-- Shopify dev -> 실제 출시 시 무엇을 분리해야 하는지
-- 비용 최소화 기준
-
-안 다룸:
-
-- 코드 리팩터링 자체
-- 앱 스토어 마케팅 문구 작성
+1. Web는 Vercel, API/Worker/DB/Redis는 Render에 둔다.
+2. 브라우저에서 보는 도메인(`app.yourdomain.com`)의 `/v1/*` 요청이 API로 가야 한다.
+3. 환경변수는 서비스별로 분리해서 넣고, 아래 체크리스트 순서대로 검증하면 끝난다.
 
 ---
 
-## 2) 아키텍처 선택지 (이 저장소 기준)
+## 2) 현재 코드 기준 절대 규칙
 
-## 옵션 A (권장): Vercel + Render 하이브리드
+### 2.1 API 경로 규칙
 
-- Vercel: `apps/web`
-- Render Web Service: `apps/api`
-- Render Background Worker: `apps/worker`
-- Render Postgres / Render Key Value(또는 외부 DB/Redis)
-- Cloudflare R2: 파일 저장
-- Mailgun: 메일 발송/이벤트 웹훅
-
-장점:
-
-- web 배포 UX가 편함
-- worker 상시 실행 구조가 명확함
-- 운영 시 역할 분리가 깔끔함
+- API는 전역 prefix가 `v1`이다: `apps/api/src/main.ts`
+- 즉, 공식 경로는 `/v1/...` 이다.
 
 주의:
 
-- 사용자 도메인에서 `/v1/*`를 API로 프록시해야 함
+- 일부 오래된 문서에는 `/api/v1/...`가 남아있지만, 현재 코드 기준은 `/v1/...`다.
 
-## 옵션 B: Render 단일 플랫폼
+### 2.2 `/v1` 라우팅이 반드시 살아야 하는 이유
 
-- web/api/worker를 모두 Render에서 운영
+- 프론트 OAuth 시작 URL이 `/v1/shopify/auth/start`를 사용한다: `apps/web/src/components/embedded-shell.tsx`
+- 세션 확인도 `/v1/auth/me`를 호출한다: `apps/web/src/components/embedded-shell.tsx`
 
-장점:
+따라서 운영 환경에서:
 
-- 플랫폼 하나라서 계정/권한/청구가 단순
+- `https://app.yourdomain.com/v1/*` -> API로 정상 전달
 
-주의:
-
-- 프론트와 API 라우팅 구조(`/v1`)를 도메인 레벨에서 정리해야 함
-
-## 옵션 C: Vercel 단독
-
-현재 구조에서는 비권장.
-
-이유:
-
-- 이 프로젝트는 BullMQ worker 상시 실행이 핵심이다.
-- Vercel Function은 요청 기반 실행/제한 시간이 있어 장기 큐 처리 운영 모델과 맞지 않는다.
-
-### 2.1 Render vs Vercel 현실 비교표 (2026-02 기준)
-
-| 항목                  | Render                          | Vercel                                      | LeakWatch 관점                             |
-| --------------------- | ------------------------------- | ------------------------------------------- | ------------------------------------------ |
-| Next.js 프론트 DX     | 좋음                            | 매우 강함                                   | 프론트만 보면 Vercel 우세                  |
-| 상시 Worker 운영      | 1급 기능(Background Worker)     | 함수/워크플로우 중심                        | Worker 파이프라인은 Render 우세            |
-| DB/Redis 결합         | 플랫폼 내 결합 쉬움             | 외부/Marketplace 결합 중심                  | 백엔드 운영 단순성은 Render 우세           |
-| 무료 티어 운영성      | 무료 웹은 15분 유휴 시 스핀다운 | Hobby로 시작 쉬우나 함수/스토리지 한도 주의 | 둘 다 "운영 서비스"로는 무료 의존 비권장   |
-| 전체 스택 단일 플랫폼 | 가능                            | 가능하지만 구조 조정 필요                   | 현재 구조는 Render 단일 또는 혼합이 현실적 |
-
-### 2.2 비용 관점 최소 시작선 (예시)
-
-아래는 "실제 과금 전 감 잡기"용 예시다. 최종 결제 전에는 공식 가격 페이지를 꼭 재확인해야 한다.
-
-- Render 올인원 최소 유료 시작선(예시):
-  - API Starter 약 `$7`
-  - Worker Starter 약 `$7`
-  - Postgres Basic-256MB 약 `$6`
-  - Key Value Starter 약 `$10`
-  - 대략 `$30` 내외 + 스토리지/트래픽
-- 혼합(Vercel Web + Render Backend) 시작선(예시):
-  - 위 Render 비용 + Vercel Pro(팀/상업 운영 시) 비용
-  - 대략 `$50+`부터 시작하는 경우가 많음
-
-운영에서 자주 놓치는 포인트:
-
-- Render Free Web은 15분 유휴 시 스핀다운이 발생
-- Render Free Postgres는 30일 만료 제약이 있음
-- Vercel은 함수/스토리지 사용량이 늘면 예측이 어려워질 수 있음
+이게 안 되면 거의 모든 기능이 깨진다.
 
 ---
 
-## 3) dev/staging/prod를 어떻게 나누는가
+## 3) 최종 아키텍처 (권장)
 
-핵심 원칙 한 줄:
+- Vercel
+  - `apps/web`
+  - 사용자 접속 도메인: `https://app.yourdomain.com`
+- Render
+  - Web Service: `apps/api`
+  - Background Worker: `apps/worker`
+  - Postgres
+  - Key Value(Valkey/Redis 호환)
+- Cloudflare R2
+  - 문서/증빙 파일 저장
+- Mailgun
+  - 메일 발송 + 이벤트/인바운드 웹훅
 
-- **코드는 하나**, **환경은 최소 2개(staging/prod)**, **비밀키/DB/도메인은 분리**
+도메인 예시:
 
-권장 분리표:
-
-- dev: 로컬 + 테스트용 키
-- staging: 실제 서버, dev store 대상, 출시 전 최종 검증
-- prod: 실제 고객 대상
-
-"출시하면 완전히 다른 프로그램 새로 짜야 하나?"에 대한 답:
-
-- 아니오. 보통은 **같은 코드**를 쓰고 연결값(키/URL/DB)만 바꾼다.
-- 다만 운영 안정성을 위해 staging/prod는 **서버 인스턴스와 데이터 저장소를 분리**하는 것이 정석이다.
+- 앱: `app.yourdomain.com` (Vercel)
+- API: `api.yourdomain.com` (Render)
 
 ---
 
-## 4) 단계별 실행 (처음부터 끝까지)
+## 4) 사전 준비물 체크리스트
 
-## Step 1. 도메인 전략 먼저 확정
+아래가 준비되지 않으면 중간에 반드시 멈춘다.
 
-예시:
+- [ ] GitHub 저장소 접근 권한
+- [ ] Vercel 계정/팀
+- [ ] Render 계정/워크스페이스
+- [ ] Cloudflare(R2) 계정
+- [ ] Mailgun 계정
+- [ ] Shopify Partner 계정 + 앱
+- [ ] 앱 도메인 DNS 수정 권한
 
-- 앱 사용자 진입: `https://app.yourdomain.com`
-- API: `https://api.yourdomain.com`
+---
+
+## 5) 먼저 채워두는 값 시트 (복붙용)
+
+이 값은 문서 아래 단계에서 반복해서 쓴다.
+
+```text
+# Domain
+APP_DOMAIN=app.yourdomain.com
+API_DOMAIN=api.yourdomain.com
+APP_ORIGIN=https://app.yourdomain.com
+API_ORIGIN=https://api.yourdomain.com
+
+# Shopify
+SHOPIFY_API_KEY=...
+SHOPIFY_API_SECRET=...
+SHOPIFY_SCOPES=read_products
+
+# Render Postgres/Key Value
+DATABASE_URL=postgresql://...
+REDIS_URL=redis://...
+
+# R2
+R2_ENDPOINT=https://<account_id>.r2.cloudflarestorage.com
+R2_ACCESS_KEY_ID=...
+R2_SECRET_ACCESS_KEY=...
+R2_BUCKET=leakwatch-prod
+R2_REGION=auto
+
+# Security
+LW_ENCRYPTION_KEY_32B=...
+
+# Mailgun
+MAILGUN_API_KEY=...
+MAILGUN_DOMAIN=mg.yourdomain.com
+MAILGUN_WEBHOOK_SIGNING_KEY=...
+
+# OpenAI (worker)
+OPENAI_API_KEY=...
+OPENAI_MODEL_NORMALIZE=gpt-4o-mini
+OPENAI_MODEL_VISION=gpt-4o-mini
+OPENAI_MAX_RETRIES=3
+```
+
+`LW_ENCRYPTION_KEY_32B` 생성:
+
+```bash
+openssl rand -base64 32
+```
+
+---
+
+## 6) 환경변수 배치표 (서비스별로 어디에 넣는지)
+
+아래 표만 정확히 따르면 된다.
+
+### 6.1 Vercel(Web) 프로젝트에 넣는 값
+
+| 키                            | 필수   | 권장 값                                 | 메모                       |
+| ----------------------------- | ------ | --------------------------------------- | -------------------------- |
+| `NEXT_PUBLIC_SHOPIFY_API_KEY` | 예     | `SHOPIFY_API_KEY`와 동일 값             | 프론트 App Bridge에서 사용 |
+| `NEXT_PUBLIC_API_URL`         | 아니오 | 비워두거나 `https://app.yourdomain.com` | 비우면 현재 origin 사용    |
 
 중요:
 
-- 최종적으로 `app.yourdomain.com/v1/*` 요청이 API로 전달되어야 함
-- 그래야 Shopify 설치/콜백/웹훅 흐름이 현재 코드와 맞게 동작함
+- `NEXT_PUBLIC_*`는 브라우저에 노출된다. 절대 secret 넣지 말 것.
 
-## Step 2. Render에 API/Worker/DB/Redis 준비
+### 6.2 Render API 서비스에 넣는 값
 
-### 2.1 API 서비스 (`apps/api`)
+| 키                            | 필수           | 예시                                            |
+| ----------------------------- | -------------- | ----------------------------------------------- |
+| `NODE_ENV`                    | 예             | `production`                                    |
+| `PORT`                        | 아니오         | `10000` (Render 기본값 사용 가능)               |
+| `DATABASE_URL`                | 예             | Postgres Internal URL                           |
+| `SHOPIFY_API_KEY`             | 예             | Shopify 앱 키                                   |
+| `SHOPIFY_API_SECRET`          | 예             | Shopify 앱 시크릿                               |
+| `SHOPIFY_SCOPES`              | 아니오         | `read_products`                                 |
+| `SHOPIFY_APP_URL`             | 예             | `https://app.yourdomain.com`                    |
+| `API_BASE_URL`                | 예             | `https://app.yourdomain.com`                    |
+| `REDIS_URL`                   | 예             | Key Value Internal URL                          |
+| `R2_ENDPOINT`                 | 예             | `https://<account_id>.r2.cloudflarestorage.com` |
+| `R2_ACCESS_KEY_ID`            | 예             | R2 Access Key                                   |
+| `R2_SECRET_ACCESS_KEY`        | 예             | R2 Secret                                       |
+| `R2_BUCKET`                   | 예             | `leakwatch-prod`                                |
+| `R2_REGION`                   | 아니오         | `auto`                                          |
+| `LW_ENCRYPTION_KEY_32B`       | 예             | 32바이트 base64 키                              |
+| `MAILGUN_WEBHOOK_SIGNING_KEY` | 예(웹훅 쓸 때) | Mailgun Signing Key                             |
+| `LOG_LEVEL`                   | 아니오         | `info`                                          |
 
-- Service Type: Web Service
-- Root Directory: `apps/api`
-- Build Command 예시:
+### 6.3 Render Worker 서비스에 넣는 값
+
+| 키                         | 필수            | 예시                         |
+| -------------------------- | --------------- | ---------------------------- |
+| `NODE_ENV`                 | 예              | `production`                 |
+| `DATABASE_URL`             | 예              | API와 동일                   |
+| `REDIS_URL`                | 예              | API와 동일                   |
+| `R2_ENDPOINT`              | 예              | API와 동일                   |
+| `R2_ACCESS_KEY_ID`         | 예              | API와 동일                   |
+| `R2_SECRET_ACCESS_KEY`     | 예              | API와 동일                   |
+| `R2_BUCKET`                | 예              | API와 동일                   |
+| `R2_REGION`                | 아니오          | `auto`                       |
+| `SHOPIFY_APP_URL`          | 예(권장 강제)   | `https://app.yourdomain.com` |
+| `OPENAI_API_KEY`           | 예(정규화 쓰면) | OpenAI key                   |
+| `OPENAI_MODEL_NORMALIZE`   | 아니오          | `gpt-4o-mini`                |
+| `OPENAI_MODEL_VISION`      | 아니오          | `gpt-4o-mini`                |
+| `OPENAI_MODEL_EMAIL_DRAFT` | 아니오          | `gpt-4o-mini`                |
+| `OPENAI_MAX_RETRIES`       | 아니오          | `3`                          |
+| `MAILGUN_API_KEY`          | 예(발송 쓰면)   | Mailgun API key              |
+| `MAILGUN_DOMAIN`           | 예(발송 쓰면)   | `mg.yourdomain.com`          |
+| `LOG_LEVEL`                | 아니오          | `info`                       |
+
+### 6.4 꼭 맞춰야 하는 "동일값" 규칙
+
+다르면 바로 장애나는 조합:
+
+- `SHOPIFY_API_KEY`(API) == `NEXT_PUBLIC_SHOPIFY_API_KEY`(Web)
+- `DATABASE_URL`(API) == `DATABASE_URL`(Worker)
+- `REDIS_URL`(API) == `REDIS_URL`(Worker)
+- `R2_ENDPOINT/KEY/SECRET/BUCKET`(API) == Worker 동일 값
+- `SHOPIFY_APP_URL`(API/Worker) == 실제 앱 도메인
+
+---
+
+## 7) Render 설정 (클릭 경로까지)
+
+## Step 7-1. Render Postgres 생성
+
+1. Render Dashboard -> `New` -> `Postgres`
+2. Name: `leakwatch-prod-db` (원하는 이름)
+3. Region: API/Worker와 같은 리전 선택
+4. Plan 선택(초기 최소 스펙)
+5. 생성 완료 후 Internal connection string 복사
+6. 이 값을 `DATABASE_URL`로 사용
+
+팁:
+
+- staging/prod DB는 반드시 분리
+
+## Step 7-2. Render Key Value 생성
+
+1. Render Dashboard -> `New` -> `Key Value`
+2. Name: `leakwatch-prod-kv`
+3. Region: API/Worker와 동일
+4. `Maxmemory policy`: **`noeviction`** 권장(큐 유실 방지)
+5. 생성 후 Internal URL 복사
+6. 이 값을 `REDIS_URL`로 사용
+
+## Step 7-3. Render API 서비스 생성
+
+1. Render Dashboard -> `New` -> `Web Service`
+2. Git repo 연결
+3. 설정:
+   - Runtime: Node
+   - Branch: `main`
+   - Root Directory: `.` (권장)
+   - Build Command:
 
 ```bash
 corepack enable && pnpm install --frozen-lockfile && pnpm --filter @leakwatch/api build
@@ -183,11 +251,22 @@ pnpm --filter @leakwatch/api start
 
 - Health Check Path: `/v1/health`
 
-### 2.2 Worker 서비스 (`apps/worker`)
+4. Environment 페이지에서 6.2 표 값 입력
+5. Save + Deploy
 
-- Service Type: Background Worker
-- Root Directory: `apps/worker`
-- Build Command 예시:
+왜 Root Directory를 `.` 권장하냐:
+
+- 이 저장소는 workspace 의존(`@leakwatch/shared`)이 있어서 루트 기준 빌드가 안전하다.
+
+## Step 7-4. Render Worker 서비스 생성
+
+1. Render Dashboard -> `New` -> `Background Worker`
+2. 같은 Git repo 연결
+3. 설정:
+   - Runtime: Node
+   - Branch: `main`
+   - Root Directory: `.`
+   - Build Command:
 
 ```bash
 corepack enable && pnpm install --frozen-lockfile && pnpm --filter @leakwatch/worker build
@@ -199,183 +278,174 @@ corepack enable && pnpm install --frozen-lockfile && pnpm --filter @leakwatch/wo
 pnpm --filter @leakwatch/worker start
 ```
 
-### 2.3 DB/Redis
-
-- Postgres와 Redis는 staging/prod 분리 권장
-- API/Worker가 같은 DB/Redis를 참조해야 큐와 상태가 맞음
-
-## Step 3. Vercel에 Web 준비 (`apps/web`)
-
-- Project Root: `apps/web`
-- Framework: Next.js
-- Build/Start는 기본값 사용 가능
-
-중요:
-
-- 사용자 도메인에서 `/v1/*`를 API로 프록시하도록 설정
-- 방법은 다음 중 하나:
-  - Vercel Project Rewrites
-  - `vercel.json` rewrite
-
-예시 개념:
-
-```json
-{
-  "rewrites": [{ "source": "/v1/:path*", "destination": "https://api.yourdomain.com/v1/:path*" }]
-}
-```
-
-## Step 4. 환경변수 주입 (이 단계가 핵심)
-
-로컬 `export` 반복 대신:
-
-- Render/Vercel 환경변수 UI에 고정 저장
-- 배포 시 자동 주입
-
-필수 키(요약):
-
-- API
-  - `DATABASE_URL`
-  - `SHOPIFY_API_KEY`
-  - `SHOPIFY_API_SECRET`
-  - `SHOPIFY_APP_URL`
-  - `API_BASE_URL`
-  - `REDIS_URL`
-  - `R2_ENDPOINT`
-  - `R2_ACCESS_KEY_ID`
-  - `R2_SECRET_ACCESS_KEY`
-  - `R2_BUCKET`
-  - `LW_ENCRYPTION_KEY_32B`
-  - `MAILGUN_API_KEY` (운영 메일 사용 시)
-  - `MAILGUN_DOMAIN` (운영 메일 사용 시)
-  - `MAILGUN_WEBHOOK_SIGNING_KEY` (웹훅 검증)
-
-- Worker
-  - `DATABASE_URL`
-  - `REDIS_URL`
-  - `R2_*`
-  - `OPENAI_*`
-  - `MAILGUN_API_KEY`
-  - `MAILGUN_DOMAIN`
-
-- Web
-  - `NEXT_PUBLIC_SHOPIFY_API_KEY`
-  - `NEXT_PUBLIC_API_URL` (필요 시)
-
-참조:
-
-- API env schema: `apps/api/src/config/env.ts`
-- Worker env schema: `apps/worker/src/env.ts`
-- 기본 예시: `.env.example`
-
-## Step 5. DB 마이그레이션
-
-배포 직후 1회 실행:
-
-```bash
-pnpm db:deploy
-```
-
-이 프로젝트는 root 스크립트가 `.env`를 자동 로드하도록 되어 있어 로컬에서도 export 반복이 줄어든다 (`scripts/with-root-env.mjs`).
-
-## Step 6. 도메인/DNS 연결
-
-- `app.yourdomain.com` -> Vercel
-- `api.yourdomain.com` -> Render API
-- TLS 인증서 상태 확인(둘 다 HTTPS 정상)
-
-## Step 7. Shopify 앱 URL/Redirect/Webhook 연결
-
-Partner Dashboard(또는 Dev Dashboard)에서 다음 값 일치:
-
-- App URL: `https://app.yourdomain.com`
-- Redirect URL: `https://app.yourdomain.com/v1/shopify/auth/callback` (프록시 경유)
-- Webhook URL:
-  - `https://app.yourdomain.com/v1/shopify/webhooks/app-uninstalled`
-  - `https://app.yourdomain.com/v1/shopify/webhooks/shop-update`
-
-코드 기준 canonical 경로는 `/v1/*`다.
-
----
-
-## 5) Mailgun: 정말 실무형으로 설정하기
-
-## 5.1 최소 동작 (테스트 시작)
-
-1. Mailgun 계정 생성
-2. Sandbox domain으로 1차 테스트
-3. Authorized Recipients 등록 (sandbox 제약)
+4. Environment 페이지에서 6.3 표 값 입력
+5. Save + Deploy
 
 주의:
 
-- sandbox는 운영용이 아니다.
-- 실제 발송은 custom domain 검증 후 진행.
-
-## 5.2 운영 세팅 (반드시)
-
-1. Sending domain 추가 (예: `mg.yourdomain.com`)
-2. DNS 레코드 등록
-   - SPF TXT
-   - DKIM TXT
-   - Tracking CNAME
-   - (수신 필요 시) MX
-3. Mailgun에서 Verify
-4. API key 발급 후 보관
-
-## 5.3 LeakWatch에 연결
-
-- Worker 발송 로직: `apps/worker/src/jobs/send-email.ts`
-- 환경변수:
-  - `MAILGUN_API_KEY`
-  - `MAILGUN_DOMAIN`
-- API 웹훅 엔드포인트:
-  - `POST /v1/mailgun/webhooks/events`
-  - `POST /v1/mailgun/webhooks/inbound`
-  - 코드: `apps/api/src/modules/mailgun/mailgun.controller.ts`
-
-## 5.4 보안 체크 (중요)
-
-- `MAILGUN_WEBHOOK_SIGNING_KEY`로 HMAC 검증 필수
-- 현재 코드에서 검증 수행: `apps/api/src/modules/mailgun/mailgun.service.ts`
-- 웹훅은 재시도될 수 있으므로 idempotent 처리 권장
-
-## 5.5 자주 막히는 포인트
-
-- DNS 전파 전 검증 시도 -> 실패
-- sandbox로 운영 발송 시도 -> 제한
-- 웹훅 URL은 등록했지만 서명 검증 미구현 -> 운영 리스크
+- Worker는 HTTP 헬스체크 대상이 아니다.
 
 ---
 
-## 6) Cloudflare R2: 이미 해뒀어도 운영 기준 재확인
+## 8) Vercel 설정 (클릭 경로까지)
 
-## 6.1 최소 동작
+## Step 8-1. 프로젝트 생성
 
-1. 버킷 생성(기본 private 권장)
-2. R2 API token 생성
-3. Access Key/Secret 저장(Secret은 재조회 불가)
-4. S3 endpoint 확인: `https://<account_id>.r2.cloudflarestorage.com`
+1. Vercel Dashboard -> `Add New` -> `Project`
+2. 저장소 Import
+3. Build 설정:
+   - Framework Preset: Next.js
+   - Root Directory: `apps/web`
+4. Deploy
 
-## 6.2 LeakWatch 연결
+## Step 8-2. 환경변수 입력
 
-- API/Worker 모두 R2 사용
-- 필수 env:
-  - `R2_ENDPOINT`
-  - `R2_ACCESS_KEY_ID`
-  - `R2_SECRET_ACCESS_KEY`
-  - `R2_BUCKET`
-  - `R2_REGION=auto`
+Vercel Project -> Settings -> Environment Variables
 
-코드:
+- `NEXT_PUBLIC_SHOPIFY_API_KEY`
+- `NEXT_PUBLIC_API_URL` (비우거나 `https://app.yourdomain.com`)
 
-- API storage client: `apps/api/src/modules/documents/storage/storage.client.ts`
-- Worker storage client: `apps/worker/src/storage/r2.client.ts`
+환경 선택:
 
-## 6.3 CORS (브라우저 업로드에 필수)
+- Production, Preview 모두 넣기 권장
 
-Presigned PUT을 브라우저에서 쓰려면 버킷 CORS가 필요하다.
+## Step 8-3. 도메인 연결
 
-예시:
+Vercel Project -> Settings -> Domains
+
+1. `app.yourdomain.com` 추가
+2. 안내되는 DNS 레코드 적용
+3. TLS Ready 상태 확인
+
+---
+
+## 9) `/v1` 프록시 설정 (필수)
+
+이 단계 누락하면 앱이 거의 무조건 깨진다.
+
+현재 코드에는 로컬용 rewrite(`http://localhost:4000`)가 있으므로, 운영에서는 `/v1`이 실제 API로 가도록 정리해야 한다.
+
+### 권장 방식: `apps/web/vercel.json` 추가
+
+`apps/web/vercel.json`:
+
+```json
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    {
+      "source": "/v1/:path*",
+      "destination": "https://api.yourdomain.com/v1/:path*"
+    }
+  ]
+}
+```
+
+그리고 Vercel 재배포.
+
+운영 체크:
+
+- `https://app.yourdomain.com/v1/health`가 200 + `{ "ok": true }` 응답해야 함
+
+---
+
+## 10) Shopify 설정 (dev -> staging/prod)
+
+## Step 10-1. Partner Dashboard 값 입력
+
+최소 값:
+
+- App URL: `https://app.yourdomain.com`
+- Redirect URL:
+  - `https://app.yourdomain.com/v1/shopify/auth/callback`
+- Webhooks:
+  - `https://app.yourdomain.com/v1/shopify/webhooks/app-uninstalled`
+  - `https://app.yourdomain.com/v1/shopify/webhooks/shop-update`
+
+## Step 10-2. `shopify.app.toml` 운영 분리
+
+권장:
+
+- dev용 TOML과 prod용 TOML 분리
+- 운영 반영은 `shopify app deploy`로 적용
+
+중요:
+
+- TOML만 바꾸고 deploy 안 하면 운영 스토어에는 반영되지 않는다.
+
+## Step 10-3. 출시 질문에 대한 답
+
+"dev에서 prod 갈 때 프로그램을 새로 만들어야 하나?"
+
+- 아니오. **같은 코드베이스**를 써도 된다.
+- 단, 앱 키/시크릿/도메인/DB는 환경별로 분리해서 운영해야 안전하다.
+
+---
+
+## 11) Mailgun 초상세 설정
+
+## Step 11-1. 테스트 시작
+
+1. Mailgun 가입
+2. Sandbox domain 확인
+3. Authorized recipients 등록
+
+주의:
+
+- Sandbox는 운영 발송용 아님
+
+## Step 11-2. 운영 도메인 전환
+
+1. Sending domain 생성(`mg.yourdomain.com` 등)
+2. DNS 등록:
+   - SPF TXT
+   - DKIM TXT
+   - Tracking CNAME
+   - (수신 시) MX
+3. Verify 완료
+4. API key 발급
+
+## Step 11-3. LeakWatch 연결
+
+- Worker env:
+  - `MAILGUN_API_KEY`
+  - `MAILGUN_DOMAIN`
+- API env:
+  - `MAILGUN_WEBHOOK_SIGNING_KEY`
+
+웹훅 엔드포인트:
+
+- `POST /v1/mailgun/webhooks/events`
+- `POST /v1/mailgun/webhooks/inbound`
+
+## Step 11-4. 꼭 확인할 장애 포인트
+
+- `MAILGUN_NOT_CONFIGURED` -> Worker에 키/도메인 누락
+- 이벤트 웹훅 401 -> signing key 불일치
+
+---
+
+## 12) Cloudflare R2 초상세 설정
+
+## Step 12-1. API 토큰/버킷
+
+1. R2 bucket 생성 (private 권장)
+2. API token 생성
+3. Access key/secret 저장(Secret 재조회 불가)
+
+## Step 12-2. LeakWatch env
+
+- `R2_ENDPOINT`
+- `R2_ACCESS_KEY_ID`
+- `R2_SECRET_ACCESS_KEY`
+- `R2_BUCKET`
+- `R2_REGION=auto`
+
+API와 Worker 모두 동일 값 사용.
+
+## Step 12-3. CORS
+
+브라우저 업로드(presigned PUT) 쓰려면 CORS 필요:
 
 ```json
 [
@@ -389,168 +459,261 @@ Presigned PUT을 브라우저에서 쓰려면 버킷 CORS가 필요하다.
 ]
 ```
 
-## 6.4 보안/비용 포인트
+---
 
-- presigned URL은 bearer token처럼 취급 (짧은 만료시간)
-- bucket 공개는 꼭 필요한 경우만
-- 비용은 저장량 + Class A/B 요청수 기준
-- egress가 무료인 구조라 다운로드 트래픽이 큰 경우 유리
+## 13) 배포 후 검증 (복붙 커맨드)
+
+아래 8개는 순서대로 실행.
+
+```bash
+APP="https://app.yourdomain.com"
+API="https://api.yourdomain.com"
+SHOP="your-store.myshopify.com"
+```
+
+### 13-1. API 직접 헬스
+
+```bash
+curl -si "$API/v1/health"
+```
+
+기대값:
+
+- HTTP 200
+- body에 `{"ok":true}` 포함
+
+### 13-2. 앱 도메인 프록시 헬스
+
+```bash
+curl -si "$APP/v1/health"
+```
+
+기대값:
+
+- HTTP 200 + 동일 body
+
+실패하면:
+
+- `/v1` 프록시 설정 오류
+
+### 13-3. OAuth 시작 리다이렉트 검사
+
+```bash
+curl -si "$APP/v1/shopify/auth/start?shop=$SHOP"
+```
+
+기대값:
+
+- 302
+- Location에 Shopify authorize URL
+
+### 13-4. 인증 없는 `/auth/me` 가드 확인
+
+```bash
+curl -si "$APP/v1/auth/me"
+```
+
+기대값:
+
+- 401
+
+### 13-5. Shopify webhook 서명 가드 확인
+
+```bash
+curl -si -X POST "$APP/v1/shopify/webhooks/shop-update" \
+  -H "content-type: application/json" \
+  -d '{}'
+```
+
+기대값:
+
+- 401 (signature/header missing)
+
+### 13-6. 실제 설치 URL 호출
+
+브라우저에서:
+
+```text
+https://app.yourdomain.com/v1/shopify/auth/start?shop=your-store.myshopify.com
+```
+
+기대값:
+
+- Shopify 승인 -> `/app?shop=...&host=...`로 복귀
+
+### 13-7. 업로드 스모크
+
+1. `/app/uploads` 진입
+2. 작은 PDF/PNG 업로드
+3. create -> PUT -> complete 흐름 확인
+
+### 13-8. 메일 스모크
+
+1. 액션 전송
+2. Worker 로그에서 Mailgun 성공 확인
+3. API에서 mailgun webhook 수신 확인
 
 ---
 
-## 7) Shopify: dev에서 실제 출시로 갈 때 무엇이 달라지나
+## 14) 실패 증상별 즉시 대응
 
-## 7.1 같은 코드 vs 다른 서버
+### 증상 A: OAuth redirect mismatch
 
-정리:
+원인:
 
-- 코드(프로그램)는 같은 코드베이스 사용 가능
-- 서버 환경은 staging/prod 분리 권장
-- Shopify 앱 설정(키/URL/웹훅)도 환경별로 분리해야 안전
+- Dashboard의 Redirect URL과 실제 URL이 다름
 
-## 7.2 추천 운영 방식
+대응:
 
-- dev 앱: 개발 스토어 전용
-- prod 앱: 실제 출시용
+- `https://app.yourdomain.com/v1/shopify/auth/callback` 정확 일치
 
-이유:
+### 증상 B: `/v1/auth/me` 404/502
 
-- 배포/실험 중에 실제 상점에 영향 주는 사고를 방지
+원인:
 
-## 7.3 App Store 제출 전 필수 체크
+- Vercel `/v1` 프록시 누락 또는 오타
 
-- TLS/HTTPS 완전 정상
-- OAuth 즉시 동작
-- uninstall webhook 동작
-- session token 인증 흐름 정상
-- billing/plan 제한 정책 검증
-- 개인정보/삭제 처리 대응
+대응:
 
-특히 공식 요구사항 기준으로 mandatory compliance webhooks(`customers/data_request`, `customers/redact`, `shop/redact`) 대응 여부는 제출 전에 반드시 확인해야 한다.
+- `apps/web/vercel.json` rewrite 재확인 후 재배포
 
----
+### 증상 C: CORS 에러(업로드)
 
-## 8) 비용 가이드 (과금 폭주 방지)
+원인:
 
-## 8.1 월 고정비를 낮추는 기본 원칙
+- R2 CORS Origin 누락
 
-- staging는 최소 스펙
-- prod도 초기에는 최소 인스턴스
-- worker concurrency 과도 설정 금지
-- R2 lifecycle/보관 정책 적용
-- OpenAI 호출 캐시/재시도 제한 유지
+대응:
 
-프로젝트 내 비용 가드레일 참고:
+- 현재 앱 도메인(staging/prod) 모두 등록
 
-- `docs/operations/runbooks/cost-guardrails.md`
+### 증상 D: `MAILGUN_NOT_CONFIGURED`
 
-## 8.2 현실적인 시작 추정 (예시)
+원인:
 
-실제 요금은 시점/플랜/지역에 따라 바뀌니 반드시 공식 가격 페이지로 확인해야 한다.
+- Worker env에 `MAILGUN_API_KEY`/`MAILGUN_DOMAIN` 없음
 
-대략적 감:
+대응:
 
-- Render: API + Worker + DB + Redis 구성 시 월 수십 달러대부터 시작 가능
-- Vercel: Hobby로 시작 후 트래픽/팀 증가 시 Pro 전환
-- R2: 저장량과 요청 수 중심 과금
-- Mailgun: sandbox -> verified domain 전환 후 발송량 기반 과금
+- Worker 환경변수 입력 후 재배포
 
----
+### 증상 E: `LW_ENCRYPTION_KEY_32B must decode to 32 bytes`
 
-## 9) 지금 바로 실행할 수 있는 "실전 순서" (권장)
+원인:
 
-1. staging 도메인/서비스 먼저 구성 (prod 먼저 하지 말기)
-2. API/Worker를 Render에 올리고 `/v1/health` 확인
-3. Web를 Vercel에 올리고 `/v1/*` 프록시 설정
-4. R2 연결 -> 업로드(create -> PUT -> complete) 검증
-5. Mailgun 연결 -> 테스트 발송 + webhook 이벤트 수신 검증
-6. Shopify dev store 설치/OAuth/embedded 전 흐름 검증
-7. staging에서 E2E 스모크 통과 후 prod 복제
-8. Shopify production 설정 및 출시 체크리스트 수행
+- 키 포맷 불량
+
+대응:
+
+- `openssl rand -base64 32`로 재생성
+
+### 증상 F: 이메일 링크가 localhost
+
+원인:
+
+- Worker에 `SHOPIFY_APP_URL` 누락
+
+대응:
+
+- Worker env에 `SHOPIFY_APP_URL=https://app.yourdomain.com` 추가
 
 ---
 
-## 10) 트러블슈팅 빠른 표
+## 15) 비용 폭주 방지 (초기 운영값)
 
-- OAuth redirect mismatch
-  - 원인: Dashboard URL과 실제 URL 불일치
-  - 조치: `/v1/shopify/auth/callback` 경로 정확히 맞춤
+- staging는 최소 인스턴스
+- prod도 초기는 최소로 시작
+- Worker concurrency 과도하게 올리지 않기
+- R2 버킷 lifecycle/보관 정책 설정
+- Preview 배포 남발 금지(배포 수/빌드 시간 관리)
 
-- Embedded에서 인증 루프
-  - 원인: `NEXT_PUBLIC_SHOPIFY_API_KEY` 불일치 또는 host/session 문제
-  - 조치: Web/API 키 페어 재검증
+Render 무료 플랜 주의:
 
-- 업로드 CORS 실패
-  - 원인: R2 CORS Origin 누락
-  - 조치: staging/prod origin 모두 등록
+- Free Web: 유휴 시 스핀다운
+- Free Postgres: 만료 제한
+- Free Key Value: 영속성 제약
 
-- MAILGUN_NOT_CONFIGURED
-  - 원인: `MAILGUN_API_KEY`/`MAILGUN_DOMAIN` 미설정
-  - 조치: worker env 확인 후 재배포
-
-- worker가 안 도는 것처럼 보임
-  - 원인: worker 서비스 미배포 또는 Redis 연결 문제
-  - 조치: worker 로그 + Redis URL 점검
+운영 서비스는 무료 의존을 피하는 게 안전하다.
 
 ---
 
-## 11) 이 저장소에서 반드시 참고할 파일
+## 16) staging -> prod 승격 절차
 
-- `apps/api/src/config/env.ts`
-- `apps/worker/src/env.ts`
-- `apps/api/src/main.ts`
-- `apps/api/src/modules/shopify/shopify.controller.ts`
-- `apps/api/src/modules/shopify/shopify-auth.service.ts`
-- `apps/web/src/components/embedded-shell.tsx`
-- `apps/web/src/lib/api/fetcher.ts`
-- `.env.example`
-- `docs/operations/DEPLOYMENT_OPS.md`
-- `docs/operations/runbooks/shopify-production-launch-checklist.ko.md`
+1. staging에서 13장 검증 8개 전부 통과
+2. prod 리소스 별도 생성(DB/Redis 분리)
+3. prod env 값 입력
+4. Shopify prod 설정(App URL/Redirect/Webhook) 반영
+5. `shopify app deploy`로 config 반영
+6. prod에서 13장 검증 재실행
+7. 통과 후 실제 스토어 범위 확장
 
 ---
 
-## 12) 마지막 정리 (중요한 한 문단)
+## 17) "진짜로 프로그램을 새로 만들어야 하나?" 최종 답변
 
-당신이 원하는 상태는 "로컬 임시 테스트"가 아니라 "항상 살아있는 staging/prod"다.
+아니오.
 
-이를 위해 필요한 것은 복잡한 새 프로그램이 아니라:
+- 같은 코드베이스로 dev/staging/prod 모두 운영 가능
+- 바뀌는 것은 연결값(키/URL/DB/도메인)과 운영 환경
 
-- 환경 분리(staging/prod)
-- 올바른 라우팅(`/v1` 프록시)
-- 비밀키/외부서비스(Mailgun/R2/Shopify) 고정 세팅
+다만 안정성 때문에 아래는 반드시 분리:
 
-이 세 가지만 제대로 잡으면, 더 이상 매번 터미널에서 `export`와 `ngrok`를 반복하지 않아도 된다.
-
----
-
-## 13) 출시 전 코드 레벨 보완 체크 (중요)
-
-인프라 설정만으로 끝나지 않고, 현재 코드 기준으로 아래 항목은 출시 전에 점검/보완을 권장한다.
-
-- OAuth state 저장소
-  - 현재는 in-memory state store라 다중 인스턴스/재시작 환경에서 callback 실패 가능성이 있다.
-- Billing webhook 보호
-  - `/v1/billing/webhooks`는 공개 엔드포인트이므로 서명 검증/인증 정책을 명확히 두는 것을 권장한다.
-- Billing 권한 서버 강제
-  - UI 레벨 뿐 아니라 서버에서도 소유자 권한 검증이 확실히 들어가야 한다.
-- Shopify mandatory compliance webhooks
-  - `customers/data_request`, `customers/redact`, `shop/redact` 대응 라우트/처리 확인이 필요하다.
+- DB (staging/prod)
+- Redis (staging/prod)
+- Shopify 앱 설정(dev용/prod용)
+- 도메인(staging/prod)
 
 ---
 
-## 14) 공식 참고 링크
+## 18) 운영 전에 꼭 읽을 "보완 필요" 항목
 
-- Render Pricing: `https://render.com/pricing`
-- Render Free 제한: `https://render.com/docs/free`
-- Render Background Workers: `https://render.com/docs/background-workers`
-- Vercel Pricing: `https://vercel.com/pricing`
-- Vercel Functions Limits: `https://vercel.com/docs/functions/limitations`
-- Mailgun Sandbox Domain: `https://documentation.mailgun.com/docs/mailgun/user-manual/domains/domains-sandbox`
-- Mailgun Domain Verification: `https://documentation.mailgun.com/docs/mailgun/user-manual/domains/domains-verify`
-- Mailgun Webhooks: `https://documentation.mailgun.com/docs/mailgun/user-manual/events/webhooks`
-- Cloudflare R2 Pricing: `https://developers.cloudflare.com/r2/pricing/`
-- Cloudflare R2 Tokens: `https://developers.cloudflare.com/r2/api/tokens/`
-- Cloudflare R2 Presigned URLs: `https://developers.cloudflare.com/r2/api/s3/presigned-urls/`
+현재 코드 기준으로 런칭 전 점검 권장:
+
+- OAuth state 저장소가 in-memory 기반이라 다중 인스턴스 환경에서 콜백 실패 가능
+- Billing webhook 보안 정책(서명/인증) 명시 강화 필요
+- Billing 권한을 서버에서 더 강하게 검증할 필요
+- Shopify mandatory compliance webhook(`customers/data_request`, `customers/redact`, `shop/redact`) 구현/운영 확인 필요
+
+---
+
+## 19) 운영자가 빠르게 찾을 파일 경로
+
+- API env 스키마: `apps/api/src/config/env.ts`
+- Worker env 스키마: `apps/worker/src/env.ts`
+- API prefix: `apps/api/src/main.ts`
+- Shopify 라우트: `apps/api/src/modules/shopify/shopify.controller.ts`
+- OAuth callback 생성: `apps/api/src/modules/shopify/shopify-auth.service.ts`
+- Mailgun 웹훅 검증: `apps/api/src/modules/mailgun/mailgun.service.ts`
+- Web API base 로직: `apps/web/src/lib/api/fetcher.ts`
+- Session token: `apps/web/src/lib/shopify/session-token.ts`
+- Web rewrite(로컬 기준): `apps/web/next.config.mjs`
+- 환경변수 예시: `.env.example`
+
+---
+
+## 20) 공식 문서 링크
+
+- Vercel monorepo: `https://vercel.com/docs/monorepos`
+- Vercel env: `https://vercel.com/docs/environment-variables`
+- Vercel rewrites: `https://vercel.com/docs/rewrites`
+- Vercel domain: `https://vercel.com/docs/domains/working-with-domains/add-a-domain`
+- Render monorepo: `https://render.com/docs/monorepo-support`
+- Render env: `https://render.com/docs/configure-environment-variables`
+- Render web services: `https://render.com/docs/web-services`
+- Render background workers: `https://render.com/docs/background-workers`
+- Render health checks: `https://render.com/docs/health-checks`
+- Render key value: `https://render.com/docs/key-value`
+- Shopify app config: `https://shopify.dev/docs/apps/build/cli-for-apps/app-configuration`
+- Shopify deploy hosting: `https://shopify.dev/docs/apps/launch/deployment/deploy-to-hosting-service`
+- Shopify distribution: `https://shopify.dev/docs/apps/launch/distribution`
+- Mailgun webhooks: `https://documentation.mailgun.com/docs/mailgun/user-manual/events/webhooks`
+- Mailgun domain verify: `https://documentation.mailgun.com/docs/mailgun/user-manual/domains/domains-verify`
+- Cloudflare R2 tokens: `https://developers.cloudflare.com/r2/api/tokens/`
+- Cloudflare R2 presigned URLs: `https://developers.cloudflare.com/r2/api/s3/presigned-urls/`
 - Cloudflare R2 CORS: `https://developers.cloudflare.com/r2/buckets/cors/`
-- Shopify App Store Requirements: `https://shopify.dev/docs/apps/launch/shopify-app-store/app-store-requirements`
-- Shopify Privacy Law Compliance Webhooks: `https://shopify.dev/docs/apps/build/compliance/privacy-law-compliance`
+
+---
+
+## 21) 마지막 한 줄
+
+이 문서대로 순서만 지키면, 로컬 터널/수동 export 반복 없이도 **서버에서 안정적으로 테스트 -> 운영 -> 출시**까지 갈 수 있다.
