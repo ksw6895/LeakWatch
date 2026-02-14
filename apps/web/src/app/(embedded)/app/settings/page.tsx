@@ -1,8 +1,6 @@
 'use client';
 
-import { Provider as AppBridgeProvider } from '@shopify/app-bridge-react';
-import { AppProvider, Box, Button, Card, Layout, Page, Text, TextField } from '@shopify/polaris';
-import enTranslations from '@shopify/polaris/locales/en.json';
+import { Box, Button, Card, Layout, Page, Text, TextField } from '@shopify/polaris';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useState } from 'react';
 
@@ -27,7 +25,6 @@ function SettingsRootContent() {
   const searchParams = useSearchParams();
   const host = searchParams.get('host');
   const shop = searchParams.get('shop');
-  const apiKey = process.env.NEXT_PUBLIC_SHOPIFY_API_KEY;
   const [roles, setRoles] = useState<string[]>([]);
   const [shopId, setShopId] = useState<string | null>(null);
   const [currency, setCurrency] = useState('USD');
@@ -131,16 +128,7 @@ function SettingsRootContent() {
     }
   };
 
-  const appBridgeConfig =
-    host && apiKey
-      ? {
-          apiKey,
-          host,
-          forceRedirect: true,
-        }
-      : null;
-
-  const content = (
+  return (
     <Page title="Settings">
       <Layout>
         <Layout.Section>
@@ -231,20 +219,12 @@ function SettingsRootContent() {
       </Layout>
     </Page>
   );
-
-  return appBridgeConfig ? (
-    <AppBridgeProvider config={appBridgeConfig}>{content}</AppBridgeProvider>
-  ) : (
-    content
-  );
 }
 
 export default function SettingsRootPage() {
   return (
     <Suspense>
-      <AppProvider i18n={enTranslations}>
-        <SettingsRootContent />
-      </AppProvider>
+      <SettingsRootContent />
     </Suspense>
   );
 }

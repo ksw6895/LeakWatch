@@ -1,8 +1,6 @@
 'use client';
 
-import { Provider as AppBridgeProvider } from '@shopify/app-bridge-react';
-import { AppProvider, Box, Button, Card, Layout, Page, Text } from '@shopify/polaris';
-import enTranslations from '@shopify/polaris/locales/en.json';
+import { Box, Button, Card, Layout, Page, Text } from '@shopify/polaris';
 import { useParams, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 
@@ -33,9 +31,9 @@ function ReportDetailPageContent() {
   const searchParams = useSearchParams();
   const host = searchParams.get('host');
   const shop = searchParams.get('shop');
-  const apiKey = process.env.NEXT_PUBLIC_SHOPIFY_API_KEY;
   const [report, setReport] = useState<ReportDetail | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [showRaw, setShowRaw] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
 
@@ -50,30 +48,21 @@ function ReportDetailPageContent() {
           throw new Error(`Report fetch failed (${response.status})`);
         }
         setReport((await response.json()) as ReportDetail);
-        setError(null);
+        setLoadError(null);
       } catch (unknownError) {
-        setError(unknownError instanceof Error ? unknownError.message : 'Unknown error');
+        setLoadError(unknownError instanceof Error ? unknownError.message : 'Unknown error');
       }
     })();
   }, [host, params.id]);
 
-  const appBridgeConfig =
-    host && apiKey
-      ? {
-          apiKey,
-          host,
-          forceRedirect: true,
-        }
-      : null;
-
-  const content = (
+  return (
     <Page title="Report detail">
       <Layout>
         <Layout.Section>
           <Card>
             <Box padding="400">
-              {error ? (
-                <StatePanel kind="error" message={error} />
+              {loadError ? (
+                <StatePanel kind="error" message={loadError} />
               ) : !report ? (
                 <StatePanel kind="loading" message="Loading report detail and generated summary." />
               ) : (
@@ -150,156 +139,181 @@ function ReportDetailPageContent() {
                   </div>
 
                   <div className="lw-content-box">
-                    <div className="lw-actions-row">
-                      <Button
-                        onClick={() => {
-                          setShowRaw((prev) => !prev);
-                        }}
-                      >
-                        {showRaw ? 'Hide advanced JSON' : 'Show advanced JSON'}
-                      </Button>
-                      <Button
-                        onClick={async () => {
-                          if (!host || !report) {
-                            return;
-                          }
-                          try {
-                            const response = await apiFetch(`/v1/reports/${report.id}/share-link`, {
-                              host,
-                              method: 'POST',
-                              body: JSON.stringify({}),
-                            });
-                            if (!response.ok) {
-                              throw new Error(`Share link failed (${response.status})`);
+                    {actionError ? (
+                      <Box paddingBlockEnd="200">
+                        <StatePanel kind="error" message={actionError} />
+                      </Box>
+                    ) : null}
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      Sharing controls
+                    </Text>
+                    <Box paddingBlockStart="150">
+                      <div className="lw-actions-row">
+                        <Button
+                          onClick={async () => {
+                            if (!host || !report) {
+                              return;
                             }
-                            const payload = (await response.json()) as { shareUrl: string };
-                            setShareUrl(payload.shareUrl);
-                            if (navigator.clipboard?.writeText) {
-                              await navigator.clipboard.writeText(payload.shareUrl);
+                            try {
+                              const response = await apiFetch(
+                                `/v1/reports/${report.id}/share-link`,
+                                {
+                                  host,
+                                  method: 'POST',
+                                  body: JSON.stringify({}),
+                                },
+                              );
+                              if (!response.ok) {
+                                throw new Error(`Share link failed (${response.status})`);
+                              }
+                              const payload = (await response.json()) as { shareUrl: string };
+                              setShareUrl(payload.shareUrl);
+                              setActionError(null);
+                              if (navigator.clipboard?.writeText) {
+                                await navigator.clipboard.writeText(payload.shareUrl);
+                              }
+                            } catch (unknownError) {
+                              setActionError(
+                                unknownError instanceof Error
+                                  ? unknownError.message
+                                  : 'Share link failed',
+                              );
                             }
-                          } catch (unknownError) {
-                            setError(
-                              unknownError instanceof Error
-                                ? unknownError.message
-                                : 'Share link failed',
-                            );
-                          }
-                        }}
-                      >
-                        Create share link
-                      </Button>
-                      <Button
-                        disabled={!shareUrl}
-                        onClick={async () => {
-                          if (!host || !report) {
-                            return;
-                          }
-                          try {
-                            const response = await apiFetch(
-                              `/v1/reports/${report.id}/share-link/revoke`,
-                              {
-                                host,
-                                method: 'POST',
-                                body: JSON.stringify({}),
-                              },
-                            );
-                            if (!response.ok) {
-                              throw new Error(`Share revoke failed (${response.status})`);
+                          }}
+                        >
+                          Create share link
+                        </Button>
+                        <Button
+                          disabled={!shareUrl}
+                          onClick={async () => {
+                            if (!host || !report) {
+                              return;
                             }
-                            setShareUrl(null);
-                          } catch (unknownError) {
-                            setError(
-                              unknownError instanceof Error
-                                ? unknownError.message
-                                : 'Share revoke failed',
-                            );
-                          }
-                        }}
-                      >
-                        Revoke share link
-                      </Button>
-                      <Button
-                        onClick={async () => {
-                          if (!host || !report) {
-                            return;
-                          }
-                          try {
-                            const response = await apiFetch(
-                              `/v1/reports/${report.id}/export?format=csv`,
-                              { host },
-                            );
-                            if (!response.ok) {
-                              throw new Error(`Export failed (${response.status})`);
+                            try {
+                              const response = await apiFetch(
+                                `/v1/reports/${report.id}/share-link/revoke`,
+                                {
+                                  host,
+                                  method: 'POST',
+                                  body: JSON.stringify({}),
+                                },
+                              );
+                              if (!response.ok) {
+                                throw new Error(`Share revoke failed (${response.status})`);
+                              }
+                              setShareUrl(null);
+                              setActionError(null);
+                            } catch (unknownError) {
+                              setActionError(
+                                unknownError instanceof Error
+                                  ? unknownError.message
+                                  : 'Share revoke failed',
+                              );
                             }
-                            const payload = (await response.json()) as {
-                              fileName: string;
-                              contentType: string;
-                              content: string;
-                            };
-                            const blob = new Blob([payload.content], {
-                              type: payload.contentType,
-                            });
-                            const url = URL.createObjectURL(blob);
-                            const link = document.createElement('a');
-                            link.href = url;
-                            link.download = payload.fileName;
-                            link.click();
-                            URL.revokeObjectURL(url);
-                          } catch (unknownError) {
-                            setError(
-                              unknownError instanceof Error
-                                ? unknownError.message
-                                : 'Export failed',
-                            );
-                          }
-                        }}
-                      >
-                        Export CSV
-                      </Button>
-                      <Button
-                        onClick={async () => {
-                          if (!host || !report) {
-                            return;
-                          }
-                          try {
-                            const response = await apiFetch(
-                              `/v1/reports/${report.id}/export?format=pdf`,
-                              { host },
-                            );
-                            if (!response.ok) {
-                              throw new Error(`Export failed (${response.status})`);
+                          }}
+                        >
+                          Revoke share link
+                        </Button>
+                      </div>
+                    </Box>
+
+                    <Box paddingBlockStart="200">
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        Export actions
+                      </Text>
+                    </Box>
+                    <Box paddingBlockStart="150">
+                      <div className="lw-actions-row">
+                        <Button
+                          onClick={async () => {
+                            if (!host || !report) {
+                              return;
                             }
-                            const payload = (await response.json()) as {
-                              fileName: string;
-                              contentType: string;
-                              content: string;
-                            };
-                            const blob = new Blob([payload.content], {
-                              type: payload.contentType,
-                            });
-                            const url = URL.createObjectURL(blob);
-                            const link = document.createElement('a');
-                            link.href = url;
-                            link.download = payload.fileName;
-                            link.click();
-                            URL.revokeObjectURL(url);
-                          } catch (unknownError) {
-                            setError(
-                              unknownError instanceof Error
-                                ? unknownError.message
-                                : 'Export failed',
-                            );
-                          }
-                        }}
-                      >
-                        Export PDF
-                      </Button>
-                    </div>
+                            try {
+                              const response = await apiFetch(
+                                `/v1/reports/${report.id}/export?format=csv`,
+                                { host },
+                              );
+                              if (!response.ok) {
+                                throw new Error(`Export failed (${response.status})`);
+                              }
+                              const payload = (await response.json()) as {
+                                fileName: string;
+                                contentType: string;
+                                content: string;
+                              };
+                              const blob = new Blob([payload.content], {
+                                type: payload.contentType,
+                              });
+                              const url = URL.createObjectURL(blob);
+                              const link = document.createElement('a');
+                              link.href = url;
+                              link.download = payload.fileName;
+                              link.click();
+                              URL.revokeObjectURL(url);
+                              setActionError(null);
+                            } catch (unknownError) {
+                              setActionError(
+                                unknownError instanceof Error
+                                  ? unknownError.message
+                                  : 'Export failed',
+                              );
+                            }
+                          }}
+                        >
+                          Export CSV
+                        </Button>
+                        <Button
+                          onClick={async () => {
+                            if (!host || !report) {
+                              return;
+                            }
+                            try {
+                              const response = await apiFetch(
+                                `/v1/reports/${report.id}/export?format=pdf`,
+                                { host },
+                              );
+                              if (!response.ok) {
+                                throw new Error(`Export failed (${response.status})`);
+                              }
+                              const payload = (await response.json()) as {
+                                fileName: string;
+                                contentType: string;
+                                content: string;
+                              };
+                              const blob = new Blob([payload.content], {
+                                type: payload.contentType,
+                              });
+                              const url = URL.createObjectURL(blob);
+                              const link = document.createElement('a');
+                              link.href = url;
+                              link.download = payload.fileName;
+                              link.click();
+                              URL.revokeObjectURL(url);
+                              setActionError(null);
+                            } catch (unknownError) {
+                              setActionError(
+                                unknownError instanceof Error
+                                  ? unknownError.message
+                                  : 'Export failed',
+                              );
+                            }
+                          }}
+                        >
+                          Export PDF
+                        </Button>
+                        <Button
+                          onClick={() => {
+                            setShowRaw((prev) => !prev);
+                          }}
+                        >
+                          {showRaw ? 'Hide advanced JSON' : 'Show advanced JSON'}
+                        </Button>
+                      </div>
+                    </Box>
                     {shareUrl ? (
                       <Box paddingBlockStart="200">
-                        <Text as="p" variant="bodySm" tone="subdued">
-                          Share link: {shareUrl}
-                        </Text>
+                        <pre className="lw-pre">Share link: {shareUrl}</pre>
                       </Box>
                     ) : null}
                     {showRaw ? (
@@ -332,20 +346,12 @@ function ReportDetailPageContent() {
       </Layout>
     </Page>
   );
-
-  return appBridgeConfig ? (
-    <AppBridgeProvider config={appBridgeConfig}>{content}</AppBridgeProvider>
-  ) : (
-    content
-  );
 }
 
 export default function ReportDetailPage() {
   return (
     <Suspense>
-      <AppProvider i18n={enTranslations}>
-        <ReportDetailPageContent />
-      </AppProvider>
+      <ReportDetailPageContent />
     </Suspense>
   );
 }

@@ -1,12 +1,11 @@
 'use client';
 
-import { Provider as AppBridgeProvider } from '@shopify/app-bridge-react';
-import { AppProvider, Box, Card, Layout, Page, Text } from '@shopify/polaris';
-import enTranslations from '@shopify/polaris/locales/en.json';
+import { Box, Button, Card, Layout, Page, Text } from '@shopify/polaris';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 
 import { apiFetch } from '../../../../lib/api/fetcher';
+import { navigateEmbedded } from '../../../../lib/navigation/embedded';
 import { StatePanel } from '../../../../components/common/StatePanel';
 
 type AgencySummary = {
@@ -25,47 +24,60 @@ type AgencySummary = {
 function AgencyPageContent() {
   const searchParams = useSearchParams();
   const host = searchParams.get('host');
-  const apiKey = process.env.NEXT_PUBLIC_SHOPIFY_API_KEY;
+  const shop = searchParams.get('shop');
   const [summary, setSummary] = useState<AgencySummary | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!host) {
+      setLoading(false);
       return;
     }
+
     void (async () => {
-      const meResponse = await apiFetch('/v1/auth/me', { host });
-      if (!meResponse.ok) {
-        return;
+      setLoading(true);
+      try {
+        const meResponse = await apiFetch('/v1/auth/me', { host });
+        if (!meResponse.ok) {
+          throw new Error(`Auth failed (${meResponse.status})`);
+        }
+        const me = (await meResponse.json()) as { orgId: string };
+        const response = await apiFetch(`/v1/orgs/${me.orgId}/summary`, { host });
+        if (!response.ok) {
+          throw new Error(`Agency summary fetch failed (${response.status})`);
+        }
+        setSummary((await response.json()) as AgencySummary);
+        setError(null);
+      } catch (unknownError) {
+        setSummary(null);
+        setError(unknownError instanceof Error ? unknownError.message : 'Unknown error');
+      } finally {
+        setLoading(false);
       }
-      const me = (await meResponse.json()) as { orgId: string };
-      const response = await apiFetch(`/v1/orgs/${me.orgId}/summary`, { host });
-      if (!response.ok) {
-        return;
-      }
-      setSummary((await response.json()) as AgencySummary);
     })();
   }, [host]);
 
-  const appBridgeConfig =
-    host && apiKey
-      ? {
-          apiKey,
-          host,
-          forceRedirect: true,
-        }
-      : null;
-
-  const content = (
+  return (
     <Page title="Agency dashboard">
       <Layout>
         <Layout.Section>
           <Card>
             <Box padding="400">
-              {!summary ? (
+              {!host ? (
+                <StatePanel
+                  kind="error"
+                  message="Missing host context. Re-open LeakWatch from Shopify Admin Apps."
+                />
+              ) : loading ? (
                 <StatePanel
                   kind="loading"
                   message="Loading connected shop rollup and top findings."
                 />
+              ) : error ? (
+                <StatePanel kind="error" message={error} />
+              ) : !summary ? (
+                <StatePanel kind="empty" message="No agency summary available yet." />
               ) : (
                 <div className="lw-page-stack lw-animate-in">
                   <div className="lw-hero">
@@ -117,6 +129,17 @@ function AgencyPageContent() {
                               <div className="lw-metric-hint">
                                 {finding.estimatedSavingsAmount} {finding.currency}
                               </div>
+                              <Box paddingBlockStart="100">
+                                <div className="lw-actions-row">
+                                  <Button
+                                    onClick={() => {
+                                      navigateEmbedded('/app/leaks', { host, shop });
+                                    }}
+                                  >
+                                    Open leaks
+                                  </Button>
+                                </div>
+                              </Box>
                             </div>
                           ))}
                         </div>
@@ -131,20 +154,12 @@ function AgencyPageContent() {
       </Layout>
     </Page>
   );
-
-  return appBridgeConfig ? (
-    <AppBridgeProvider config={appBridgeConfig}>{content}</AppBridgeProvider>
-  ) : (
-    content
-  );
 }
 
 export default function AgencyPage() {
   return (
     <Suspense>
-      <AppProvider i18n={enTranslations}>
-        <AgencyPageContent />
-      </AppProvider>
+      <AgencyPageContent />
     </Suspense>
   );
 }

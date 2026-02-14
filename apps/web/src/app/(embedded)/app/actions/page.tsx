@@ -1,8 +1,6 @@
 'use client';
 
-import { Provider as AppBridgeProvider } from '@shopify/app-bridge-react';
-import { AppProvider, Badge, Box, Button, Card, Layout, Page, Text } from '@shopify/polaris';
-import enTranslations from '@shopify/polaris/locales/en.json';
+import { Badge, Box, Button, Card, Layout, Page, Text } from '@shopify/polaris';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useMemo, useState } from 'react';
 
@@ -77,7 +75,6 @@ function ActionsPageContent() {
   const searchParams = useSearchParams();
   const host = searchParams.get('host');
   const shop = searchParams.get('shop');
-  const apiKey = process.env.NEXT_PUBLIC_SHOPIFY_API_KEY;
   const [items, setItems] = useState<ActionRequestListItem[]>([]);
   const [parseMetrics, setParseMetrics] = useState<InboundParseMetrics | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -146,232 +143,188 @@ function ActionsPageContent() {
     })();
   }, [host]);
 
-  const appBridgeConfig =
-    host && apiKey
-      ? {
-          apiKey,
-          host,
-          forceRedirect: true,
-        }
-      : null;
-
   const openActionRequest = (actionRequestId: string) => {
     navigateEmbedded(`/app/actions/${actionRequestId}`, { host, shop });
   };
 
   return (
-    <AppProvider i18n={enTranslations}>
-      {appBridgeConfig ? (
-        <AppBridgeProvider config={appBridgeConfig}>
-          <Page title="Actions">
-            <Layout>
-              <Layout.Section>
-                <Card>
-                  <Box padding="400">
-                    <div className="lw-page-stack lw-animate-in">
-                      <div className="lw-hero">
-                        <span className="lw-eyebrow">Action Queue</span>
-                        <div className="lw-title">
-                          <Text as="h2" variant="headingMd">
-                            Vendor outreach lifecycle: draft, approve, deliver
-                          </Text>
-                        </div>
-                        <div className="lw-subtitle">
-                          <Text as="p" variant="bodySm">
-                            Track outbound requests linked to leak findings and evidence packs.
-                          </Text>
-                        </div>
-                      </div>
+    <Page title="Actions">
+      <Layout>
+        <Layout.Section>
+          <Card>
+            <Box padding="400">
+              <div className="lw-page-stack lw-animate-in">
+                <div className="lw-hero">
+                  <span className="lw-eyebrow">Action Queue</span>
+                  <div className="lw-title">
+                    <Text as="h2" variant="headingMd">
+                      Vendor outreach lifecycle: draft, approve, deliver
+                    </Text>
+                  </div>
+                  <div className="lw-subtitle">
+                    <Text as="p" variant="bodySm">
+                      Track outbound requests linked to leak findings and evidence packs.
+                    </Text>
+                  </div>
+                </div>
 
+                <div className="lw-summary-grid">
+                  <div className="lw-metric lw-metric--compact">
+                    <div className="lw-metric-label">Total actions</div>
+                    <div className="lw-metric-value">{items.length}</div>
+                  </div>
+                  <div className="lw-metric lw-metric--compact">
+                    <div className="lw-metric-label">Drafts</div>
+                    <div className="lw-metric-value">{draftsCount}</div>
+                  </div>
+                  <div className="lw-metric lw-metric--compact">
+                    <div className="lw-metric-label">Approved</div>
+                    <div className="lw-metric-value">{approvedCount}</div>
+                  </div>
+                  <div className="lw-metric lw-metric--compact">
+                    <div className="lw-metric-label">Recipients</div>
+                    <div className="lw-metric-value">{activeRecipients}</div>
+                    <div className="lw-metric-hint">canceled: {canceledCount}</div>
+                  </div>
+                </div>
+
+                {parseMetrics ? (
+                  <div className="lw-content-box">
+                    <Text as="h3" variant="headingSm">
+                      Inbound parsing quality (last {parseMetrics.windowDays}d)
+                    </Text>
+                    <Box paddingBlockStart="200">
                       <div className="lw-summary-grid">
                         <div className="lw-metric lw-metric--compact">
-                          <div className="lw-metric-label">Total actions</div>
-                          <div className="lw-metric-value">{items.length}</div>
+                          <div className="lw-metric-label">Inbound replies</div>
+                          <div className="lw-metric-value">{parseMetrics.inboundReplyEvents}</div>
                         </div>
                         <div className="lw-metric lw-metric--compact">
-                          <div className="lw-metric-label">Drafts</div>
-                          <div className="lw-metric-value">{draftsCount}</div>
+                          <div className="lw-metric-label">Labeled feedback</div>
+                          <div className="lw-metric-value">{parseMetrics.labeledFeedback}</div>
                         </div>
                         <div className="lw-metric lw-metric--compact">
-                          <div className="lw-metric-label">Approved</div>
-                          <div className="lw-metric-value">{approvedCount}</div>
+                          <div className="lw-metric-label">False positives</div>
+                          <div className="lw-metric-value">
+                            {parseMetrics.labels.FALSE_POSITIVE}
+                          </div>
                         </div>
                         <div className="lw-metric lw-metric--compact">
-                          <div className="lw-metric-label">Recipients</div>
-                          <div className="lw-metric-value">{activeRecipients}</div>
-                          <div className="lw-metric-hint">canceled: {canceledCount}</div>
+                          <div className="lw-metric-label">False negatives</div>
+                          <div className="lw-metric-value">
+                            {parseMetrics.labels.FALSE_NEGATIVE}
+                          </div>
                         </div>
                       </div>
+                      <Box paddingBlockStart="150">
+                        <Text as="p" variant="bodySm" tone="subdued">
+                          Correction rate:{' '}
+                          {parseMetrics.correctionRate === null
+                            ? 'n/a'
+                            : `${Math.round(parseMetrics.correctionRate * 100)}%`}
+                          {' · '}FP rate:{' '}
+                          {parseMetrics.falsePositiveRate === null
+                            ? 'n/a'
+                            : `${Math.round(parseMetrics.falsePositiveRate * 100)}%`}
+                          {' · '}FN rate:{' '}
+                          {parseMetrics.falseNegativeRate === null
+                            ? 'n/a'
+                            : `${Math.round(parseMetrics.falseNegativeRate * 100)}%`}
+                        </Text>
+                      </Box>
+                    </Box>
+                  </div>
+                ) : null}
 
-                      {parseMetrics ? (
-                        <div className="lw-content-box">
-                          <Text as="h3" variant="headingSm">
-                            Inbound parsing quality (last {parseMetrics.windowDays}d)
-                          </Text>
-                          <Box paddingBlockStart="200">
-                            <div className="lw-summary-grid">
-                              <div className="lw-metric lw-metric--compact">
-                                <div className="lw-metric-label">Inbound replies</div>
-                                <div className="lw-metric-value">
-                                  {parseMetrics.inboundReplyEvents}
-                                </div>
+                <div className="lw-content-box">
+                  <div className="lw-actions-row">
+                    {(
+                      [
+                        'ALL',
+                        'DRAFT',
+                        'APPROVED',
+                        'WAITING_REPLY',
+                        'FAILED',
+                        'RESOLVED',
+                        'CANCELED',
+                      ] as const
+                    ).map((status) => (
+                      <Button
+                        key={status}
+                        variant={statusTab === status ? 'primary' : 'tertiary'}
+                        onClick={() => setStatusTab(status)}
+                      >
+                        {status}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                {loading ? (
+                  <StatePanel kind="loading" message="Loading action queue and recipients." />
+                ) : error ? (
+                  <StatePanel kind="error" message={error} />
+                ) : filteredItems.length === 0 ? (
+                  <StatePanel kind="empty" message="No action requests in this status bucket." />
+                ) : (
+                  <div className="lw-table-wrap">
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      Swipe horizontally on smaller screens to inspect full action columns.
+                    </Text>
+                    <table className="lw-table">
+                      <thead>
+                        <tr>
+                          <th>Status</th>
+                          <th>Type</th>
+                          <th>Finding</th>
+                          <th>Recipient</th>
+                          <th>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredItems.map((item) => (
+                          <tr key={item.id}>
+                            <td>
+                              <Badge tone={tone(normalizedStatus(item))}>
+                                {normalizedStatus(item)}
+                              </Badge>
+                              <div className="lw-metric-hint">
+                                display: {item.displayStatus ?? item.status}
                               </div>
-                              <div className="lw-metric lw-metric--compact">
-                                <div className="lw-metric-label">Labeled feedback</div>
-                                <div className="lw-metric-value">
-                                  {parseMetrics.labeledFeedback}
-                                </div>
-                              </div>
-                              <div className="lw-metric lw-metric--compact">
-                                <div className="lw-metric-label">False positives</div>
-                                <div className="lw-metric-value">
-                                  {parseMetrics.labels.FALSE_POSITIVE}
-                                </div>
-                              </div>
-                              <div className="lw-metric lw-metric--compact">
-                                <div className="lw-metric-label">False negatives</div>
-                                <div className="lw-metric-value">
-                                  {parseMetrics.labels.FALSE_NEGATIVE}
-                                </div>
-                              </div>
-                            </div>
-                            <Box paddingBlockStart="150">
-                              <Text as="p" variant="bodySm" tone="subdued">
-                                Correction rate:{' '}
-                                {parseMetrics.correctionRate === null
-                                  ? 'n/a'
-                                  : `${Math.round(parseMetrics.correctionRate * 100)}%`}
-                                {' · '}FP rate:{' '}
-                                {parseMetrics.falsePositiveRate === null
-                                  ? 'n/a'
-                                  : `${Math.round(parseMetrics.falsePositiveRate * 100)}%`}
-                                {' · '}FN rate:{' '}
-                                {parseMetrics.falseNegativeRate === null
-                                  ? 'n/a'
-                                  : `${Math.round(parseMetrics.falseNegativeRate * 100)}%`}
+                            </td>
+                            <td>
+                              <span className="lw-inline-chip">{item.type}</span>
+                            </td>
+                            <td>
+                              <Text as="p" variant="bodySm">
+                                {item.finding.title}
                               </Text>
-                            </Box>
-                          </Box>
-                        </div>
-                      ) : null}
-
-                      <div className="lw-content-box">
-                        <div className="lw-actions-row">
-                          {(
-                            [
-                              'ALL',
-                              'DRAFT',
-                              'APPROVED',
-                              'WAITING_REPLY',
-                              'FAILED',
-                              'RESOLVED',
-                              'CANCELED',
-                            ] as const
-                          ).map((status) => (
-                            <Button
-                              key={status}
-                              variant={statusTab === status ? 'primary' : 'tertiary'}
-                              onClick={() => setStatusTab(status)}
-                            >
-                              {status}
-                            </Button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {loading ? (
-                        <StatePanel kind="loading" message="Loading action queue and recipients." />
-                      ) : error ? (
-                        <StatePanel kind="error" message={error} />
-                      ) : filteredItems.length === 0 ? (
-                        <StatePanel
-                          kind="empty"
-                          message="No action requests in this status bucket."
-                        />
-                      ) : (
-                        <div className="lw-table-wrap">
-                          <table className="lw-table">
-                            <thead>
-                              <tr>
-                                <th>Status</th>
-                                <th>Type</th>
-                                <th>Finding</th>
-                                <th>Recipient</th>
-                                <th>Action</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {filteredItems.map((item) => (
-                                <tr
-                                  key={item.id}
-                                  className="lw-interactive-row"
-                                  role="button"
-                                  tabIndex={0}
-                                  onClick={() => {
-                                    openActionRequest(item.id);
-                                  }}
-                                  onKeyDown={(event) => {
-                                    if (event.key === 'Enter' || event.key === ' ') {
-                                      event.preventDefault();
-                                      openActionRequest(item.id);
-                                    }
-                                  }}
-                                >
-                                  <td>
-                                    <Badge tone={tone(normalizedStatus(item))}>
-                                      {normalizedStatus(item)}
-                                    </Badge>
-                                    <div className="lw-metric-hint">
-                                      display: {item.displayStatus ?? item.status}
-                                    </div>
-                                  </td>
-                                  <td>
-                                    <span className="lw-inline-chip">{item.type}</span>
-                                  </td>
-                                  <td>
-                                    <Text as="p" variant="bodySm">
-                                      {item.finding.title}
-                                    </Text>
-                                    <div className="lw-metric-hint">
-                                      {item.finding.estimatedSavingsAmount} {item.finding.currency}
-                                    </div>
-                                  </td>
-                                  <td>{item.toEmail}</td>
-                                  <td>
-                                    <div
-                                      onClick={(event) => {
-                                        event.stopPropagation();
-                                      }}
-                                      onKeyDown={(event) => {
-                                        event.stopPropagation();
-                                      }}
-                                    >
-                                      <Button
-                                        onClick={() => {
-                                          openActionRequest(item.id);
-                                        }}
-                                      >
-                                        View
-                                      </Button>
-                                    </div>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-                    </div>
-                  </Box>
-                </Card>
-              </Layout.Section>
-            </Layout>
-          </Page>
-        </AppBridgeProvider>
-      ) : (
-        <Page title="Actions" />
-      )}
-    </AppProvider>
+                              <div className="lw-metric-hint">
+                                {item.finding.estimatedSavingsAmount} {item.finding.currency}
+                              </div>
+                            </td>
+                            <td>{item.toEmail}</td>
+                            <td>
+                              <Button
+                                onClick={() => {
+                                  openActionRequest(item.id);
+                                }}
+                              >
+                                View detail
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </Box>
+          </Card>
+        </Layout.Section>
+      </Layout>
+    </Page>
   );
 }
 

@@ -1,8 +1,6 @@
 'use client';
 
-import { Provider as AppBridgeProvider } from '@shopify/app-bridge-react';
 import {
-  AppProvider,
   Box,
   Button,
   Card,
@@ -14,7 +12,6 @@ import {
   Text,
   TextField,
 } from '@shopify/polaris';
-import enTranslations from '@shopify/polaris/locales/en.json';
 import { useParams, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 
@@ -57,7 +54,6 @@ function LeaksDetailContent() {
   const params = useParams<{ id: string }>();
   const host = searchParams.get('host');
   const shop = searchParams.get('shop');
-  const apiKey = process.env.NEXT_PUBLIC_SHOPIFY_API_KEY;
   const [finding, setFinding] = useState<FindingDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<boolean>(false);
@@ -104,15 +100,6 @@ function LeaksDetailContent() {
       status: finding.status,
     });
   }, [finding?.id, finding?.status, host, shop]);
-
-  const appBridgeConfig =
-    host && apiKey
-      ? {
-          apiKey,
-          host,
-          forceRedirect: true,
-        }
-      : null;
 
   const dismiss = async () => {
     if (!host || !finding) {
@@ -178,199 +165,200 @@ function LeaksDetailContent() {
   };
 
   return (
-    <AppProvider i18n={enTranslations}>
-      {appBridgeConfig ? (
-        <AppBridgeProvider config={appBridgeConfig}>
-          <Page title="Leak Detail">
-            <Layout>
-              <Layout.Section>
-                <Card>
-                  <Box padding="400">
-                    {error ? (
-                      <StatePanel kind="error" message={error} />
-                    ) : !finding ? (
-                      <StatePanel
-                        kind="loading"
-                        message="Loading finding evidence and confidence."
+    <Page title="Leak Detail">
+      <Layout>
+        <Layout.Section>
+          <Card>
+            <Box padding="400">
+              {error ? (
+                <StatePanel kind="error" message={error} />
+              ) : !finding ? (
+                <StatePanel kind="loading" message="Loading finding evidence and confidence." />
+              ) : (
+                <div className="lw-page-stack lw-animate-in">
+                  <div className="lw-hero">
+                    <span className="lw-eyebrow">Leak Detail</span>
+                    <div className="lw-title">
+                      <Text as="h2" variant="headingMd">
+                        {finding.title}
+                      </Text>
+                    </div>
+                    <Box paddingBlockStart="200">
+                      <span className="lw-inline-chip">{finding.type}</span>{' '}
+                      <span className="lw-inline-chip">status: {finding.status}</span>{' '}
+                      <span className="lw-inline-chip">confidence: {finding.confidence}%</span>
+                    </Box>
+                    <Box paddingBlockStart="200">
+                      <Text as="p" variant="bodySm">
+                        {finding.summary}
+                      </Text>
+                    </Box>
+                    <Box paddingBlockStart="100">
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        Savings estimate: {finding.estimatedSavingsAmount} {finding.currency}
+                      </Text>
+                    </Box>
+                  </div>
+
+                  <div className="lw-content-box">
+                    <div className="lw-summary-grid">
+                      <Select
+                        label="Action type"
+                        options={[
+                          { label: 'Refund request', value: 'REFUND_REQUEST' },
+                          { label: 'Cancel request', value: 'CANCEL_REQUEST' },
+                          { label: 'Downgrade request', value: 'DOWNGRADE_REQUEST' },
+                          { label: 'Clarification', value: 'CLARIFICATION' },
+                        ]}
+                        value={actionType}
+                        onChange={(value) => {
+                          setActionType(value as ActionType);
+                        }}
                       />
-                    ) : (
-                      <div className="lw-page-stack lw-animate-in">
-                        <div className="lw-hero">
-                          <span className="lw-eyebrow">Leak Detail</span>
-                          <div className="lw-title">
-                            <Text as="h2" variant="headingMd">
-                              {finding.title}
-                            </Text>
-                          </div>
-                          <Box paddingBlockStart="200">
-                            <span className="lw-inline-chip">{finding.type}</span>{' '}
-                            <span className="lw-inline-chip">status: {finding.status}</span>{' '}
-                            <span className="lw-inline-chip">
-                              confidence: {finding.confidence}%
-                            </span>
-                          </Box>
-                          <Box paddingBlockStart="200">
-                            <Text as="p" variant="bodySm">
-                              {finding.summary}
-                            </Text>
-                          </Box>
-                          <Box paddingBlockStart="100">
-                            <Text as="p" variant="bodySm" tone="subdued">
-                              Savings estimate: {finding.estimatedSavingsAmount} {finding.currency}
-                            </Text>
-                          </Box>
-                        </div>
+                      <TextField
+                        id="leak-action-recipient-email"
+                        label="Recipient email"
+                        value={toEmail}
+                        onChange={setToEmail}
+                        autoComplete="email"
+                      />
+                    </div>
+                    {draftError ? (
+                      <Box paddingBlockStart="150">
+                        <InlineError message={draftError} fieldID="leak-action-recipient-email" />
+                      </Box>
+                    ) : null}
+                    <Box paddingBlockStart="150">
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        Start with outreach draft when vendor communication is needed. Dismiss only
+                        for confirmed false positives.
+                      </Text>
+                    </Box>
+                    <Box paddingBlockStart="200" />
+                    <div className="lw-actions-row">
+                      <Button
+                        variant="primary"
+                        onClick={createActionDraft}
+                        disabled={busy || !canMutate}
+                      >
+                        Create action draft
+                      </Button>
+                      <Button
+                        tone="critical"
+                        disabled={busy || finding.status === 'DISMISSED' || !canMutate}
+                        onClick={() => {
+                          setDismissModalOpen(true);
+                        }}
+                      >
+                        Dismiss finding
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          navigateEmbedded('/app/leaks', { host, shop });
+                        }}
+                      >
+                        Back to list
+                      </Button>
+                    </div>
+                    {!canMutate ? (
+                      <Box paddingBlockStart="200">
+                        <Text as="p" variant="bodySm" tone="subdued">
+                          {blockedReason}
+                        </Text>
+                      </Box>
+                    ) : null}
+                  </div>
 
-                        <div className="lw-content-box">
-                          <div className="lw-summary-grid">
-                            <Select
-                              label="Action type"
-                              options={[
-                                { label: 'Refund request', value: 'REFUND_REQUEST' },
-                                { label: 'Cancel request', value: 'CANCEL_REQUEST' },
-                                { label: 'Downgrade request', value: 'DOWNGRADE_REQUEST' },
-                                { label: 'Clarification', value: 'CLARIFICATION' },
-                              ]}
-                              value={actionType}
-                              onChange={(value) => {
-                                setActionType(value as ActionType);
-                              }}
-                            />
-                            <TextField
-                              label="Recipient email"
-                              value={toEmail}
-                              onChange={setToEmail}
-                              autoComplete="email"
-                            />
-                          </div>
-                          {draftError ? (
-                            <Box paddingBlockStart="150">
-                              <InlineError message={draftError} fieldID="action-draft-error" />
-                            </Box>
-                          ) : null}
-                          <Box paddingBlockStart="200" />
-                          <div className="lw-actions-row">
-                            <Button
-                              variant="primary"
-                              disabled={busy || finding.status === 'DISMISSED' || !canMutate}
-                              onClick={() => {
-                                setDismissModalOpen(true);
-                              }}
-                            >
-                              Dismiss finding
-                            </Button>
-                            <Button onClick={createActionDraft} disabled={busy || !canMutate}>
-                              Create action draft
-                            </Button>
-                            <Button
-                              onClick={() => {
-                                navigateEmbedded('/app/leaks', { host, shop });
-                              }}
-                            >
-                              Back to list
-                            </Button>
-                          </div>
-                          {!canMutate ? (
-                            <Box paddingBlockStart="200">
-                              <Text as="p" variant="bodySm" tone="subdued">
-                                {blockedReason}
+                  <div className="lw-content-box">
+                    <div className="lw-title">
+                      <Text as="h3" variant="headingSm">
+                        Evidence
+                      </Text>
+                    </div>
+                    <Box paddingBlockStart="200">
+                      {finding.evidence.length === 0 ? (
+                        <Text as="p" variant="bodySm" tone="subdued">
+                          No evidence attached
+                        </Text>
+                      ) : (
+                        <div className="lw-list">
+                          {finding.evidence.map((evidence) => (
+                            <div key={evidence.id} className="lw-list-item">
+                              <Text as="p" variant="bodySm">
+                                {evidence.kind}
                               </Text>
-                            </Box>
-                          ) : null}
+                              <div className="lw-metric-hint">{evidence.excerpt}</div>
+                              {evidence.documentId ? (
+                                <Box paddingBlockStart="100">
+                                  <Button
+                                    onClick={() => {
+                                      const detailParams = new URLSearchParams();
+                                      if (evidence.documentVersionId) {
+                                        detailParams.set('versionId', evidence.documentVersionId);
+                                      }
+                                      detailParams.set('from', `/app/leaks/${finding.id}`);
+                                      const detailQuery = detailParams.toString();
+                                      navigateEmbedded(
+                                        `/app/documents/${evidence.documentId}?${detailQuery}`,
+                                        { host, shop },
+                                      );
+                                    }}
+                                  >
+                                    View document
+                                    {typeof evidence.documentVersionNumber === 'number'
+                                      ? ` v${evidence.documentVersionNumber}`
+                                      : ''}
+                                  </Button>
+                                </Box>
+                              ) : null}
+                              <pre className="lw-pre">
+                                {JSON.stringify(evidence.pointerJson, null, 2)}
+                              </pre>
+                            </div>
+                          ))}
                         </div>
+                      )}
+                    </Box>
+                  </div>
 
-                        <div className="lw-content-box">
-                          <div className="lw-title">
-                            <Text as="h3" variant="headingSm">
-                              Evidence
-                            </Text>
-                          </div>
-                          <Box paddingBlockStart="200">
-                            {finding.evidence.length === 0 ? (
-                              <Text as="p" variant="bodySm" tone="subdued">
-                                No evidence attached
-                              </Text>
-                            ) : (
-                              <div className="lw-list">
-                                {finding.evidence.map((evidence) => (
-                                  <div key={evidence.id} className="lw-list-item">
-                                    <Text as="p" variant="bodySm">
-                                      {evidence.kind}
-                                    </Text>
-                                    <div className="lw-metric-hint">{evidence.excerpt}</div>
-                                    {evidence.documentId ? (
-                                      <Box paddingBlockStart="100">
-                                        <Button
-                                          onClick={() => {
-                                            const versionQuery = evidence.documentVersionId
-                                              ? `?versionId=${encodeURIComponent(evidence.documentVersionId)}`
-                                              : '';
-                                            navigateEmbedded(
-                                              `/app/documents/${evidence.documentId}${versionQuery}`,
-                                              { host, shop },
-                                            );
-                                          }}
-                                        >
-                                          View document
-                                          {typeof evidence.documentVersionNumber === 'number'
-                                            ? ` v${evidence.documentVersionNumber}`
-                                            : ''}
-                                        </Button>
-                                      </Box>
-                                    ) : null}
-                                    <pre className="lw-pre">
-                                      {JSON.stringify(evidence.pointerJson, null, 2)}
-                                    </pre>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </Box>
-                        </div>
-
-                        <Modal
-                          open={dismissModalOpen}
-                          title="Dismiss finding"
-                          onClose={() => {
-                            setDismissModalOpen(false);
-                          }}
-                          primaryAction={{
-                            content: 'Dismiss now',
-                            destructive: true,
-                            loading: busy,
-                            onAction: () => {
-                              setDismissModalOpen(false);
-                              void dismiss();
-                            },
-                          }}
-                          secondaryActions={[
-                            {
-                              content: 'Cancel',
-                              onAction: () => {
-                                setDismissModalOpen(false);
-                              },
-                            },
-                          ]}
-                        >
-                          <Modal.Section>
-                            <Text as="p" variant="bodyMd">
-                              This removes the finding from active leak triage. You can reopen it
-                              later if the same pattern is detected again.
-                            </Text>
-                          </Modal.Section>
-                        </Modal>
-                      </div>
-                    )}
-                  </Box>
-                </Card>
-              </Layout.Section>
-            </Layout>
-          </Page>
-        </AppBridgeProvider>
-      ) : (
-        <Page title="Leak Detail" />
-      )}
-    </AppProvider>
+                  <Modal
+                    open={dismissModalOpen}
+                    title="Dismiss finding"
+                    onClose={() => {
+                      setDismissModalOpen(false);
+                    }}
+                    primaryAction={{
+                      content: 'Dismiss now',
+                      destructive: true,
+                      loading: busy,
+                      onAction: () => {
+                        setDismissModalOpen(false);
+                        void dismiss();
+                      },
+                    }}
+                    secondaryActions={[
+                      {
+                        content: 'Cancel',
+                        onAction: () => {
+                          setDismissModalOpen(false);
+                        },
+                      },
+                    ]}
+                  >
+                    <Modal.Section>
+                      <Text as="p" variant="bodyMd">
+                        This removes the finding from active leak triage. You can reopen it later if
+                        the same pattern is detected again.
+                      </Text>
+                    </Modal.Section>
+                  </Modal>
+                </div>
+              )}
+            </Box>
+          </Card>
+        </Layout.Section>
+      </Layout>
+    </Page>
   );
 }
 

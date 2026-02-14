@@ -1,8 +1,6 @@
 'use client';
 
-import { Provider as AppBridgeProvider } from '@shopify/app-bridge-react';
-import { AppProvider, Badge, Box, Button, Card, Layout, Page, Text } from '@shopify/polaris';
-import enTranslations from '@shopify/polaris/locales/en.json';
+import { Badge, Box, Button, Card, Layout, Page, Text } from '@shopify/polaris';
 import { useParams, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useMemo, useState } from 'react';
 
@@ -208,19 +206,32 @@ function badgeTone(state: StageState): 'info' | 'success' | 'attention' | 'criti
   return 'info';
 }
 
+function resolveReturnPath(rawPath: string | null): string {
+  if (!rawPath) {
+    return '/app/uploads';
+  }
+
+  if (!rawPath.startsWith('/app') || rawPath.startsWith('//')) {
+    return '/app/uploads';
+  }
+
+  return rawPath;
+}
+
 function DocumentDetailPageContent() {
   const params = useParams<{ documentId: string }>();
   const searchParams = useSearchParams();
   const host = searchParams.get('host');
   const shop = searchParams.get('shop');
   const requestedVersionId = searchParams.get('versionId');
-  const apiKey = process.env.NEXT_PUBLIC_SHOPIFY_API_KEY;
+  const returnPath = resolveReturnPath(searchParams.get('from'));
 
   const [document, setDocument] = useState<DocumentDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
   const [showRawJson, setShowRawJson] = useState(false);
+  const [showLineItems, setShowLineItems] = useState(false);
   const [downloadingVersionId, setDownloadingVersionId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -270,15 +281,6 @@ function DocumentDetailPageContent() {
     [document],
   );
 
-  const appBridgeConfig =
-    host && apiKey
-      ? {
-          apiKey,
-          host,
-          forceRedirect: true,
-        }
-      : null;
-
   const downloadVersion = async (versionId: string) => {
     if (!host || !document) {
       return;
@@ -304,7 +306,7 @@ function DocumentDetailPageContent() {
     }
   };
 
-  const content = (
+  return (
     <Page title="Document Detail">
       <Layout>
         <Layout.Section>
@@ -377,6 +379,9 @@ function DocumentDetailPageContent() {
                     ) : (
                       <Box paddingBlockStart="200">
                         <div className="lw-table-wrap">
+                          <Text as="p" variant="bodySm" tone="subdued">
+                            Swipe horizontally on smaller screens to inspect full version columns.
+                          </Text>
                           <table className="lw-table">
                             <thead>
                               <tr>
@@ -416,6 +421,7 @@ function DocumentDetailPageContent() {
                                         onClick={() => {
                                           setSelectedVersionId(version.id);
                                           setShowRawJson(false);
+                                          setShowLineItems(false);
                                         }}
                                       >
                                         View detail
@@ -556,40 +562,61 @@ function DocumentDetailPageContent() {
                                   No normalized line items.
                                 </Text>
                               ) : (
-                                <div className="lw-table-wrap">
-                                  <table className="lw-table">
-                                    <thead>
-                                      <tr>
-                                        <th>Type</th>
-                                        <th>Description</th>
-                                        <th>Amount</th>
-                                        <th>Period</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {selectedVersion.normalized.lineItems.map((lineItem) => (
-                                        <tr key={lineItem.id}>
-                                          <td>{lineItem.itemType}</td>
-                                          <td>
-                                            {lineItem.description ?? 'n/a'}
-                                            {lineItem.recurringCadence ? (
-                                              <div className="lw-metric-hint">
-                                                cadence: {lineItem.recurringCadence}
-                                              </div>
-                                            ) : null}
-                                          </td>
-                                          <td>
-                                            {lineItem.amount} {lineItem.currency}
-                                          </td>
-                                          <td>
-                                            {formatDateTime(lineItem.periodStart)} -{' '}
-                                            {formatDateTime(lineItem.periodEnd)}
-                                          </td>
-                                        </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
-                                </div>
+                                <>
+                                  <div className="lw-actions-row">
+                                    <Button
+                                      onClick={() => {
+                                        setShowLineItems((prev) => !prev);
+                                      }}
+                                    >
+                                      {showLineItems ? 'Hide line items' : 'Show line items'}
+                                    </Button>
+                                  </div>
+                                  {showLineItems ? (
+                                    <Box paddingBlockStart="200">
+                                      <div className="lw-table-wrap">
+                                        <Text as="p" variant="bodySm" tone="subdued">
+                                          Swipe horizontally on smaller screens to inspect full
+                                          line-item columns.
+                                        </Text>
+                                        <table className="lw-table">
+                                          <thead>
+                                            <tr>
+                                              <th>Type</th>
+                                              <th>Description</th>
+                                              <th>Amount</th>
+                                              <th>Period</th>
+                                            </tr>
+                                          </thead>
+                                          <tbody>
+                                            {selectedVersion.normalized.lineItems.map(
+                                              (lineItem) => (
+                                                <tr key={lineItem.id}>
+                                                  <td>{lineItem.itemType}</td>
+                                                  <td>
+                                                    {lineItem.description ?? 'n/a'}
+                                                    {lineItem.recurringCadence ? (
+                                                      <div className="lw-metric-hint">
+                                                        cadence: {lineItem.recurringCadence}
+                                                      </div>
+                                                    ) : null}
+                                                  </td>
+                                                  <td>
+                                                    {lineItem.amount} {lineItem.currency}
+                                                  </td>
+                                                  <td>
+                                                    {formatDateTime(lineItem.periodStart)} -{' '}
+                                                    {formatDateTime(lineItem.periodEnd)}
+                                                  </td>
+                                                </tr>
+                                              ),
+                                            )}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                    </Box>
+                                  ) : null}
+                                </>
                               )}
                             </Box>
 
@@ -620,10 +647,10 @@ function DocumentDetailPageContent() {
                   <div className="lw-actions-row">
                     <Button
                       onClick={() => {
-                        navigateEmbedded('/app/uploads', { host, shop });
+                        navigateEmbedded(returnPath, { host, shop });
                       }}
                     >
-                      Back to uploads
+                      Back
                     </Button>
                   </div>
                 </div>
@@ -634,20 +661,12 @@ function DocumentDetailPageContent() {
       </Layout>
     </Page>
   );
-
-  return appBridgeConfig ? (
-    <AppBridgeProvider config={appBridgeConfig}>{content}</AppBridgeProvider>
-  ) : (
-    content
-  );
 }
 
 export default function DocumentDetailPage() {
   return (
     <Suspense>
-      <AppProvider i18n={enTranslations}>
-        <DocumentDetailPageContent />
-      </AppProvider>
+      <DocumentDetailPageContent />
     </Suspense>
   );
 }

@@ -1,8 +1,6 @@
 'use client';
 
-import { Provider as AppBridgeProvider } from '@shopify/app-bridge-react';
-import { AppProvider, Box, Button, Card, Layout, Page, Text } from '@shopify/polaris';
-import enTranslations from '@shopify/polaris/locales/en.json';
+import { Box, Button, Card, Layout, Page, Text } from '@shopify/polaris';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 
@@ -44,7 +42,6 @@ function ReportsPageContent() {
   const searchParams = useSearchParams();
   const host = searchParams.get('host');
   const shop = searchParams.get('shop');
-  const apiKey = process.env.NEXT_PUBLIC_SHOPIFY_API_KEY;
   const [items, setItems] = useState<ReportItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -140,15 +137,6 @@ function ReportsPageContent() {
     void load();
   }, [load]);
 
-  const appBridgeConfig =
-    host && apiKey
-      ? {
-          apiKey,
-          host,
-          forceRedirect: true,
-        }
-      : null;
-
   const generateMonthly = useCallback(async () => {
     if (!host) {
       return;
@@ -185,7 +173,7 @@ function ReportsPageContent() {
     }
   }, [host, load]);
 
-  const content = (
+  return (
     <Page
       title="Reports"
       primaryAction={{
@@ -322,20 +310,12 @@ function ReportsPageContent() {
       </Layout>
     </Page>
   );
-
-  return appBridgeConfig ? (
-    <AppBridgeProvider config={appBridgeConfig}>{content}</AppBridgeProvider>
-  ) : (
-    content
-  );
 }
 
 export default function ReportsPage() {
   return (
     <Suspense>
-      <AppProvider i18n={enTranslations}>
-        <ReportsPageContent />
-      </AppProvider>
+      <ReportsPageContent />
     </Suspense>
   );
 }

@@ -65,7 +65,12 @@ function statusTone(status: string): 'info' | 'success' | 'attention' | 'critica
   if (status.endsWith('FAILED')) {
     return 'critical';
   }
-  if (status === 'DONE' || status === 'UPLOADED' || status === 'NORMALIZED') {
+  if (
+    status === 'DONE' ||
+    status === 'UPLOADED' ||
+    status === 'NORMALIZED' ||
+    status === 'DETECTED'
+  ) {
     return 'success';
   }
   if (status.endsWith('RUNNING') || status === 'CREATED') {
@@ -158,7 +163,11 @@ export function UploadsPanel({ host, shop }: { host: string | null; shop: string
   const completedCount = useMemo(
     () =>
       latestStatuses.filter(
-        (status) => status === 'DONE' || status === 'UPLOADED' || status === 'NORMALIZED',
+        (status) =>
+          status === 'DONE' ||
+          status === 'UPLOADED' ||
+          status === 'NORMALIZED' ||
+          status === 'DETECTED',
       ).length,
     [latestStatuses],
   );
@@ -354,7 +363,7 @@ export function UploadsPanel({ host, shop }: { host: string | null; shop: string
                   <div className="lw-metric lw-metric--compact">
                     <div className="lw-metric-label">Completed</div>
                     <div className="lw-metric-value">{completedCount}</div>
-                    <div className="lw-metric-hint">done, uploaded, normalized</div>
+                    <div className="lw-metric-hint">done, uploaded, normalized, detected</div>
                   </div>
                   <div className="lw-metric lw-metric--compact">
                     <div className="lw-metric-label">In progress</div>
@@ -383,6 +392,11 @@ export function UploadsPanel({ host, shop }: { host: string | null; shop: string
                       const file = event.dataTransfer.files.item(0);
                       if (file) {
                         setSelectedFile(file);
+                      }
+                    }}
+                    onClick={(event) => {
+                      if (event.target === event.currentTarget) {
+                        fileInputRef.current?.click();
                       }
                     }}
                     onKeyDown={(event) => {
@@ -418,6 +432,7 @@ export function UploadsPanel({ host, shop }: { host: string | null; shop: string
                     </Box>
                     <Box paddingBlockStart="200">
                       <input
+                        id="upload-file-input"
                         ref={fileInputRef}
                         type="file"
                         accept="application/pdf,text/csv,image/png,image/jpeg"
@@ -451,7 +466,7 @@ export function UploadsPanel({ host, shop }: { host: string | null; shop: string
 
                   {errorMessage && (
                     <Box paddingBlockStart="300">
-                      <InlineError message={errorMessage} fieldID="upload-error" />
+                      <InlineError message={errorMessage} fieldID="upload-file-input" />
                       <Box paddingBlockStart="150">
                         <Button
                           onClick={() => {

@@ -12,25 +12,27 @@ type SettingsSectionNavProps = {
 
 export function SettingsSectionNav({ host, shop, active }: SettingsSectionNavProps) {
   return (
-    <div className="lw-actions-row" role="tablist" aria-label="Settings sections">
+    <nav className="lw-actions-row" aria-label="Settings sections">
       <Button
         variant={active === 'general' ? 'primary' : 'tertiary'}
-        disabled={active === 'general'}
         onClick={() => {
-          navigateEmbedded('/app/settings', { host, shop });
+          if (active !== 'general') {
+            navigateEmbedded('/app/settings', { host, shop });
+          }
         }}
       >
         General settings
       </Button>
       <Button
         variant={active === 'billing' ? 'primary' : 'tertiary'}
-        disabled={active === 'billing'}
         onClick={() => {
-          navigateEmbedded('/app/settings/billing', { host, shop });
+          if (active !== 'billing') {
+            navigateEmbedded('/app/settings/billing', { host, shop });
+          }
         }}
       >
         Billing settings
       </Button>
-    </div>
+    </nav>
   );
 }

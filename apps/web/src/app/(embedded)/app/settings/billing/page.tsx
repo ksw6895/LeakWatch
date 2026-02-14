@@ -1,8 +1,6 @@
 'use client';
 
-import { Provider as AppBridgeProvider } from '@shopify/app-bridge-react';
-import { AppProvider, Box, Button, Card, Layout, Page, Text } from '@shopify/polaris';
-import enTranslations from '@shopify/polaris/locales/en.json';
+import { Box, Button, Card, Layout, Page, Text } from '@shopify/polaris';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 
@@ -40,8 +38,8 @@ function BillingPageContent() {
   const searchParams = useSearchParams();
   const host = searchParams.get('host');
   const shop = searchParams.get('shop');
-  const apiKey = process.env.NEXT_PUBLIC_SHOPIFY_API_KEY;
   const [current, setCurrent] = useState<BillingCurrent | null>(null);
+  const [loading, setLoading] = useState(true);
   const [upgradingPlan, setUpgradingPlan] = useState<'STARTER' | 'PRO' | null>(null);
   const [roles, setRoles] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -50,21 +48,36 @@ function BillingPageContent() {
 
   const refresh = useCallback(async () => {
     if (!host) {
+      setLoading(false);
       return;
     }
-    const meResponse = await apiFetch('/v1/auth/me', { host });
-    if (!meResponse.ok) {
-      return;
+
+    setLoading(true);
+    try {
+      const meResponse = await apiFetch('/v1/auth/me', { host });
+      if (!meResponse.ok) {
+        throw new Error(`Auth failed (${meResponse.status})`);
+      }
+      const me = (await meResponse.json()) as AuthMe;
+      setRoles(me.roles ?? []);
+
+      const response = await apiFetch(
+        `/v1/billing/current?shopId=${encodeURIComponent(me.shopId)}`,
+        {
+          host,
+        },
+      );
+      if (!response.ok) {
+        throw new Error(`Billing fetch failed (${response.status})`);
+      }
+      setCurrent((await response.json()) as BillingCurrent);
+      setError(null);
+    } catch (unknownError) {
+      setCurrent(null);
+      setError(unknownError instanceof Error ? unknownError.message : 'Unknown error');
+    } finally {
+      setLoading(false);
     }
-    const me = (await meResponse.json()) as AuthMe;
-    setRoles(me.roles ?? []);
-    const response = await apiFetch(`/v1/billing/current?shopId=${encodeURIComponent(me.shopId)}`, {
-      host,
-    });
-    if (!response.ok) {
-      return;
-    }
-    setCurrent((await response.json()) as BillingCurrent);
   }, [host]);
 
   useEffect(() => {
@@ -117,23 +130,31 @@ function BillingPageContent() {
     }
   };
 
-  const appBridgeConfig =
-    host && apiKey
-      ? {
-          apiKey,
-          host,
-          forceRedirect: true,
-        }
-      : null;
-
-  const content = (
+  return (
     <Page title="Billing">
       <Layout>
         <Layout.Section>
           <Card>
             <Box padding="400">
-              {!current ? (
+              {!host ? (
+                <StatePanel
+                  kind="error"
+                  message="Missing host context. Re-open LeakWatch from Shopify Admin Apps."
+                />
+              ) : loading ? (
                 <StatePanel kind="loading" message="Loading billing quota and plan information." />
+              ) : error ? (
+                <StatePanel
+                  kind="error"
+                  message={error}
+                  actionLabel="Retry"
+                  onAction={() => void refresh()}
+                />
+              ) : !current ? (
+                <StatePanel
+                  kind="empty"
+                  message="No billing data is available for this shop yet."
+                />
               ) : (
                 <div className="lw-page-stack lw-animate-in">
                   <div className="lw-hero">
@@ -234,20 +255,12 @@ function BillingPageContent() {
       </Layout>
     </Page>
   );
-
-  return appBridgeConfig ? (
-    <AppBridgeProvider config={appBridgeConfig}>{content}</AppBridgeProvider>
-  ) : (
-    content
-  );
 }
 
 export default function BillingPage() {
   return (
     <Suspense>
-      <AppProvider i18n={enTranslations}>
-        <BillingPageContent />
-      </AppProvider>
+      <BillingPageContent />
     </Suspense>
   );
 }

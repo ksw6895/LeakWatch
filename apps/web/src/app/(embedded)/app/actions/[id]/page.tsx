@@ -1,19 +1,6 @@
 'use client';
 
-import { Provider as AppBridgeProvider } from '@shopify/app-bridge-react';
-import {
-  AppProvider,
-  Badge,
-  Box,
-  Button,
-  Card,
-  Layout,
-  Modal,
-  Page,
-  Text,
-  TextField,
-} from '@shopify/polaris';
-import enTranslations from '@shopify/polaris/locales/en.json';
+import { Badge, Box, Button, Card, Layout, Modal, Page, Text, TextField } from '@shopify/polaris';
 import { useParams, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useState } from 'react';
 
@@ -78,7 +65,6 @@ function ActionDetailContent() {
   const params = useParams<{ id: string }>();
   const host = searchParams.get('host');
   const shop = searchParams.get('shop');
-  const apiKey = process.env.NEXT_PUBLIC_SHOPIFY_API_KEY;
   const [actionRequest, setActionRequest] = useState<ActionRequestDetail | null>(null);
   const [subject, setSubject] = useState('');
   const [bodyMarkdown, setBodyMarkdown] = useState('');
@@ -136,15 +122,6 @@ function ActionDetailContent() {
       }
     })();
   }, [load]);
-
-  const appBridgeConfig =
-    host && apiKey
-      ? {
-          apiKey,
-          host,
-          forceRedirect: true,
-        }
-      : null;
 
   const saveDraft = async () => {
     if (!host || !actionRequest) {
@@ -282,283 +259,286 @@ function ActionDetailContent() {
   };
 
   return (
-    <AppProvider i18n={enTranslations}>
-      {appBridgeConfig ? (
-        <AppBridgeProvider config={appBridgeConfig}>
-          <Page title="Action Detail">
-            <Layout>
-              <Layout.Section>
-                <Card>
-                  <Box padding="400">
-                    {error ? (
-                      <StatePanel kind="error" message={error} />
-                    ) : !actionRequest ? (
-                      <StatePanel
-                        kind="loading"
-                        message="Loading action request and send timeline."
+    <Page title="Action Detail">
+      <Layout>
+        <Layout.Section>
+          <Card>
+            <Box padding="400">
+              {error ? (
+                <StatePanel kind="error" message={error} />
+              ) : !actionRequest ? (
+                <StatePanel kind="loading" message="Loading action request and send timeline." />
+              ) : (
+                <div className="lw-page-stack lw-animate-in">
+                  <div className="lw-hero">
+                    <span className="lw-eyebrow">Action Detail</span>
+                    <div className="lw-title">
+                      <Text as="h2" variant="headingMd">
+                        {actionRequest.finding.title}
+                      </Text>
+                    </div>
+                    <Box paddingBlockStart="200">
+                      <Badge>{actionRequest.type}</Badge>{' '}
+                      <span className="lw-inline-chip">
+                        status: {actionRequest.displayStatus ?? actionRequest.status}
+                      </span>{' '}
+                      <span className="lw-inline-chip">
+                        latest run: {actionRequest.latestRunStatus ?? 'n/a'}
+                      </span>{' '}
+                      <span className="lw-inline-chip">
+                        savings: {actionRequest.finding.estimatedSavingsAmount}{' '}
+                        {actionRequest.finding.currency}
+                      </span>
+                    </Box>
+                    <Box paddingBlockStart="200">
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        {actionRequest.finding.summary}
+                      </Text>
+                    </Box>
+                  </div>
+
+                  <div className="lw-content-box">
+                    <Text as="h3" variant="headingSm">
+                      Editable outreach content
+                    </Text>
+                    <Box paddingBlockStart="200">
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        Update recipient and message fields before approval.
+                      </Text>
+                    </Box>
+                    <Box paddingBlockStart="200">
+                      <TextField
+                        label="To"
+                        value={toEmail}
+                        onChange={setToEmail}
+                        autoComplete="email"
                       />
-                    ) : (
-                      <div className="lw-page-stack lw-animate-in">
-                        <div className="lw-hero">
-                          <span className="lw-eyebrow">Action Detail</span>
-                          <div className="lw-title">
-                            <Text as="h2" variant="headingMd">
-                              {actionRequest.finding.title}
-                            </Text>
-                          </div>
-                          <Box paddingBlockStart="200">
-                            <Badge>{actionRequest.type}</Badge>{' '}
-                            <span className="lw-inline-chip">
-                              status: {actionRequest.displayStatus ?? actionRequest.status}
-                            </span>{' '}
-                            <span className="lw-inline-chip">
-                              latest run: {actionRequest.latestRunStatus ?? 'n/a'}
-                            </span>{' '}
-                            <span className="lw-inline-chip">
-                              savings: {actionRequest.finding.estimatedSavingsAmount}{' '}
-                              {actionRequest.finding.currency}
-                            </span>
-                          </Box>
-                          <Box paddingBlockStart="200">
-                            <Text as="p" variant="bodySm" tone="subdued">
-                              {actionRequest.finding.summary}
-                            </Text>
-                          </Box>
-                        </div>
+                      <Box paddingBlockStart="200">
+                        <TextField
+                          label="CC (comma separated)"
+                          value={ccEmails}
+                          onChange={setCcEmails}
+                          autoComplete="off"
+                        />
+                      </Box>
+                      <Box paddingBlockStart="200">
+                        <TextField
+                          label="Subject"
+                          value={subject}
+                          onChange={setSubject}
+                          autoComplete="off"
+                        />
+                      </Box>
+                      <Box paddingBlockStart="200">
+                        <TextField
+                          label="Body"
+                          value={bodyMarkdown}
+                          onChange={setBodyMarkdown}
+                          multiline={8}
+                          autoComplete="off"
+                        />
+                      </Box>
+                    </Box>
+                  </div>
 
-                        <div className="lw-content-box">
-                          <Text as="h3" variant="headingSm">
-                            Editable outreach content
-                          </Text>
-                          <Box paddingBlockStart="200">
-                            <Text as="p" variant="bodySm" tone="subdued">
-                              Update recipient and message fields before approval.
-                            </Text>
-                          </Box>
-                          <Box paddingBlockStart="200">
-                            <TextField
-                              label="To"
-                              value={toEmail}
-                              onChange={setToEmail}
-                              autoComplete="email"
-                            />
-                            <Box paddingBlockStart="200">
-                              <TextField
-                                label="CC (comma separated)"
-                                value={ccEmails}
-                                onChange={setCcEmails}
-                                autoComplete="off"
-                              />
-                            </Box>
-                            <Box paddingBlockStart="200">
-                              <TextField
-                                label="Subject"
-                                value={subject}
-                                onChange={setSubject}
-                                autoComplete="off"
-                              />
-                            </Box>
-                            <Box paddingBlockStart="200">
-                              <TextField
-                                label="Body"
-                                value={bodyMarkdown}
-                                onChange={setBodyMarkdown}
-                                multiline={8}
-                                autoComplete="off"
-                              />
-                            </Box>
-                          </Box>
+                  <div className="lw-content-box">
+                    <Text as="h3" variant="headingSm">
+                      Immutable finding context
+                    </Text>
+                    <Box paddingBlockStart="150">
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        {actionRequest.finding.summary}
+                      </Text>
+                      <Text as="p" variant="bodySm">
+                        Savings: {actionRequest.finding.estimatedSavingsAmount}{' '}
+                        {actionRequest.finding.currency}
+                      </Text>
+                    </Box>
+                    <Box paddingBlockStart="300">
+                      <Text as="p" variant="bodySm" tone="subdued">
+                        Primary commands
+                      </Text>
+                      <Box paddingBlockStart="150">
+                        <div className="lw-actions-row">
+                          <Button
+                            onClick={saveDraft}
+                            disabled={busy || actionRequest.status !== 'DRAFT' || !canWrite}
+                          >
+                            Save draft
+                          </Button>
+                          <Button
+                            variant="primary"
+                            onClick={() => {
+                              setApproveModalOpen(true);
+                            }}
+                            disabled={
+                              busy ||
+                              actionRequest.status !== 'DRAFT' ||
+                              !canWrite ||
+                              emailQuotaReached
+                            }
+                          >
+                            Approve and send
+                          </Button>
                         </div>
+                      </Box>
 
-                        <div className="lw-content-box">
-                          <Text as="h3" variant="headingSm">
-                            Immutable finding context
-                          </Text>
-                          <Box paddingBlockStart="150">
-                            <Text as="p" variant="bodySm" tone="subdued">
-                              {actionRequest.finding.summary}
-                            </Text>
-                            <Text as="p" variant="bodySm">
-                              Savings: {actionRequest.finding.estimatedSavingsAmount}{' '}
-                              {actionRequest.finding.currency}
-                            </Text>
-                          </Box>
-                          <Box paddingBlockStart="300">
-                            <div className="lw-actions-row">
-                              <Button
-                                onClick={saveDraft}
-                                disabled={busy || actionRequest.status !== 'DRAFT' || !canWrite}
-                              >
-                                Save draft
-                              </Button>
-                              <Button
-                                variant="primary"
-                                onClick={() => {
-                                  setApproveModalOpen(true);
-                                }}
-                                disabled={
-                                  busy ||
-                                  actionRequest.status !== 'DRAFT' ||
-                                  !canWrite ||
-                                  emailQuotaReached
-                                }
-                              >
-                                Approve and send
-                              </Button>
-                              <Button
-                                onClick={downloadEvidence}
-                                disabled={busy || !actionRequest.attachmentKey}
-                              >
-                                Download evidence pack
-                              </Button>
-                              <Button
-                                onClick={() => {
-                                  void updateManualStatus('WAITING_REPLY');
-                                }}
-                                disabled={
-                                  busy ||
-                                  (displayStatus !== 'APPROVED' &&
-                                    displayStatus !== 'WAITING_REPLY') ||
-                                  !canWrite
-                                }
-                              >
-                                Mark waiting reply
-                              </Button>
-                              <Button
-                                onClick={() => {
-                                  void updateManualStatus('RESOLVED');
-                                }}
-                                disabled={
-                                  busy ||
-                                  (displayStatus !== 'APPROVED' &&
-                                    displayStatus !== 'WAITING_REPLY') ||
-                                  !canWrite
-                                }
-                              >
-                                Mark resolved
-                              </Button>
-                              <Button
-                                onClick={() => {
-                                  navigateEmbedded('/app/actions', { host, shop });
-                                }}
-                              >
-                                Back to actions
-                              </Button>
-                            </div>
-                            {!canWrite ? (
-                              <Box paddingBlockStart="150">
-                                <Text as="p" variant="bodySm" tone="subdued">
-                                  {blockedReason}
-                                </Text>
-                              </Box>
-                            ) : null}
-                            {emailQuotaReached ? (
-                              <Box paddingBlockStart="150">
-                                <Text as="p" variant="bodySm" tone="subdued">
-                                  Email quota reached ({billing?.usage.emails}/
-                                  {billing?.limits.emails}
-                                  ). Upgrade plan to continue sending.
-                                </Text>
-                              </Box>
-                            ) : null}
-                          </Box>
+                      <Box paddingBlockStart="200">
+                        <Text as="p" variant="bodySm" tone="subdued">
+                          Operational controls
+                        </Text>
+                      </Box>
+                      <Box paddingBlockStart="150">
+                        <div className="lw-actions-row">
+                          <Button
+                            onClick={downloadEvidence}
+                            disabled={busy || !actionRequest.attachmentKey}
+                          >
+                            Download evidence pack
+                          </Button>
+                          <Button
+                            onClick={() => {
+                              void updateManualStatus('WAITING_REPLY');
+                            }}
+                            disabled={
+                              busy ||
+                              (displayStatus !== 'APPROVED' && displayStatus !== 'WAITING_REPLY') ||
+                              !canWrite
+                            }
+                          >
+                            Mark waiting reply
+                          </Button>
+                          <Button
+                            onClick={() => {
+                              void updateManualStatus('RESOLVED');
+                            }}
+                            disabled={
+                              busy ||
+                              (displayStatus !== 'APPROVED' && displayStatus !== 'WAITING_REPLY') ||
+                              !canWrite
+                            }
+                          >
+                            Mark resolved
+                          </Button>
+                          <Button
+                            onClick={() => {
+                              navigateEmbedded('/app/actions', { host, shop });
+                            }}
+                          >
+                            Back to actions
+                          </Button>
                         </div>
+                      </Box>
 
-                        <div className="lw-content-box">
-                          <div className="lw-title">
-                            <Text as="h3" variant="headingSm">
-                              Status timeline
-                            </Text>
-                          </div>
-                          <Box paddingBlockStart="200">
-                            {actionRequest.runs.length === 0 ? (
-                              <Text as="p" variant="bodySm" tone="subdued">
-                                No send runs yet
-                              </Text>
-                            ) : (
-                              <div className="lw-list">
-                                {actionRequest.runs.map((run) => (
-                                  <div key={run.id} className="lw-list-item">
-                                    <Text as="p" variant="bodySm">
-                                      {run.status} at {new Date(run.createdAt).toLocaleString()}
-                                    </Text>
-                                    {run.status === 'FAILED' ? (
-                                      <Badge tone="critical">Failed run</Badge>
-                                    ) : null}
-                                    {run.mailgunMessageId ? (
-                                      <div className="lw-metric-hint">
-                                        message-id: {run.mailgunMessageId}
-                                      </div>
-                                    ) : null}
-                                    {run.lastError ? (
-                                      <Text as="p" variant="bodySm" tone="critical">
-                                        error: {run.lastError}
-                                      </Text>
-                                    ) : null}
-                                    {run.mailEvents.length > 0 ? (
-                                      <Box paddingBlockStart="100">
-                                        {run.mailEvents.map((event) => (
-                                          <Text
-                                            key={event.id}
-                                            as="p"
-                                            variant="bodySm"
-                                            tone="subdued"
-                                          >
-                                            - {event.event} (
-                                            {new Date(event.occurredAt).toLocaleString()})
-                                          </Text>
-                                        ))}
-                                      </Box>
-                                    ) : null}
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </Box>
-                        </div>
-
-                        <Modal
-                          open={approveModalOpen}
-                          title="Approve and send"
-                          onClose={() => {
-                            setApproveModalOpen(false);
-                          }}
-                          primaryAction={{
-                            content: 'Approve and send',
-                            destructive: true,
-                            loading: busy,
-                            onAction: () => {
-                              void approve();
-                            },
-                          }}
-                          secondaryActions={[
-                            {
-                              content: 'Cancel',
-                              onAction: () => {
-                                setApproveModalOpen(false);
-                              },
-                            },
-                          ]}
-                        >
-                          <Modal.Section>
-                            <Text as="p" variant="bodyMd">
-                              This action will queue an outbound vendor email and usage metering.
-                              Confirm recipient fields before continuing.
-                            </Text>
-                          </Modal.Section>
-                        </Modal>
+                      <Box paddingBlockStart="200" />
+                      <div className="lw-actions-row">
+                        <Text as="p" variant="bodySm" tone="subdued">
+                          Save before sending to keep content and recipients aligned.
+                        </Text>
                       </div>
-                    )}
-                  </Box>
-                </Card>
-              </Layout.Section>
-            </Layout>
-          </Page>
-        </AppBridgeProvider>
-      ) : (
-        <Page title="Action Detail" />
-      )}
-    </AppProvider>
+                      {!canWrite ? (
+                        <Box paddingBlockStart="150">
+                          <Text as="p" variant="bodySm" tone="subdued">
+                            {blockedReason}
+                          </Text>
+                        </Box>
+                      ) : null}
+                      {emailQuotaReached ? (
+                        <Box paddingBlockStart="150">
+                          <Text as="p" variant="bodySm" tone="subdued">
+                            Email quota reached ({billing?.usage.emails}/{billing?.limits.emails}
+                            ). Upgrade plan to continue sending.
+                          </Text>
+                        </Box>
+                      ) : null}
+                    </Box>
+                  </div>
+
+                  <div className="lw-content-box">
+                    <div className="lw-title">
+                      <Text as="h3" variant="headingSm">
+                        Status timeline
+                      </Text>
+                    </div>
+                    <Box paddingBlockStart="200">
+                      {actionRequest.runs.length === 0 ? (
+                        <Text as="p" variant="bodySm" tone="subdued">
+                          No send runs yet
+                        </Text>
+                      ) : (
+                        <div className="lw-list">
+                          {actionRequest.runs.map((run) => (
+                            <div key={run.id} className="lw-list-item">
+                              <Text as="p" variant="bodySm">
+                                {run.status} at {new Date(run.createdAt).toLocaleString()}
+                              </Text>
+                              {run.status === 'FAILED' ? (
+                                <Badge tone="critical">Failed run</Badge>
+                              ) : null}
+                              {run.mailgunMessageId ? (
+                                <div className="lw-metric-hint">
+                                  message-id: {run.mailgunMessageId}
+                                </div>
+                              ) : null}
+                              {run.lastError ? (
+                                <Text as="p" variant="bodySm" tone="critical">
+                                  error: {run.lastError}
+                                </Text>
+                              ) : null}
+                              {run.mailEvents.length > 0 ? (
+                                <Box paddingBlockStart="100">
+                                  {run.mailEvents.map((event) => (
+                                    <Text key={event.id} as="p" variant="bodySm" tone="subdued">
+                                      - {event.event} ({new Date(event.occurredAt).toLocaleString()}
+                                      )
+                                    </Text>
+                                  ))}
+                                </Box>
+                              ) : null}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </Box>
+                  </div>
+
+                  <Modal
+                    open={approveModalOpen}
+                    title="Approve and send"
+                    onClose={() => {
+                      setApproveModalOpen(false);
+                    }}
+                    primaryAction={{
+                      content: 'Approve and send',
+                      destructive: true,
+                      loading: busy,
+                      onAction: () => {
+                        void approve();
+                      },
+                    }}
+                    secondaryActions={[
+                      {
+                        content: 'Cancel',
+                        onAction: () => {
+                          setApproveModalOpen(false);
+                        },
+                      },
+                    ]}
+                  >
+                    <Modal.Section>
+                      <Text as="p" variant="bodyMd">
+                        This action will queue an outbound vendor email and usage metering. Confirm
+                        recipient fields before continuing.
+                      </Text>
+                    </Modal.Section>
+                  </Modal>
+                </div>
+              )}
+            </Box>
+          </Card>
+        </Layout.Section>
+      </Layout>
+    </Page>
   );
 }
 
