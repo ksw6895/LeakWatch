@@ -1,5 +1,3 @@
-import { Text } from '@shopify/polaris';
-
 export function MetricCard({
   label,
   value,
@@ -10,14 +8,12 @@ export function MetricCard({
   hint?: string;
 }) {
   return (
-    <div className="lw-metric lw-metric--compact">
-      <div className="lw-metric-label">{label}</div>
-      <div className="lw-metric-value">{value}</div>
-      {hint ? (
-        <Text as="p" variant="bodySm" tone="subdued">
-          {hint}
-        </Text>
-      ) : null}
+    <div className="lw-card lw-metric-card">
+      <div>
+        <div className="lw-metric-label">{label}</div>
+        <div className="lw-metric-value">{value}</div>
+      </div>
+      {hint ? <div className="lw-metric-hint">{hint}</div> : null}
     </div>
   );
 }

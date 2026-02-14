@@ -2,7 +2,7 @@
 
 import { Redirect } from '@shopify/app-bridge/actions';
 import createApp from '@shopify/app-bridge';
-import { Badge, Box, Card, Layout, Page, Text } from '@shopify/polaris';
+import { Badge, Box, Page, Text } from '@shopify/polaris';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
@@ -111,153 +111,151 @@ function Content() {
   const snapshot = summary
     ? [
         {
-          label: 'Monthly spend',
-          value: `${summary.thisMonthSpend} ${summary.currency}`,
+          label: 'Monthly Spend',
+          value: `${summary.currency} ${summary.thisMonthSpend}`,
+          hint: 'Last 30 days',
         },
         {
-          label: 'Potential savings',
-          value: `${summary.potentialSavings} ${summary.currency}`,
+          label: 'Potential Savings',
+          value: `${summary.currency} ${summary.potentialSavings}`,
+          hint: 'Estimated',
         },
         {
-          label: 'Open actions',
+          label: 'Open Actions',
           value: `${summary.openActions}`,
+          hint: 'Requires attention',
         },
       ]
     : [];
 
   const quickActions = [
     {
-      label: 'Uploads',
+      label: 'Upload Evidence',
       path: '/app/uploads',
-      hint: 'Invoice evidence ingestion',
+      hint: 'Process invoices and receipts',
     },
     {
-      label: 'Leaks',
+      label: 'View Leaks',
       path: '/app/leaks',
-      hint: 'Highest savings opportunities',
+      hint: 'Review savings opportunities',
     },
     {
-      label: 'Reports',
+      label: 'Generate Reports',
       path: '/app/reports',
-      hint: 'Monthly and weekly snapshots',
+      hint: 'Download weekly summaries',
     },
     {
-      label: 'Actions',
+      label: 'Vendor Actions',
       path: '/app/actions',
-      hint: 'Vendor outreach queue',
+      hint: 'Manage outreach queue',
     },
     {
-      label: 'Agency',
+      label: 'Agency Overview',
       path: '/app/agency',
-      hint: 'Org-wide fleet visibility',
+      hint: 'Switch between stores',
     },
     {
-      label: 'Billing',
+      label: 'Billing Settings',
       path: '/app/settings/billing',
-      hint: 'Plan usage and upgrades',
+      hint: 'Manage your subscription',
     },
   ];
 
   return (
-    <Page title="LeakWatch Command Center">
-      <Layout>
-        <Layout.Section>
-          <Card>
-            <Box padding="400">
-              <div className="lw-page-stack lw-animate-in">
-                <div className="lw-shell">
-                  <StatusWidget
-                    shop={shop}
-                    host={host}
-                    apiStatus={apiStatus}
-                    onAuthenticate={onAuthenticate}
-                    onCallApi={onCallApi}
-                  />
-                </div>
+    <Page
+      fullWidth
+      title="Command Center"
+      subtitle="Monitor and optimize your subscription leak exposure."
+    >
+      <div className="lw-grid lw-dashboard-root lw-animate-in">
+        <div className="lw-dashboard-top">
+          <div className="lw-shell">
+            <StatusWidget
+              shop={shop}
+              host={host}
+              apiStatus={apiStatus}
+              onAuthenticate={onAuthenticate}
+              onCallApi={onCallApi}
+            />
+          </div>
+          <StoreSwitcher host={host} currentShop={shop} />
+        </div>
 
-                {summaryError ? (
-                  <StatePanel
-                    kind="error"
-                    title="Session or summary issue"
-                    message={summaryError}
-                    actionLabel="Retry API check"
-                    onAction={() => {
-                      void onCallApi();
-                    }}
-                  />
-                ) : null}
+        {summaryError ? (
+          <StatePanel
+            kind="error"
+            title="Dashboard error"
+            message={summaryError}
+            actionLabel="Retry"
+            onAction={() => {
+              void onCallApi();
+            }}
+          />
+        ) : null}
 
-                {summary ? (
-                  <div className="lw-surface">
-                    <Box padding="300">
-                      <div className="lw-title">
-                        <Text as="h3" variant="headingSm">
-                          Dashboard Snapshot
+        {summary ? (
+          <div className="lw-grid lw-cols-3">
+            {snapshot.map((item) => (
+              <MetricCard key={item.label} label={item.label} value={item.value} hint={item.hint} />
+            ))}
+          </div>
+        ) : summaryError ? null : (
+          <div className="lw-card">
+            <Text as="p" tone="subdued" alignment="center">
+              Loading dashboard metrics...
+            </Text>
+          </div>
+        )}
+
+        <div className="lw-dashboard-main">
+          <section>
+            <p className="lw-section-title">Quick Access</p>
+            <div className="lw-grid lw-cols-2">
+              {quickActions.map((action) => (
+                <ActionTile
+                  key={action.path}
+                  label={action.label}
+                  hint={action.hint}
+                  onClick={() => goTo(action.path)}
+                />
+              ))}
+            </div>
+          </section>
+
+          <section>
+            <p className="lw-section-title">Priority Findings</p>
+            <div className="lw-card lw-findings-card">
+              {summary?.topFindings.length ? (
+                <div className="lw-findings-list">
+                  {summary.topFindings.map((finding) => (
+                    <div key={finding.id} className="lw-finding-row">
+                      <div className="lw-finding-copy">
+                        <Text as="p" variant="bodyMd">
+                          {finding.title}
+                        </Text>
+                        <Text as="span" tone="subdued" variant="bodySm">
+                          Detected recently
                         </Text>
                       </div>
-                      <Box paddingBlockStart="200">
-                        <div className="lw-summary-grid">
-                          {snapshot.map((item) => (
-                            <MetricCard key={item.label} label={item.label} value={item.value} />
-                          ))}
-                        </div>
-                      </Box>
-                      <Box paddingBlockStart="200">
-                        <div className="lw-list">
-                          {summary.topFindings.map((finding) => (
-                            <div key={finding.id} className="lw-list-item">
-                              <Badge tone="attention">Top finding</Badge>{' '}
-                              <Text as="span" variant="bodySm">
-                                {finding.title} ({finding.estimatedSavingsAmount} {finding.currency}
-                                )
-                              </Text>
-                            </div>
-                          ))}
-                        </div>
-                      </Box>
-                    </Box>
-                  </div>
-                ) : (
-                  <StatePanel
-                    kind="empty"
-                    title="No summary yet"
-                    message="Authenticate and upload billing evidence to populate your command center."
-                  />
-                )}
-
-                <div className="lw-surface">
-                  <Box padding="300">
-                    <div className="lw-title">
-                      <Text as="h3" variant="headingSm">
-                        Quick actions
-                      </Text>
+                      <Badge tone="critical">{`${finding.currency} ${finding.estimatedSavingsAmount}`}</Badge>
                     </div>
-                    <Box paddingBlockStart="200">
-                      <div className="lw-action-grid">
-                        {quickActions.map((action) => (
-                          <ActionTile
-                            key={action.path}
-                            label={action.label}
-                            hint={action.hint}
-                            onClick={() => goTo(action.path)}
-                          />
-                        ))}
-                      </div>
-                    </Box>
-                  </Box>
+                  ))}
                 </div>
-
-                <StoreSwitcher host={host} currentShop={shop} />
-                <Box paddingBlockStart="200">
-                  <Text as="p" variant="bodySm" tone="subdued">
-                    Keep `shop` and `host` aligned to avoid auth/session mismatch in embedded mode.
+              ) : (
+                <Box padding="400">
+                  <Text as="p" tone="subdued" alignment="center">
+                    No critical leaks detected.
                   </Text>
                 </Box>
-              </div>
-            </Box>
-          </Card>
-        </Layout.Section>
-      </Layout>
+              )}
+            </div>
+          </section>
+        </div>
+
+        <Text as="p" variant="bodySm" tone="subdued">
+          Keep `shop` and `host` aligned to avoid auth/session mismatch in embedded mode.
+        </Text>
+      </div>
     </Page>
   );
 }
