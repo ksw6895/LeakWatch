@@ -93,48 +93,69 @@ function AgencyShopDetailPageContent({ params }: AgencyShopDetailPageProps) {
   }, [host, params.shopId]);
 
   return (
-    <main style={{ padding: 24, maxWidth: 900, margin: '0 auto' }}>
-      <h1>Agency Shop Workspace</h1>
-      <p>
-        Shop ID: <code>{params.shopId}</code>
-      </p>
-      {!host ? <p>Missing host parameter. Re-open from Shopify Admin.</p> : null}
-      {error ? <p>{error}</p> : null}
+    <main className="lw-standalone-main">
+      <div className="lw-standalone-stack">
+        <section className="lw-standalone-card">
+          <span className="lw-eyebrow">Shop Workspace</span>
+          <div className="lw-title">
+            <h1>Agency shop details</h1>
+          </div>
+          <p className="lw-standalone-note">
+            Shop ID: <code>{params.shopId}</code>
+          </p>
+          {!host ? (
+            <p className="lw-standalone-alert">
+              Missing host parameter. Re-open from Shopify Admin.
+            </p>
+          ) : null}
+          {error ? <p className="lw-standalone-alert">{error}</p> : null}
 
-      {summary ? (
-        <section>
-          <h2>Summary</h2>
-          <p>
-            Spend: {summary.thisMonthSpend} {summary.currency}
-          </p>
-          <p>
-            Potential savings: {summary.potentialSavings} {summary.currency}
-          </p>
-          <p>Open actions: {summary.openActions}</p>
+          {summary ? (
+            <div className="lw-summary-grid">
+              <div className="lw-metric lw-metric--compact">
+                <div className="lw-metric-label">Spend</div>
+                <div className="lw-metric-value">
+                  {summary.thisMonthSpend} {summary.currency}
+                </div>
+              </div>
+              <div className="lw-metric lw-metric--compact">
+                <div className="lw-metric-label">Potential savings</div>
+                <div className="lw-metric-value">
+                  {summary.potentialSavings} {summary.currency}
+                </div>
+              </div>
+              <div className="lw-metric lw-metric--compact">
+                <div className="lw-metric-label">Open actions</div>
+                <div className="lw-metric-value">{summary.openActions}</div>
+              </div>
+            </div>
+          ) : null}
         </section>
-      ) : null}
 
-      <section>
-        <h2>Top Findings</h2>
-        {findings.length === 0 ? (
-          <p>No findings for this shop.</p>
-        ) : (
-          <ul>
-            {findings.slice(0, 10).map((finding) => (
-              <li key={finding.id}>
-                <Link href={withContext(`/app/leaks/${finding.id}`, host, shop)}>
-                  {finding.title}
-                </Link>{' '}
-                - {finding.status} - {finding.estimatedSavingsAmount} {finding.currency}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+        <section className="lw-standalone-card">
+          <div className="lw-title">
+            <h2>Top findings</h2>
+          </div>
+          {findings.length === 0 ? (
+            <p className="lw-standalone-note">No findings for this shop.</p>
+          ) : (
+            <ul className="lw-standalone-list">
+              {findings.slice(0, 10).map((finding) => (
+                <li key={finding.id}>
+                  <Link href={withContext(`/app/leaks/${finding.id}`, host, shop)}>
+                    {finding.title}
+                  </Link>{' '}
+                  - {finding.status} - {finding.estimatedSavingsAmount} {finding.currency}
+                </li>
+              ))}
+            </ul>
+          )}
 
-      <p>
-        <Link href={withContext('/agency/reports', host, shop)}>Back to agency reports</Link>
-      </p>
+          <div className="lw-standalone-links">
+            <Link href={withContext('/agency/reports', host, shop)}>Back to agency reports</Link>
+          </div>
+        </section>
+      </div>
     </main>
   );
 }

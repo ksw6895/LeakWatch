@@ -22,23 +22,30 @@ function AgencyLoginPageContent() {
   const shop = searchParams.get('shop');
 
   return (
-    <main style={{ padding: 24, maxWidth: 720, margin: '0 auto' }}>
-      <h1>Agency Workspace Login</h1>
-      <p>
-        Open this page from Shopify Admin so embedded session context is available. Access is
-        enforced server-side with tenant and role guards.
-      </p>
-      {!host ? (
-        <p>
-          Missing <code>host</code> parameter. Re-open from Shopify Admin Apps.
-        </p>
-      ) : (
-        <p>
-          Session context detected. Continue to{' '}
-          <Link href={withContext('/agency/reports', host, shop)}>agency reports</Link> or{' '}
-          <Link href={withContext('/app/agency', host, shop)}>embedded agency dashboard</Link>.
-        </p>
-      )}
+    <main className="lw-standalone-main">
+      <div className="lw-standalone-stack">
+        <section className="lw-standalone-card">
+          <span className="lw-eyebrow">Agency Access</span>
+          <div className="lw-title">
+            <h1>Agency Workspace Login</h1>
+          </div>
+          <p className="lw-standalone-note">
+            Open this page from Shopify Admin so embedded session context is available. Access is
+            enforced server-side with tenant and role guards.
+          </p>
+
+          {!host ? (
+            <p className="lw-standalone-alert">
+              Missing <code>host</code> parameter. Re-open from Shopify Admin Apps.
+            </p>
+          ) : (
+            <div className="lw-standalone-links">
+              <Link href={withContext('/agency/reports', host, shop)}>Agency reports</Link>
+              <Link href={withContext('/app/agency', host, shop)}>Embedded agency dashboard</Link>
+            </div>
+          )}
+        </section>
+      </div>
     </main>
   );
 }

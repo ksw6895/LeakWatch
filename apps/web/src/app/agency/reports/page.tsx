@@ -106,54 +106,69 @@ function AgencyReportsPageContent() {
   }, [host, selectedShopId]);
 
   return (
-    <main style={{ padding: 24, maxWidth: 960, margin: '0 auto' }}>
-      <h1>Agency Reports</h1>
-      {!host ? <p>Missing host parameter. Re-open from Shopify Admin.</p> : null}
-      {error ? <p>{error}</p> : null}
+    <main className="lw-standalone-main">
+      <div className="lw-standalone-stack">
+        <section className="lw-standalone-card">
+          <span className="lw-eyebrow">Agency Reports</span>
+          <div className="lw-title">
+            <h1>Cross-shop report access</h1>
+          </div>
+          {!host ? (
+            <p className="lw-standalone-alert">
+              Missing host parameter. Re-open from Shopify Admin.
+            </p>
+          ) : null}
+          {error ? <p className="lw-standalone-alert">{error}</p> : null}
 
-      <section>
-        <label htmlFor="shop-select">Shop</label>{' '}
-        <select
-          id="shop-select"
-          value={selectedShopId}
-          onChange={(event) => {
-            setSelectedShopId(event.target.value);
-          }}
-        >
-          {shops.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.displayName || item.shopifyDomain}
-            </option>
-          ))}
-        </select>
-      </section>
+          <div className="lw-standalone-field">
+            <label htmlFor="shop-select">Shop</label>
+            <select
+              id="shop-select"
+              className="lw-standalone-select"
+              value={selectedShopId}
+              onChange={(event) => {
+                setSelectedShopId(event.target.value);
+              }}
+            >
+              {shops.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.displayName || item.shopifyDomain}
+                </option>
+              ))}
+            </select>
+          </div>
+        </section>
 
-      <section>
-        <h2>Recent Reports</h2>
-        {reports.length === 0 ? (
-          <p>No reports found for selected shop.</p>
-        ) : (
-          <ul>
-            {reports.map((report) => (
-              <li key={report.id}>
-                {report.period} {new Date(report.periodStart).toLocaleDateString()} -{' '}
-                {new Date(report.periodEnd).toLocaleDateString()} |{' '}
-                <Link href={withContext(`/app/reports/${report.id}`, host, shop)}>
-                  Open in embedded UI
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+        <section className="lw-standalone-card">
+          <div className="lw-title">
+            <h2>Recent reports</h2>
+          </div>
+          {reports.length === 0 ? (
+            <p className="lw-standalone-note">No reports found for selected shop.</p>
+          ) : (
+            <ul className="lw-standalone-list">
+              {reports.map((report) => (
+                <li key={report.id}>
+                  <strong>{report.period}</strong>{' '}
+                  {new Date(report.periodStart).toLocaleDateString()} -{' '}
+                  {new Date(report.periodEnd).toLocaleDateString()} |{' '}
+                  <Link href={withContext(`/app/reports/${report.id}`, host, shop)}>
+                    Open in embedded UI
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
 
-      {selectedShopId ? (
-        <p>
-          <Link href={withContext(`/agency/shops/${selectedShopId}`, host, shop)}>
-            Open selected shop workspace
-          </Link>
-        </p>
-      ) : null}
+          {selectedShopId ? (
+            <div className="lw-standalone-links">
+              <Link href={withContext(`/agency/shops/${selectedShopId}`, host, shop)}>
+                Open selected shop workspace
+              </Link>
+            </div>
+          ) : null}
+        </section>
+      </div>
     </main>
   );
 }

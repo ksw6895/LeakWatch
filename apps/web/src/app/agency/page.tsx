@@ -79,44 +79,70 @@ function AgencyPortalPageContent() {
   }, [host]);
 
   return (
-    <main style={{ padding: 24, maxWidth: 960, margin: '0 auto' }}>
-      <h1>Agency Portal</h1>
-      <p>Cross-shop operations workspace with tenant-scoped summary and direct drill-down links.</p>
-      {!host ? (
-        <p>
-          Missing <code>host</code> parameter. Open from Shopify Admin to restore embedded context.
-        </p>
-      ) : null}
-      {error ? <p>{error}</p> : null}
+    <main className="lw-standalone-main">
+      <div className="lw-standalone-stack">
+        <section className="lw-standalone-card">
+          <span className="lw-eyebrow">Agency Portal</span>
+          <div className="lw-title">
+            <h1>Cross-shop operations workspace</h1>
+          </div>
+          <p className="lw-standalone-note">
+            Tenant-scoped summary and direct drill-down links for multi-shop operations.
+          </p>
 
-      {summary ? (
-        <section>
-          <h2>Organization Summary</h2>
-          <p>Shops: {summary.shopsCount}</p>
-          <p>Total spend: {summary.totalSpend}</p>
-          <p>Potential savings: {summary.potentialSavings}</p>
+          {!host ? (
+            <p className="lw-standalone-alert">
+              Missing <code>host</code> parameter. Open from Shopify Admin to restore embedded
+              context.
+            </p>
+          ) : null}
+
+          {error ? <p className="lw-standalone-alert">{error}</p> : null}
+
+          {summary ? (
+            <div className="lw-summary-grid">
+              <div className="lw-metric lw-metric--compact">
+                <div className="lw-metric-label">Connected shops</div>
+                <div className="lw-metric-value">{summary.shopsCount}</div>
+              </div>
+              <div className="lw-metric lw-metric--compact">
+                <div className="lw-metric-label">Total spend</div>
+                <div className="lw-metric-value">{summary.totalSpend}</div>
+              </div>
+              <div className="lw-metric lw-metric--compact">
+                <div className="lw-metric-label">Potential savings</div>
+                <div className="lw-metric-value">{summary.potentialSavings}</div>
+              </div>
+            </div>
+          ) : null}
         </section>
-      ) : null}
 
-      <section>
-        <h2>Operational Links</h2>
-        <ul>
-          <li>
+        <section className="lw-standalone-card">
+          <div className="lw-title">
+            <h2>Operational links</h2>
+          </div>
+          <div className="lw-standalone-links">
             <Link href={withContext('/agency/reports', host, shop)}>Agency reports</Link>
-          </li>
-          <li>
             <Link href={withContext('/app/agency', host, shop)}>Embedded agency dashboard</Link>
-          </li>
-          {summary?.topFindingsAcrossShops.slice(0, 5).map((finding) => (
-            <li key={finding.id}>
-              <Link href={withContext(`/agency/shops/${finding.shopId}`, host, shop)}>
-                {finding.title}
-              </Link>{' '}
-              - {finding.estimatedSavingsAmount} {finding.currency}
-            </li>
-          ))}
-        </ul>
-      </section>
+          </div>
+
+          {summary?.topFindingsAcrossShops.length ? (
+            <>
+              <p className="lw-standalone-note">Top findings across shops</p>
+              <ul className="lw-standalone-list">
+                {summary.topFindingsAcrossShops.slice(0, 5).map((finding) => (
+                  <li key={finding.id}>
+                    <Link href={withContext(`/agency/shops/${finding.shopId}`, host, shop)}>
+                      {finding.title}
+                    </Link>{' '}
+                    - {finding.estimatedSavingsAmount} {finding.currency}
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : null}
+        </section>
+      </div>
     </main>
   );
 }
