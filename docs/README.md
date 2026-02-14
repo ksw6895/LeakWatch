@@ -36,6 +36,7 @@
 - `docs/operations/INTEGRATIONS_SHOPIFY.md` - Shopify 통합 기준
 - `docs/operations/runbooks/step-00-04-setup-playbook.ko.md` - 초기 실전 설정
 - `docs/operations/runbooks/shopify-production-launch-checklist.ko.md` - 실서비스 출시 점검
+- `docs/operations/runbooks/hosted-testing-and-launch-guide.ko.md` - 로컬 탈출용 서버 배포/테스트/출시 종합 가이드
 - `docs/operations/runbooks/incident.md` - 장애 대응
 - `docs/operations/runbooks/data-deletion.md` - 데이터 삭제 처리
 - `docs/operations/runbooks/cost-guardrails.md` - 비용 가드레일
