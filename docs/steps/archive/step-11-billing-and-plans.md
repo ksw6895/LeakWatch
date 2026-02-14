@@ -16,4 +16,4 @@
 
 ## 현재 기준 문서
 
-- `docs/PRICING_AND_UNIT_ECONOMICS.md`
+- `docs/product/PRICING_AND_UNIT_ECONOMICS.md`

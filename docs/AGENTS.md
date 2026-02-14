@@ -54,5 +54,5 @@ pnpm db:deploy
 
 - `docs/README.md` is the navigation source for the documentation set; update it when adding/removing major docs.
 - Step and runbook documents should reference each other when they describe the same implementation phase.
-- Current implementation baseline is step-12, with step-13 documenting post-audit gap closure work; keep `docs/README.md` and root `README.md` in sync when step status changes.
+- Current implementation baseline includes step-13 completion; treat `docs/steps/step-13-non-step-gap-closure.md` as a completed record and keep `docs/README.md` and root `README.md` in sync when step status changes.
 - Root `pnpm db:*` scripts auto-load `.env`; prefer those commands in docs to reduce environment drift.

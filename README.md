@@ -1,7 +1,7 @@
 # LeakWatch
 
 LeakWatch는 Shopify 스토어의 구독/앱 비용 누수를 탐지하기 위한 SaaS입니다.
-현재 저장소는 monorepo(`web`/`api`/`worker`) 구조로 되어 있고, Step 0-12(Shopify OAuth + Embedded + 업로드 + 정규화 파이프라인 + 탐지 엔진 v1 + 증빙팩 + 액션 발송 추적 + 대시보드/리포트 + agency multi-store + billing/plans + hardening)까지 구현되어 있습니다.
+현재 저장소는 monorepo(`web`/`api`/`worker`) 구조로 되어 있고, Step 0-13(Shopify OAuth + Embedded + 업로드 + 정규화 파이프라인 + 탐지 엔진 v1 + 증빙팩 + 액션 발송 추적 + 대시보드/리포트 + agency multi-store + billing/plans + hardening + non-step gap closure)까지 구현되어 있습니다.
 
 ## Quick Start (로컬)
 
@@ -135,15 +135,10 @@ pnpm e2e:frontend:open -- --callback-url="https://<actual-domain>/app?shop=leakw
 - Step 10: Org-level summary/shops + connect code shop linking + store switcher + agency dashboard
 - Step 11: Billing current/subscribe/webhook + entitlement enforcement + billing settings UI
 - Step 12: Request ID/latency logging + rate limiting + LLM cache + CSP headers + Dependabot
+- Step 13: 문서-구현 갭 클로저(settings/action status/reopened/agency routes/analytics)
 
 ## 문서
 
 - 전체 문서 인덱스: `docs/README.md`
 - Step 0-4 실전 가이드: `docs/operations/runbooks/step-00-04-setup-playbook.ko.md`
 - 단계별 구현: `docs/steps/`
-
-## 지금 남은 핵심 작업(네 상태 기준)
-
-1. OpenAI API 키 설정(`OPENAI_API_KEY`) + 샘플 문서로 `/app/uploads` E2E 확인(create -> PUT -> complete -> EXTRACTED/NORMALIZED)
-2. 운영용 정확도 검증(샘플 10건 기준 normalize 성공률/누락률 측정)
-3. 실운영 키 설정 후 E2E smoke 및 운영 튜닝

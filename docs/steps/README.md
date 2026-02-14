@@ -2,6 +2,10 @@
 
 ## Active
 
+- 없음
+
+## Recently Completed
+
 - `docs/steps/step-13-non-step-gap-closure.md`
 
 ## Archive
