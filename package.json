@@ -5,6 +5,7 @@
   "packageManager": "pnpm@9.15.4",
   "scripts": {
     "dev": "turbo run dev --parallel",
+    "figma:export": "node scripts/with-root-env.mjs node scripts/figma-export.mjs",
     "e2e:frontend:bootstrap": "node scripts/frontend-e2e.mjs bootstrap",
     "e2e:frontend:prep": "node scripts/frontend-e2e.mjs prep",
     "e2e:frontend:links": "node scripts/frontend-e2e.mjs links",

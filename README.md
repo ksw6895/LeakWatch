@@ -1,5 +1,19 @@
 # LeakWatch
 
+## Figma Export (One Command)
+
+1. Run the exporter:
+
+```bash
+pnpm figma:export
+```
+
+2. Drag the `figma-export/png` folder directly into your Figma canvas.
+
+- Capture targets are auto-collected from `apps/web/src/app/**/page.tsx` and can be overridden in `snap.config.ts`.
+- Output artifacts are always written to `figma-export/manifest.json`, `figma-export/png/`, and `figma-export/report.md`.
+- Rendering/mocking failures do not crash the run; skipped/failed items are listed in `figma-export/report.md`.
+
 LeakWatch는 Shopify 스토어의 구독/앱 비용 누수를 탐지하기 위한 SaaS입니다.
 현재 저장소는 monorepo(`web`/`api`/`worker`) 구조로 되어 있고, Step 0-13(Shopify OAuth + Embedded + 업로드 + 정규화 파이프라인 + 탐지 엔진 v1 + 증빙팩 + 액션 발송 추적 + 대시보드/리포트 + agency multi-store + billing/plans + hardening + non-step gap closure)까지 구현되어 있습니다.
 
