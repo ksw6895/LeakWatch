@@ -38,11 +38,10 @@
 
 3. 코드 기준 확인 파일
 
-- `docs/steps/archive/step-00-assumptions-and-decisions.md`
-- `docs/steps/archive/step-01-repo-bootstrap.md`
-- `docs/steps/archive/step-02-shopify-auth-and-embedded-app.md`
-- `docs/steps/archive/step-03-core-db-and-multitenancy.md`
-- `docs/steps/archive/step-04-ingestion-upload-and-storage.md`
+- `README.md` (현재 구현 범위)
+- `docs/architecture/ARCHITECTURE.md`
+- `docs/architecture/INGESTION.md`
+- `docs/operations/INTEGRATIONS_SHOPIFY.md`
 - `.env.example`
 - `apps/api/src/config/env.ts`
 
@@ -447,12 +446,11 @@ pnpm dev
 
 ## 9. 관련 소스 맵(빠른 참조)
 
-- step 문서:
-- `docs/steps/archive/step-00-assumptions-and-decisions.md`
-- `docs/steps/archive/step-01-repo-bootstrap.md`
-- `docs/steps/archive/step-02-shopify-auth-and-embedded-app.md`
-- `docs/steps/archive/step-03-core-db-and-multitenancy.md`
-- `docs/steps/archive/step-04-ingestion-upload-and-storage.md`
+- 구현 범위 기준:
+- `README.md` (현재 구현 범위)
+- `docs/architecture/ARCHITECTURE.md`
+- `docs/architecture/INGESTION.md`
+- `docs/architecture/DATA_MODEL.md`
 - Shopify 통합 상세:
 - `docs/operations/INTEGRATIONS_SHOPIFY.md`
 - 업로드/파이프라인 상세:

@@ -155,4 +155,4 @@ pnpm e2e:frontend:open -- --callback-url="https://<actual-domain>/app?shop=leakw
 
 - 전체 문서 인덱스: `docs/README.md`
 - Step 0-4 실전 가이드: `docs/operations/runbooks/step-00-04-setup-playbook.ko.md`
-- 단계별 구현: `docs/steps/`
+- 구현 범위/이력: 본 README의 `현재 구현 범위` 섹션 + Git 커밋 히스토리

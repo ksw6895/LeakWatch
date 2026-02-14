@@ -34,7 +34,7 @@
 
 ※ Shopify App Store “검색” 항목은 실제 앱명을 확정하고 URL을 기록해야 한다.
 
-- 대안: /docs/steps/archive/step-11-billing-and-plans.md 에 “가격 리서치 작업”을 릴리즈 체크리스트로 포함한다(문서만으로도 실행 가능).
+- 대안: `docs/product/ROADMAP.md`의 릴리즈 체크리스트에 "가격 리서치 작업"을 분기 검증 항목으로 포함한다(문서만으로도 실행 가능).
 
 ---
 

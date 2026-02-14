@@ -23,8 +23,6 @@
 - `docs/engineering/FRONTEND_REVAMP_HYPER_VISOR.md` - 프론트 리뱀프 가이드
 - `docs/engineering/TESTING_QA.md` - 테스트/QA 기준
 - `docs/engineering/ANALYTICS_METRICS.md` - 이벤트/지표 설계
-- `docs/engineering/ultimate-guideline/README.ko.md` - Ultimate guideline 무손실 분할 인덱스
-- `docs/engineering/ultimate-guideline/07-meta-orchestration-guideline.ko.md` - 단계적 코드 에이전트 오케스트레이션 메타 가이드
 
 ## 4) 운영/보안/연동
 
@@ -44,15 +42,11 @@
 - `docs/api/ERROR_CODES.md` - 에러 코드
 - `docs/prompts/` - LLM 프롬프트 템플릿
 
-## 6) 단계 문서
+## 6) 구현 이력
 
-- 활성 단계: 없음
-- 최근 완료 단계: `docs/steps/step-13-non-step-gap-closure.md`
-- 완료/보관 단계: `docs/steps/archive/`
-
-## 7) 감사 리포트
-
-- `docs/audits/AUDIT_2026-02-13.ko.md`
+- 단계별 완료 요약/감사 스냅샷 문서는 2026-02-15 기준 정리됨
+- 현재 구현 범위는 루트 `README.md`의 "현재 구현 범위" 섹션을 기준으로 확인
+- 상세 변경 이력은 Git 커밋 로그를 기준으로 확인
 
 ## Quick Start
 
