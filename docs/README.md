@@ -23,6 +23,7 @@
 - `docs/engineering/FRONTEND_REVAMP_HYPER_VISOR.md` - 프론트 리뱀프 가이드
 - `docs/engineering/TESTING_QA.md` - 테스트/QA 기준
 - `docs/engineering/ANALYTICS_METRICS.md` - 이벤트/지표 설계
+- `docs/engineering/frontend-redesign-2026-02/` - 2026-02 프론트엔드 리디자인 분석/계획/실행 결과
 - `docs/engineering/ultimate-guideline/README.ko.md` - Ultimate guideline 무손실 분할 인덱스
 - `docs/engineering/ultimate-guideline/07-meta-orchestration-guideline.ko.md` - 단계적 코드 에이전트 오케스트레이션 메타 가이드
 - `docs/engineering/ultimate-guideline/08-p0-execution-checklist.ko.md` - P0 전용 실행 체크리스트
