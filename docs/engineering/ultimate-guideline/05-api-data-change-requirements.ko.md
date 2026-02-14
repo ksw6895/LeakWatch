@@ -11,7 +11,7 @@
   - response: 동일
 - RBAC:
   - read: OWNER/MEMBER/VIEWER/AGENCY_VIEWER (정책 확정)
-  - write: OWNER only (권장, 보안 문서 기준)
+  - write: OWNER/MEMBER (현재 구현 기준, billing write는 OWNER-only 유지)
 - 이벤트:
   - `settings.updated { shopId, fieldsChanged[] }`
 

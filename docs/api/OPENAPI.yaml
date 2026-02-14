@@ -169,6 +169,78 @@ paths:
         '200':
           description: Finding list
 
+  /v1/shops/{shopId}/summary:
+    get:
+      summary: Get shop-level dashboard summary metrics
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: shopId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Shop summary
+        '404':
+          description: Shop not found
+
+  /v1/billing/current:
+    get:
+      summary: Get current plan, limits, and usage
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: shopId
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Current billing status
+        '404':
+          description: Organization not found
+
+  /v1/billing/subscribe:
+    post:
+      summary: Subscribe to a plan and return confirmation URL
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: plan
+          required: false
+          schema:
+            type: string
+            enum:
+              - FREE
+              - STARTER
+              - PRO
+      responses:
+        '201':
+          description: Subscription accepted
+        '404':
+          description: Organization not found
+
+  /v1/billing/webhooks:
+    post:
+      summary: Process billing webhook updates
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '201':
+          description: Billing webhook processed
+        '404':
+          description: Invalid billing webhook payload
+
   /v1/orgs/{orgId}/shops:
     get:
       summary: List shops inside agency org workspace
@@ -496,6 +568,28 @@ paths:
         '200':
           description: Action request list
 
+  /v1/action-requests/inbound-parse/metrics:
+    get:
+      summary: Get inbound parsing quality metrics for manual feedback labels
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: shopId
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: windowDays
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 90
+      responses:
+        '200':
+          description: Inbound parse metrics
+
   /v1/action-requests/{id}:
     get:
       summary: Get action request detail
@@ -631,6 +725,55 @@ paths:
       responses:
         '200':
           description: Report list
+
+  /v1/reports/{id}:
+    get:
+      summary: Get report detail
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Report detail
+        '404':
+          description: Report not found
+
+  /v1/reports/generate:
+    post:
+      summary: Enqueue report generation for a shop and period
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: shopId
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: period
+          required: false
+          schema:
+            type: string
+            enum:
+              - WEEKLY
+              - MONTHLY
+        - in: query
+          name: force
+          required: false
+          schema:
+            type: boolean
+      responses:
+        '201':
+          description: Report generation queued
+        '403':
+          description: Report quota exceeded
+        '404':
+          description: Shop not found
 
   /v1/reports/{id}/export:
     get:
@@ -777,7 +920,40 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+  responses:
+    StandardError:
+      description: Standard API error envelope
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
   schemas:
+    ErrorResponse:
+      type: object
+      required:
+        - statusCode
+        - errorCode
+        - message
+        - path
+        - timestamp
+      properties:
+        statusCode:
+          type: integer
+        errorCode:
+          type: string
+          description: Stable machine-readable code
+          example: FILE_TOO_LARGE
+        message:
+          type: string
+          description: Human-readable error message
+          example: FILE_TOO_LARGE
+        path:
+          type: string
+          example: /v1/shops/shop_123/documents
+        timestamp:
+          type: string
+          format: date-time
+
     CreateDocumentUploadRequest:
       type: object
       required:

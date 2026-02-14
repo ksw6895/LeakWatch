@@ -8,6 +8,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { loadEnv } from './config/load-env';
 import { getApiEnv } from './config/env';
 import { AppModule } from './app.module';
+import { GlobalHttpExceptionFilter } from './filters/http-exception.filter';
 import { requestIdMiddleware } from './middleware/request-id.middleware';
 
 loadEnv();
@@ -46,6 +47,7 @@ async function bootstrap() {
       forbidUnknownValues: false,
     }),
   );
+  app.useGlobalFilters(new GlobalHttpExceptionFilter(logger));
 
   await app.listen(env.PORT);
 }

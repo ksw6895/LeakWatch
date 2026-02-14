@@ -30,6 +30,8 @@ describe.sequential('Shopify OAuth callback guards', () => {
     });
 
     expect(response.status).toBe(401);
+    expect(response.body.errorCode).toBe('INVALID_OR_EXPIRED_OAUTH_STATE');
+    expect(response.body.message).toBe('Invalid or expired OAuth state');
   });
 
   it('returns 401 when hmac is invalid even with valid state', async () => {

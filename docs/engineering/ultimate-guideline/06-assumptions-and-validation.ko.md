@@ -10,9 +10,10 @@
 
 2. ASSUMPTION: 에러 응답이 `{ errorCode, message }` 형태인지
 
-- 상태: 명시적 deferred
-- 현재 구현: 일부 도메인(예: 문서 버전 상태)은 `errorCode`를 저장/노출하지만, 전역 HTTP 에러 응답 스키마는 단일 표준으로 고정되지 않음
-- 후속 액션: 전역 exception filter + `docs/api/ERROR_CODES.md`/`docs/api/OPENAPI.yaml` 동기화 배치에서 통합 표준 확정
+- 상태: 검증 완료
+- 코드 근거: `apps/api/src/filters/http-exception.filter.ts`, `apps/api/src/main.ts`
+- 테스트 근거: `apps/api/test/documents-upload.spec.ts`, `apps/api/test/shopify-callback.spec.ts`
+- 문서 근거: `docs/api/ERROR_CODES.md`, `docs/api/OPENAPI.yaml`
 
 3. ASSUMPTION: AGENCY_ADMIN write 권한 범위(특히 approve/send)
 

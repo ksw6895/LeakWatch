@@ -161,7 +161,7 @@ API/백엔드 요구사항(Phase 0에서 “필수”만)
     - timezone (기본 Asia/Seoul)
   - 수용 기준:
     - GET/PATCH 성공/실패/로딩 상태 표준(StatePanel/Banner)
-    - OWNER만 수정 가능, MEMBER/VIEWER는 read-only + 이유 표시
+    - OWNER/MEMBER 수정 가능, VIEWER/AGENCY_VIEWER는 read-only + 이유 표시
 - API 요구:
   - `GET /v1/shops/:shopId/settings`
   - `PATCH /v1/shops/:shopId/settings` body: { contactEmail, currency, timezone }

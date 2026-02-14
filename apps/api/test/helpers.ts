@@ -1,9 +1,10 @@
-import { INestApplication } from '@nestjs/common';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { PrismaClient } from '@prisma/client';
 import { SignJWT } from 'jose';
 
 import { AppModule } from '../src/app.module';
+import { GlobalHttpExceptionFilter } from '../src/filters/http-exception.filter';
 
 export const prisma = new PrismaClient();
 
@@ -14,6 +15,14 @@ export async function createTestApp(): Promise<INestApplication> {
 
   const app = moduleRef.createNestApplication({ rawBody: true });
   app.setGlobalPrefix('v1');
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      forbidUnknownValues: false,
+    }),
+  );
+  app.useGlobalFilters(new GlobalHttpExceptionFilter());
   await app.init();
   return app;
 }

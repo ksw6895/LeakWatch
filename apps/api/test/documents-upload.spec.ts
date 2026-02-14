@@ -160,6 +160,8 @@ describe.sequential('Documents upload flow', () => {
       });
 
     expect(response.status).toBe(415);
+    expect(response.body.errorCode).toBe('UNSUPPORTED_MIME_TYPE');
+    expect(response.body.message).toBe('UNSUPPORTED_MIME_TYPE');
   });
 
   it('rejects oversized upload with 413', async () => {
@@ -188,5 +190,36 @@ describe.sequential('Documents upload flow', () => {
       });
 
     expect(response.status).toBe(413);
+    expect(response.body.errorCode).toBe('FILE_TOO_LARGE');
+    expect(response.body.message).toBe('FILE_TOO_LARGE');
+  });
+
+  it('returns standardized error envelope for malformed upload payload', async () => {
+    const org = await prisma.organization.create({ data: { name: 'Org Upload 4' } });
+    const shop = await prisma.shop.create({
+      data: {
+        orgId: org.id,
+        shopifyDomain: 'upload4.myshopify.com',
+        installedAt: new Date(),
+      },
+    });
+
+    const token = await createSessionToken({
+      sub: 'uploader-sub-4',
+      shopDomain: shop.shopifyDomain,
+    });
+
+    const response = await request(app.getHttpServer())
+      .post(`/v1/shops/${shop.id}/documents`)
+      .set('authorization', `Bearer ${token}`)
+      .send({
+        fileName: 'invoice.pdf',
+      });
+
+    expect(response.status).toBe(415);
+    expect(response.body.errorCode).toBe('UNSUPPORTED_MIME_TYPE');
+    expect(typeof response.body.message).toBe('string');
+    expect(typeof response.body.path).toBe('string');
+    expect(typeof response.body.timestamp).toBe('string');
   });
 });
