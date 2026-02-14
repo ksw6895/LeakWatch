@@ -49,6 +49,16 @@ export function EmbeddedLayoutClient({ children }: { children: React.ReactNode }
   return (
     <div className="lw-embedded-layout">
       <header className="lw-embedded-header">
+        <div className="lw-embedded-brand">
+          <span className="lw-embedded-brand-mark" aria-hidden="true">
+            LW
+          </span>
+          <div className="lw-embedded-brand-copy">
+            <span className="lw-embedded-brand-title">LeakWatch</span>
+            <span className="lw-embedded-brand-meta">Subscription intelligence</span>
+          </div>
+        </div>
+
         <nav className="lw-embedded-nav" aria-label="Primary">
           {NAV_ITEMS.map((item) => {
             const target = withContext(item.href, host, shop);
@@ -89,7 +99,7 @@ export function EmbeddedLayoutClient({ children }: { children: React.ReactNode }
         </div>
       ) : null}
 
-      {children}
+      <main className="lw-embedded-content">{children}</main>
     </div>
   );
 }

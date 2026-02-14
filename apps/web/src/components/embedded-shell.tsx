@@ -200,7 +200,7 @@ function Content() {
             ))}
           </div>
         ) : summaryError ? null : (
-          <div className="lw-card">
+          <div className="lw-card lw-empty-card">
             <Text as="p" tone="subdued" alignment="center">
               Loading dashboard metrics...
             </Text>
@@ -208,9 +208,9 @@ function Content() {
         )}
 
         <div className="lw-dashboard-main">
-          <section>
+          <section className="lw-dashboard-section">
             <p className="lw-section-title">Quick Access</p>
-            <div className="lw-grid lw-cols-2">
+            <div className="lw-action-grid">
               {quickActions.map((action) => (
                 <ActionTile
                   key={action.path}
@@ -222,7 +222,7 @@ function Content() {
             </div>
           </section>
 
-          <section>
+          <section className="lw-dashboard-section">
             <p className="lw-section-title">Priority Findings</p>
             <div className="lw-card lw-findings-card">
               {summary?.topFindings.length ? (
@@ -252,9 +252,9 @@ function Content() {
           </section>
         </div>
 
-        <Text as="p" variant="bodySm" tone="subdued">
+        <p className="lw-footnote">
           Keep `shop` and `host` aligned to avoid auth/session mismatch in embedded mode.
-        </Text>
+        </p>
       </div>
     </Page>
   );

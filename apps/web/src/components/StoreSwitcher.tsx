@@ -1,6 +1,6 @@
 'use client';
 
-import { Box, Select, Text } from '@shopify/polaris';
+import { Select } from '@shopify/polaris';
 import { useEffect, useMemo, useState } from 'react';
 
 import { apiFetch } from '../lib/api/fetcher';
@@ -48,21 +48,22 @@ export function StoreSwitcher({
   }
 
   return (
-    <Box paddingBlockStart="300">
-      <Text as="p" variant="bodySm" tone="subdued">
-        Store
-      </Text>
-      <Select
-        label="Store"
-        labelHidden
-        options={options}
-        value={currentShop}
-        onChange={(value) => {
-          const next = new URL(window.location.href);
-          next.searchParams.set('shop', value);
-          window.location.assign(next.toString());
-        }}
-      />
-    </Box>
+    <aside className="lw-store-switcher" aria-label="Store selector">
+      <p className="lw-store-switcher-label">Store scope</p>
+      <p className="lw-store-switcher-value">{currentShop}</p>
+      <div className="lw-store-switcher-control">
+        <Select
+          label="Store"
+          labelHidden
+          options={options}
+          value={currentShop}
+          onChange={(value) => {
+            const next = new URL(window.location.href);
+            next.searchParams.set('shop', value);
+            window.location.assign(next.toString());
+          }}
+        />
+      </div>
+    </aside>
   );
 }
