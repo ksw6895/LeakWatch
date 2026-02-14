@@ -1,16 +1,16 @@
 import './globals.css';
 
 import type { Metadata } from 'next';
-import { Public_Sans, Space_Grotesk } from 'next/font/google';
+import { Arimo } from 'next/font/google';
 import type { ReactNode } from 'react';
 
-const bodyFont = Public_Sans({
+const bodyFont = Arimo({
   subsets: ['latin'],
   display: 'swap',
   variable: '--lw-font-body',
 });
 
-const displayFont = Space_Grotesk({
+const displayFont = Arimo({
   subsets: ['latin'],
   display: 'swap',
   variable: '--lw-font-display',
