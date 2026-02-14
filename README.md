@@ -72,6 +72,54 @@ ngrok http --domain=<your-reserved-ngrok-domain> 3000
 https://<ngrok-domain>/v1/shopify/auth/start?shop=<your-shop>.myshopify.com
 ```
 
+### 프론트 수동 E2E 단축 실행 (Mailgun 제외)
+
+export 여러 줄을 매번 입력하지 않도록 단축 스크립트를 추가했다.
+
+1. 기본 부트스트랩 (한 번 실행)
+
+```bash
+pnpm e2e:frontend:bootstrap
+```
+
+- 내부적으로 `docker compose up -d postgres redis`, `pnpm install`, `pnpm db:deploy`를 실행한다.
+- 마지막에 `pnpm dev`는 별도 터미널에서 실행하면 된다(장시간 실행 프로세스).
+
+2. ngrok 실행 (별도 터미널)
+
+```bash
+ngrok http --domain=<reserved-domain> 3000
+```
+
+실제 공개 URL 확인(placeholder 없이):
+
+```bash
+curl -s "http://127.0.0.1:4040/api/tunnels" | jq -r '.tunnels[] | select(.proto=="https") | .public_url'
+```
+
+3. `.env` URL 3종 동기화 + OAuth 시작 URL 자동 준비
+
+```bash
+pnpm e2e:frontend:prep -- --shop-domain=leakwatch-dev-01.myshopify.com
+```
+
+- `--public-url`를 생략하면 ngrok API(`127.0.0.1:4040`)에서 HTTPS URL을 자동 감지한다.
+- `.env`의 `SHOPIFY_APP_URL`, `API_BASE_URL`, `NEXT_PUBLIC_API_URL`를 같은 값으로 맞춘다.
+- Shopify Partner Dashboard에 넣을 App URL/Redirect/Webhook URL도 함께 출력한다.
+
+4. OAuth 완료 후 콜백 URL 그대로 붙여넣어 프론트 페이지 일괄 오픈
+
+```bash
+pnpm e2e:frontend:open -- --callback-url="https://<actual-domain>/app?shop=leakwatch-dev-01.myshopify.com&host=<actual-host>"
+```
+
+- `/app`, `/app/uploads`, `/app/leaks`, `/app/actions`, `/app/reports`, `/app/settings`, `/app/settings/billing`, `/app/agency`, `/agency/login`, `/agency/reports`를 연다.
+
+참고:
+
+- `pnpm build`는 로컬 프론트 체험용 수동 E2E에 필수는 아니다(CI/릴리스 검증용).
+- `MAILGUN_*`가 비어 있으면 Approve-and-send는 `MAILGUN_NOT_CONFIGURED`로 실패할 수 있고, 이 저장소에서는 정상 동작이다.
+
 ## 현재 구현 범위
 
 - Step 00: 가정/결정 문서화
